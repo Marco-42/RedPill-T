@@ -1,0 +1,56 @@
+ULTIMO AGGIORNAMENTO APPUNTI: 30 - 12 -2024
+
+--------------------------------------
+APPUNTI MODULO LORA - Lora1268F30  
+--------------------------------------
+Frequenza centrale -> 433/490 MHz 
+Frequenza variabile -> 410-810 MHz
+Frequenza RedPill: 432-438 MHz
+Trasferimento dati(da - a): 0.018 - 62.5 Kbps
+Voltaggio minimo: 3 V
+Voltaggio massimo: 6.5 V
+
+--------------------------------------
+APPUNTI SUI PARAMETRI DI TRASMISSIONE
+--------------------------------------
+Spreading factor:
+Controlla la velocità di trasmissione dei dati variando da SF7 a SF12. 
+Valori di SF bassi(SF7) implicano una trasmissione dei pacchetti più rapida a discapito di una minore portata del segnale
+Valori di SF grandi(SF12) aumentano la portata della trasmissione diminuendone la velocità
+Nel nostro caso usiamo un SF: 10 
+(Link utile: https://tektelic.com/what-it-is/spreading-factor/)
+
+Code rate:
+E' il rapporto tra il numero di bit da inviare e quelli effettivamente inviati
+Influenza la velocità della trasmissione e la difficoltà di gestione dei pacchetti
+Nel nostro caso usiamo un CR: 4/8
+(x, y) --> ogni x bit di informazione il codificatore trasmette y bit di cui y-x rindondati
+(Link utile: https://www.thethingsnetwork.org/docs/lorawan/fec-and-code-rate/)
+
+Parametri possibili della potenza di trasmissione in dBm
+int8_t power_table[32]={-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}
+
+Parametri possibili spreading factor 
+uint8_t sf_table[8]={LORA_SF5,LORA_SF6,LORA_SF7,LORA_SF8,LORA_SF9,LORA_SF10,LORA_SF11,LORA_SF12}
+
+Parametri possibili lunghezza di banda
+uint8_t bw_table[10]={LORA_BW_7,LORA_BW_10,LORA_BW_15,LORA_BW_20,LORA_BW_31,LORA_BW_41,LORA_BW_62,LORA_BW_125,LORA_BW_250,LORA_BW_500}
+
+Parametri possibili del code rate 
+uint8_t cr_table[4]={LORA_CR_4_5,LORA_CR_4_6,LORA_CR_4_7,LORA_CR_4_8}
+
+--------------------------------------
+APPUNTI SENSORI
+--------------------------------------
+(Link utile: https://newbiely.com/tutorials/arduino-nano/arduino-nano-dht11) --> non regge basse temperature
+Servirà isolare termicamente arduino(regge fino a temperature di -40°C, ma sono previste temperature ad alta quota fino a -60)
+DS18B20 --> Sensore di temperatura(supporta fino a -55°C) --> (Link utile: https://randomnerdtutorials.com/guide-for-ds18b20-temperature-sensor-with-arduino/)
+E' permesso mettere in serie più sensori dello stesso tipo(ciascuno è univocamente identificato da un codice seriale)
+--------------------------------------
+APPUNTI PROGRAMMA
+--------------------------------------
+C++ aggiunge un byte di terminazione alla stringa, la dimensione di tx non sarà quindi di 5 byte ma di 6(ad ogni carattere è associato un byte)
+Si può modificare a piacimento il numero di tentativi per l'acquisizione dei dati relativi alla temperatura
+Si potrebbe implementare un altimetro ed inviare anche l'altezza alla quale il messaggio viene inviato
+Si potrebbe inserire un meccanismo di saving dei dati su una sd esterna in modo da non perdere eventuali dati non trasmessi
+5 o 6?
