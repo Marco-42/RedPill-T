@@ -44,7 +44,6 @@ loRa_Para_t	lora_para;	//Struct dei parametri--> Parametri di comunciazione(da s
 uint8_t state;
 int conta = 0; 
 int verifica = 0;
-float umidita = 0; 
 float temperatura = 0;
 uint8_t tx[] = "00000";
 String vettore;
