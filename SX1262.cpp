@@ -276,7 +276,7 @@ power:
 
 RampTime:
 -------------------------------------
-RampTime 	  | Value | RampTime(¦Ìs)
+RampTime 	  | Value | RampTime(ï¿½ï¿½s)
 -------------------------------------
 SET_RAMP_10U    0x00    10
 SET_RAMP_20U    0x01    20
@@ -588,7 +588,7 @@ void SX1262::SetDIO3AsTCXOCtrl(uint8_t tcxoVoltage)
 	SPI_NSS_LOW();
 	spi_rw(Opcode);
 	spi_rw(tcxoVoltage);   //
-	spi_rw(0x00);		   //Timeout MSB ; Timeout duration = Timeout *15.625 ¦Ìs
+	spi_rw(0x00);		   //Timeout MSB ; Timeout duration = Timeout *15.625 ï¿½ï¿½s
 	spi_rw(0x00);
 	spi_rw(0x64);          //Timeout LSB
 	
