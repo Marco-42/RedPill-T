@@ -106,6 +106,7 @@ void setup() {
 void loop() {
 
 // trasmetto il pacchetto successivo solo se si è conclusa la trasmissione del precedente
+// Se è stata conclusa viene eseguita la funzione setFlag che imposta check_com = true
   if(check_com) {
     // resetto il valore di check_com
     check_com = false;
@@ -152,7 +153,5 @@ void loop() {
   // trasmetto il pacchetto 
   comunication_state = radio1.startTransmit(str);
 
-  // verifico se la trasmissione precedente è avvenuta
-  // Se è stata conclusa viene eseguita la funzione setFlag che imposta check_com = true
   }
 }
