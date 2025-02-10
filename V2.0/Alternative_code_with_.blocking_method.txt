@@ -58,7 +58,7 @@ void setup() {
   // imposto il limite di sicurezza per la corrente a 60 mA --> impostare a 0 mA per annullare il limite di sicurezza
   // verifico se l'impostazione è avvenuta correttamente
   if (radio1.setCurrentLimit(60) == RADIOLIB_ERR_INVALID_CURRENT_LIMIT) {
-    Serial.println(F("Selected current limit is invalid for this module!"));
+    Serial.println(F("SETTING FAILED: valore della corrente limite non compatibile con il modello impiegato"));
 
   //  blocco il programma nel caso di fallimento fino a quando l'utente non forza il riavvio
     while (true) { delay(10); }
