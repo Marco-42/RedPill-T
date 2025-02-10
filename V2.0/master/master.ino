@@ -26,6 +26,28 @@
 // DIO1 pin: RADIOLIB_NC --> non dato
 SX1278 radio1 = new Module(18, 26, 23, RADIOLIB_NC);
 
+// definisco alcune variabili utili per la gestione della comunicazione in modalità interrupt
+// la ricezione o la trasmissione dei pacchetti non blocca l'esecuzione del programma
+// comunication_state salva lo stato della trasmissione
+int comunication_state = RADIOLIB_ERR_NONE;
+
+// check_com indica se la trasmissione è terminata 
+// viene impostata su false se la trasmissione deve ancora essere ultimata 
+volatile bool check_com = false;
+
+// la seguente riga di codice ottimizza l'esecuzione del programma per l'impiego di esp32
+#if defined(ESP8266) || defined(ESP32)
+  ICACHE_RAM_ATTR
+#endif
+
+// la funzione setFlag imposta come true la variabile check_com quando viene richiamata
+void setFlag(void) {
+  check_com = true;
+}
+
+// contatore pacchetti trasmessi
+int conta = 0;
+
 void setup() {
 
   // inizializzo la porta seriale
@@ -45,11 +67,13 @@ void setup() {
   //frequency - bandwidth - spreading factor - coding rate - sync word - output power -  preamble length - gain
   int state = radio1.begin(433.0, 125.0, 10, 8, 0x12, 10, 8, 1);
 
-  // verifico se l'inizializzazione del modulo è avvenuta correttamente
+  // verifico se l'inizializzazione del modulo è avvenuta correttamente(state memorizza lo stato dell'inizializzazione)
   if (state == RADIOLIB_ERR_NONE) {
     Serial.println(F("Starting procedure COMPLETE"));
   } else {
     Serial.print(F("Starting procedure FAILED"));
+    // mando a schermo lo stato di errore della trasmissione
+    Serial.println(state);
 
   // blocco il programma nel caso di fallimento nell'inizializzazione del modulo(fino a quando l'utente non forza il riavvio)
     while (true) { delay(10); }
@@ -58,63 +82,77 @@ void setup() {
   // imposto il limite di sicurezza per la corrente a 60 mA --> impostare a 0 mA per annullare il limite di sicurezza
   // verifico se l'impostazione è avvenuta correttamente
   if (radio1.setCurrentLimit(60) == RADIOLIB_ERR_INVALID_CURRENT_LIMIT) {
-    Serial.println(F("Selected current limit is invalid for this module!"));
+    Serial.println(F("SETTING FAILED: valore della corrente limite non compatibile con il modello impiegato"));
 
   //  blocco il programma nel caso di fallimento fino a quando l'utente non forza il riavvio
     while (true) { delay(10); }
   }
 
-}
+  // imposto la funzione che verrà richiamata quando la trasmissione finisce
+  // se la trasmissione si conclude correttamente verrà poi eseguita la funzione setFlag
+  radio1.setPacketSentAction(setFlag);
 
-// contatore pacchetti trasmessi
-int conta = 0;
-
-// Eseguo una trasmissione in blocking(trasmetto un pacchetto dati alla volta ed attendo la fine della trasmissione)
-void loop() {
-  Serial.print(F("[SX1278] Trasmissione: "));
+  // effettuo la prima trasmissione
+  Serial.print(F("[SX1278] TRASMISSIONE: "));
 
   // creo una stringa contenente un messaggio testuale ed il numero della trasmissione
-  String str = "Hello World! " + String(conta++);
+  String str = "Hello World! - " + String(conta);
 
   // trasmetto il pacchetto 
-  int state = radio1.transmit(str);
+  comunication_state = radio1.startTransmit(str);
+}
 
-  // per gestire il messaggio a partire dai singoli bit: 
-  /*
-    byte byteArr[] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
-    int state = radio.transmit(byteArr, 8);
-  */
-  
-  // verifico lo stato della trasmissione del pacchetto
-  // durante questa fase il programma si blocca ed aspetta l'avvenuta trasmissione
-  if (state == RADIOLIB_ERR_NONE) {
-    // se la trasmissione è avvenuta correttamente
-    Serial.println(F("Trasmissione completata: "));
+// Eseguo una trasmissione(trasmetto un pacchetto dati alla volta senza bloccare l'esecuzione del programma)
+void loop() {
 
-    // Mando a schermo le informazioni sulla velocità della trasmissione
-    Serial.print(F("[SX1278] Velocità trasmissione:\t"));
-    Serial.print(radio1.getDataRate());
-    Serial.println(F(" bps"));
+// trasmetto il pacchetto successivo solo se si è conclusa la trasmissione del precedente
+  if(check_com) {
+    // resetto il valore di check_com
+    check_com = false;
 
-   // se la trasmissione è fallita mando a schermo il messaggio d'errore
-  } else if (state == RADIOLIB_ERR_PACKET_TOO_LONG) {
-    // Se il pacchetto dati è troppo lungo(supera i 256 bit)
-    Serial.println(F("Trasmissione fallita(>256bit)"));
+  // verifico lo stato della trasmissione precedente
+   if (comunication_state == RADIOLIB_ERR_NONE) {
+      // se la trasmissione è avvenuta correttamente
+      Serial.println(F("Trasmissione completata: "));
 
-  } else if (state == RADIOLIB_ERR_TX_TIMEOUT) {
-    // Se la trasmissione non si verifica correttamente avviene il timeout della trasmissione
-    Serial.println(F("Trasmissione fallita(TIMEOUT)"));
+  // se la trasmissione è fallita mando a schermo il messaggio d'errore
+    } else if (comunication_state == RADIOLIB_ERR_PACKET_TOO_LONG) {
+      // Se il pacchetto dati è troppo lungo(supera i 256 bit)
+      Serial.println(F("Trasmissione fallita(>256bit)"));
 
-  } else {
-    // se si sono verificati altri errori durante la trasmissione
-    Serial.print(F("TRASMISSIONE FALLITA - Stato: "));
-    Serial.println(state);
+    } else if (comunication_state == RADIOLIB_ERR_TX_TIMEOUT) {
+      // Se la trasmissione non si verifica correttamente avviene il timeout della trasmissione
+      Serial.println(F("Trasmissione fallita(TIMEOUT)"));
 
-  }
+    } else {
+      // se si sono verificati altri errori durante la trasmissione
+      Serial.print(F("TRASMISSIONE FALLITA - Stato: "));
+      Serial.println(comunication_state);
+
+    }
+
+  // concludo definitivamente la trasmissione 
+  radio1.finishTransmit();
 
   // Tra una trasmissione e l'altra attendo 5 secondi
   delay(5000);
 
+  // effettuo la nuova trasmissione
+  Serial.print(F("[SX1278] TRASMISSIONE: "));
 
+  // creo una stringa contenente un messaggio testuale ed il numero della trasmissione
+  String str = "Hello World! - " + String(conta++);
 
+  // per gestire il messaggio a partire dai singoli bit: 
+  /*
+    byte byteArr[] = {0x01, 0x23, 0x45, 0x67,0x89, 0xAB, 0xCD, 0xEF};
+      comunication_state = radio1.startTransmit(byteArr, 8);
+  */
+
+  // trasmetto il pacchetto 
+  comunication_state = radio1.startTransmit(str);
+
+  // verifico se la trasmissione precedente è avvenuta
+  // Se è stata conclusa viene eseguita la funzione setFlag che imposta check_com = true
+  }
 }
