@@ -1,4 +1,9 @@
 /*
+
+---------------------------
+	MASTER CODE
+---------------------------
+
   Programma di trasmissione per il modulo SX1278 usando la libreria RadioLib 
   Scheda usata: TTGO LoRa32 T3_V1.6.1 433 MHz
 
