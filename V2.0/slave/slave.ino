@@ -20,10 +20,10 @@
 #include <RadioLib.h>
 
 // imposto i pin del modulo lora SX1278
-// NSS pin:   18
+// CS pin:   18
 // DIO0 pin:  26
 // RESET pin: 23
-// DIO1 pin: RADIOLIB_NC --> non dato
+// DIO1 pin: RADIOLIB_NC --> non dato (33?)
 SX1278 radio1 = new Module(18, 26, 23, RADIOLIB_NC);
 
 // definisco alcune variabili utili per la gestione della comunicazione in modalità interrupt
