@@ -23,8 +23,8 @@
 // CS pin:   18
 // DIO0 pin:  26
 // RESET pin: 23
-// DIO1 pin: RADIOLIB_NC --> non dato (33?)
-SX1278 radio1 = new Module(18, 26, 23, RADIOLIB_NC);
+// DIO1 pin: 33 RADIOLIB_NC
+SX1278 radio1 = new Module(18, 26, 23, 33);
 
 // definisco alcune variabili utili per la gestione della comunicazione in modalità interrupt
 // la ricezione o la trasmissione dei pacchetti non blocca l'esecuzione del programma
