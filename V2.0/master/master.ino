@@ -23,8 +23,8 @@
 // CS pin:   18
 // DIO0 pin:  26
 // RESET pin: 23
-// DIO1 pin: RADIOLIB_NC --> non dato (33?)
-SX1278 radio1 = new Module(18, 26, 23, RADIOLIB_NC);
+// DIO1 pin: 33 RADIOLIB_NC
+SX1278 radio1 = new Module(18, 26, 23, 33);
 
 // definisco alcune variabili utili per la gestione della comunicazione in modalità interrupt
 // la ricezione o la trasmissione dei pacchetti non blocca l'esecuzione del programma
@@ -114,7 +114,7 @@ void loop() {
   // verifico lo stato della trasmissione precedente
    if (comunication_state == RADIOLIB_ERR_NONE) {
       // se la trasmissione è avvenuta correttamente
-      Serial.println(F("Trasmissione completata: "));
+      Serial.println(F("Trasmissione completata"));
 
   // se la trasmissione è fallita mando a schermo il messaggio d'errore
     } else if (comunication_state == RADIOLIB_ERR_PACKET_TOO_LONG) {
@@ -142,7 +142,7 @@ void loop() {
   Serial.print(F("[SX1278] TRASMISSIONE: "));
 
   // creo una stringa contenente un messaggio testuale ed il numero della trasmissione
-  String str = "Hello World! - " + String(conta++);
+  String str = "Hello World! - " + String(++conta);
 
   // per gestire il messaggio a partire dai singoli bit: 
   /*
