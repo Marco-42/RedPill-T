@@ -274,7 +274,7 @@ ICACHE_RAM_ATTR void packetReceived(void)
 #define TX_PACKET_SIZE 8
 
 // Handles
-// TaskHandle_t RTOS_TX_manager_handle;
+TaskHandle_t RTOS_TX_manager_handle;
 QueueHandle_t RTOS_TX_queue;
 
 // Main task
@@ -296,8 +296,15 @@ void TX_manager(void *parameter)
 		// Start transmission
 		Serial.print("Transmitting ... ");
 		tx_state = radio1.startTransmit(tx_packet, TX_PACKET_SIZE);
-
 		
+		// tx_state = radio1.transmit(tx_packet, TX_PACKET_SIZE);
+		// tx_state = radio1.transmit("XXXX");
+		// if (tx_state == RADIOLIB_ERR_NONE) {
+		// 	Serial.println("Packet sent successfully!");
+		// } else {
+		// 	Serial.print("Transmit failed, error: ");
+		// 	Serial.println(tx_state);
+		// }
 
 		// Wait for transmission to end
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -381,7 +388,10 @@ void serial_manager(void *parameter)
 			uint8_t packet_size = min(TX_PACKET_SIZE, (int) data.length() - i * TX_PACKET_SIZE);
 
 			// Copy data to the packet
-			data.getBytes(packet, packet_size, i * TX_PACKET_SIZE);
+			data.getBytes(packet, packet_size + 1, i * TX_PACKET_SIZE);
+
+			// Debug
+			Serial.println("Packet " + String(i) + ": " + String((char*) packet));
 
 			// Send packet to TX queue
 			xQueueSend(RTOS_TX_queue, &packet, portMAX_DELAY); // Send the packet to the TX queue
