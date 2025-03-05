@@ -253,6 +253,8 @@ ICACHE_RAM_ATTR void packetIncoming(void)
 // Notify radio task that packet has been received
 ICACHE_RAM_ATTR void packetReceived(void)
 {
+	Serial.println("Packet received ISR");
+
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
 
@@ -272,7 +274,7 @@ ICACHE_RAM_ATTR void packetReceived(void)
 #define TX_PACKET_SIZE 8
 
 // Handles
-TaskHandle_t RTOS_TX_manager_handle;
+// TaskHandle_t RTOS_TX_manager_handle;
 QueueHandle_t RTOS_TX_queue;
 
 // Main task
@@ -294,6 +296,8 @@ void TX_manager(void *parameter)
 		// Start transmission
 		Serial.print("Transmitting ... ");
 		tx_state = radio1.startTransmit(tx_packet, TX_PACKET_SIZE);
+
+		
 
 		// Wait for transmission to end
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -319,6 +323,7 @@ void TX_manager(void *parameter)
 // Notify TX task that packet has been sent
 ICACHE_RAM_ATTR void packetSent(void)
 {
+	Serial.println("Packet sent ISR");
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
 
@@ -351,11 +356,21 @@ void serial_manager(void *parameter)
 			vTaskDelay(100);
 		}
 		
+		// debug
+		Serial.println("Data available on serial port");
+
 		// Read the data from the serial port
 		data = Serial.readStringUntil('\n');
 		
+		// debug
+
 		// Create packet(s) from user input
-		uint8_t packets_needed = ceil(data.length() / TX_PACKET_SIZE); // calculate the number of packets needed
+		uint8_t packets_needed = ceil((float) data.length() / TX_PACKET_SIZE); // calculate the number of packets needed
+		
+		// debug
+		Serial.println("Data read: " + data);
+		Serial.println("Data length: " + String(data.length()));
+		Serial.println("Packets needed: " + String(packets_needed));
 
 		for (uint8_t i = 0; i < packets_needed; i++)
 		{
@@ -368,6 +383,7 @@ void serial_manager(void *parameter)
 			// Copy data to the packet
 			data.getBytes(packet, packet_size, i * TX_PACKET_SIZE);
 
+			// Send packet to TX queue
 			xQueueSend(RTOS_TX_queue, &packet, portMAX_DELAY); // Send the packet to the TX queue
 		}
 		
@@ -384,10 +400,11 @@ void setup()
 {
 	// Initialize serial port
 	Serial.begin(9600);
-  delay(2000);
+	Serial.println(" ");
+	delay(2000);
 
 	Serial.println("Booting...");
-  delay(2000);
+	delay(1000);
 
 	// Initialize SX1278 with default settings
 	Serial.print("[SX1278] Initializing ... ");
@@ -397,38 +414,39 @@ void setup()
 	// Report radio status
 	printRadioStatus(state, true);
 
-	// // Set ISRs to be called when packets are sent or received
-	// radio1.setPacketSentAction(packetSent);
-	// // radio1.setDio0Action(setFlagTimeout, RISING); // LoRa preamble not detected
-	// // radio1.setDio1Action(setFlagDetected, RISING); // LoRa preamble detected
-	// radio1.setPacketReceivedAction(packetReceived);
+	// Set ISRs to be called when packets are sent or received
+	radio1.setPacketSentAction(packetSent);
+	// radio1.setDio0Action(packetSent, RISING);
+	// radio1.setDio0Action(setFlagTimeout, RISING); // LoRa preamble not detected
+	// radio1.setDio1Action(setFlagDetected, RISING); // LoRa preamble detected
+	radio1.setPacketReceivedAction(packetReceived);
 
 	// FreeRTOS task creation
 
 	// xTaskCreate(
-		//	time_display_update,	// Function that should be called
-		//	"Time display update",	 // Name of the task (for debugging)
-		//	1000,			// Stack size (bytes)
-		//	NULL,			// Parameter to pass
-		//	1,				 // Task priority, higher number = higher priority
-		//	&time_display_update_handle			 // Task handle
-		//	);
+	// 		time_display_update,	// Function that should be called
+	// 		"Time display update",	 // Name of the task (for debugging)
+	// 		1000,			// Stack size (bytes)
+	// 		NULL,			// Parameter to pass
+	// 		1,				 // Task priority, higher number = higher priority
+	// 		&time_display_update_handle			 // Task handle
+	// 		);
 
-		// uxTaskGetStackHighWaterMark() to get maximum stack size for task
+	// 	uxTaskGetStackHighWaterMark() to get maximum stack size for task
 
-		// RTOS_semaphore = xSemaphoreCreateMutex();
-		// RTOS_queue = xQueueCreate(1, sizeof(uint8_t));
+	// 	RTOS_semaphore = xSemaphoreCreateMutex();
+	// 	RTOS_queue = xQueueCreate(1, sizeof(uint8_t));
 
 
 	// RX manager task
-	// xTaskCreate(RX_manager, "RX manager", 2000, NULL, 1, &RTOS_RX_manager_handle);
+	xTaskCreate(RX_manager, "RX manager", 2000, NULL, 2, &RTOS_RX_manager_handle);
 
-	// // TX manager task
-	// RTOS_TX_queue = xQueueCreate(5, 64); // 5 packets of 64 bytes max
-	// xTaskCreate(TX_manager, "TX manager", 2000, NULL, 2, &RTOS_TX_manager_handle);
+	// TX manager task
+	RTOS_TX_queue = xQueueCreate(5, 64); // 5 packets of 64 bytes max
+	xTaskCreate(TX_manager, "TX manager", 2000, NULL, 3, &RTOS_TX_manager_handle);
 
-  // // Serial manager task
-	// xTaskCreate(serial_manager, "Serial manager", 2000, NULL, 0, &RTOS_serial_handle);
+ 	// Serial manager task
+	xTaskCreate(serial_manager, "Serial manager", 2000, NULL, 1, &RTOS_serial_handle);
 
 }
 
@@ -439,8 +457,8 @@ void setup()
 void loop()
 {
 	
-	Serial.println("Still alive!");
-	delay(10000);
+	// Serial.println("Waiting...");
+	// delay(10000);
 	// // Main loop
 	// // Wait for user input
 	// Serial.println("Enter message to send: ");
