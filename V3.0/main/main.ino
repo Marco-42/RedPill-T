@@ -45,6 +45,9 @@ SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
 #define PREAMBLE_LENGTH 8 // standard
 #define GAIN 1 // set automatic gain control
 
+// Initialize ST-100 temperature sensor pin and standard ESP32 output tension
+#define TEMPERATURE_PIN = 13
+float ESP32_TENSION = 3.3;
 
 // ---------------------------------
 // FUNCTIONS
@@ -102,7 +105,7 @@ void startReception(void)
 	printRadioStatus(rx_state);
 }
 
-// Main task
+// Main task --> manages the reception
 void RX_manager(void *parameter)
 {
 	uint8_t rx_packet_size;
@@ -194,8 +197,8 @@ void startTransmision(uint8_t *tx_packet, uint8_t packet_size)
 	// TODO: should transmissions tatus be reported there or after full transmission?
 }
 
-// Main task
-void TX_manager(void *parameter)
+// Main task --> manages the transmission
+void TX_manager(void *parameter) 
 {
 	uint8_t tx_packet[TX_PACKET_SIZE];
 	uint16_t tx_start_tick;
@@ -273,7 +276,14 @@ void serial_manager(void *parameter)
 			delay(1000);
 			ESP.restart();
 		}
+		// using makePacket to create and send packet to TX manager
+		makePacket(data);
+	}
+}
 
+// makePacket function --> create stardards packet and sent them in the queue
+void makePacket(String data){
+	
 		// Create packet(s) from user input
 		uint8_t packets_needed = ceil((float) data.length() / TX_PACKET_SIZE); // calculate the number of packets needed
 		
@@ -300,10 +310,46 @@ void serial_manager(void *parameter)
 			// Send packet to TX queue
 			xQueueSend(RTOS_TX_queue, &packet, portMAX_DELAY);
 		}
-	}
 }
 
 
+// TEMPERATURE SENSOR TASK
+
+// Handles
+TaskHandle_t RTOS_temperature_handle;
+
+// Main task
+void temperature_sensor_manager(void *parameter){
+
+	// Initialize some constants used in the temperature convertion - ST100 data:
+	//https://www.apogeeinstruments.com/content/ST-100-110-200-300-manual.pdf
+	float temp_A = 0.00129241;
+	float temp_B = 0.0002341077;
+	float temp_C = 0.00000008775468;
+	
+	// Do the task every 1 seconds 
+	TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS(1000);
+
+    // Initialise the xLastWakeTime variable with the current time.
+    xLastWakeTime = xTaskGetTickCount();
+
+    for( ;; )
+    {
+        // Wait for the next cycle.
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+
+		// read analog temperature values from the sensor 
+		float analog_temperature = analogRead(TEMPERATURE_PIN);
+		
+		// convert the analog temperature in usefull data
+		float temperature_resistance = 24900*(ESP32_TENSION/(analog_temp*ESP32_TENSION/4095) - 1);
+		float temperature = 1/(temp_A+temp_B*log(temperature_resistance)+temp_C*(pow(log(temperature_resistance), 3)))
+
+		// using makePacket to create and send packet to TX manager
+		makePacket(String(temperature));
+    }
+}
 
 // ---------------------------------
 // SETUP
@@ -359,6 +405,9 @@ void setup()
 
  	// Serial manager task
 	xTaskCreate(serial_manager, "Serial manager", 4000, NULL, 1, &RTOS_serial_handle);
+
+	// Temperature sensor manager task
+	xTaskCreate(temperature_sensor_manager, "Temperature sensor manager", 4000, NULL, 1, &RTOS_temperature_handle);
 
 }
 
