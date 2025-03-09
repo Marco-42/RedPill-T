@@ -55,7 +55,7 @@ void printRadioStatus(int8_t state, bool blocking = false)
 {
 	if (state == RADIOLIB_ERR_NONE)
 	{
-		Serial.println("success!");
+		Serial.println("ok");
 	} else
 	{
 		Serial.println((String) "failed, code " + state);
@@ -65,7 +65,7 @@ void printRadioStatus(int8_t state, bool blocking = false)
 		while (true)
 		{
 			delay(10000);
-      Serial.println("Program blocked, please restart...");
+      		Serial.println("Program blocked, please restart...");
 		}
 		}
 	}
@@ -80,93 +80,10 @@ void printRadioStatus(int8_t state, bool blocking = false)
 // Custom tick conversion
 // #define pdTICKS_TO_MS(xTicks) (((TickType_t) (xTicks) * 1000u) / configTICK_RATE_HZ)
 
-// ISR notification values
-// #define TX_STARTING_BIT 0x01
-// #define TX_ENDING_BIT 0x02
-// #define RX_STARTING_BIT 0x03
-// #define RX_ENDING_BIT 0x04
-
 // Handles
 
 // SemaphoreHandle_t RTOS_LoRa_semaphore;
-// static TaskHandle_t xTaskToNotify = NULL; // Task to notify
-
-
-// RX MANAGER TASK
-
-// #define RX_START_IDX 0
-// #define RX_STOP_IDX 1
-// #define RX_PACKET_START_IDX 2
-// #define RX_PACKET_END_IDX 3
-
-/*
-
-// Handles
-TaskHandle_t RTOS_radio_manager_handle;
-
-// Main task
-
-void radio_manager(void *parameter)
-{
-	const TickType_t xMaxBlockTime = pdMS_TO_TICKS(1000);
-	// const TickType_t xMaxBlockTime = portMAX_DELAY;
-	BaseType_t xResult;
-
-	uint8_t rx_packet[TX_PACKET_SIZE];
-	int8_t rx_state;
-
-	// uint8_t packet[] = {0x01, 0x23, 0x45, 0x67,
-	//                   0x89, 0xAB, 0xCD, 0xEF};
-	for(;;)
-	{
-		xResult = xTaskNotifyWait(pdFALSE,          // don't clear bits on entry
-									ULONG_MAX,        // clear all bits on exit
-									&ulNotifiedValue, // stores the notified value
-									xMaxBlockTime );
-
-		if(xResult == pdPASS) // Notification received, see which bits were set
-		{
-			// TX packet outgoing
-			if((ulNotifiedValue & TX_STARTING_BIT) != 0)
-			{
-			// Nothing yet
-			}
-
-			// TX packet sent
-			if((ulNotifiedValue & TX_ENDING_BIT) != 0)
-			{
-			// Resume reception
-			Serial.println("Listening ... ");
-			rx_state = radio1.startReceive(rx_packet);
-			
-			// Report listening status
-			printRadioStatus(rx_state);
-			}
-
-			// RX packet incoming
-			if((ulNotifiedValue & RX_STARTING_BIT) != 0) 
-			{
-			// Nothing yet
-			}
-
-			// RX packet received
-			if((ulNotifiedValue & RX_ENDING_BIT) != 0)
-			{
-			// Nothing yet
-			}
-
-		}
-		else // Notification not received in time
-		{
-			Serial.println((String) "Nothing happened since " + pdTICKS_TO_MS(xMaxBlockTime) + " ms");
-			
-		}
-	}
-
-	// Clean task if there is error in execution
-	vTaskDelete(NULL);
-}
-*/
+static TaskHandle_t xTaskToNotify = NULL; // Task to notify
 
 
 // RX MANAGER TASK
@@ -174,21 +91,32 @@ void radio_manager(void *parameter)
 // Handles
 TaskHandle_t RTOS_RX_manager_handle;
 
+int8_t rx_state;
+
+// Helper funztion to start reception
+void startReception(void)
+{
+	// Start listening
+	Serial.print("Listening ... ");
+	rx_state = radio1.startReceive();
+
+	// Set task to notify by packetEvent
+	xTaskToNotify = RTOS_RX_manager_handle;
+
+	// Report listening status
+	printRadioStatus(rx_state);
+}
+
 // Main task
 void RX_manager(void *parameter)
 {
 	uint8_t rx_packet_size;
-	int8_t rx_state;
 
 	// uint8_t packet[] = {0x01, 0x23, 0x45, 0x67,
 	//                   0x89, 0xAB, 0xCD, 0xEF};
 
 	// Start listening
-	Serial.print("Listening ... ");
-	rx_state = radio1.startReceive();
-
-	// Report listening status
-	printRadioStatus(rx_state);
+	startReception();
 
 	for(;;)
 	{
@@ -235,34 +163,46 @@ void RX_manager(void *parameter)
 }
 
 // Notify radio task that packet is incoming
-ICACHE_RAM_ATTR void packetIncoming(void)
+// ICACHE_RAM_ATTR void packetIncoming(void)
+// {
+// 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+// 	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
+
+// 	// prvClearInterrupt();
+
+// 	// xTaskNotifyFromISR(radio_manager, RX_STARTING_BIT, eSetBits, &xHigherPriorityTaskWoken); // Notify task
+// 	// vTaskNotifyGiveIndexedFromISR(radio_manager, RX_PACKET_START_IDX, &xHigherPriorityTaskWoken); // Notify task
+// 	// vTaskNotifyGiveIndexedFromISR(xTaskToNotify, RX_PACKET_START_IDX, &xHigherPriorityTaskWoken); // Notify task
+// 	// xTaskToNotify = NULL; // Reset task to notify
+
+// 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+// }
+
+// // Notify radio task that packet has been received
+// ICACHE_RAM_ATTR void packetReceived(void)
+// {
+// 	Serial.println("Packet received ISR");
+
+// 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+// 	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
+
+// 	// ;
+
+// 	// xTaskNotifyFromISR(radio_manager, RX_ENDING_BIT, eSetBits, &xHigherPriorityTaskWoken); // notify task
+// 	vTaskNotifyGiveFromISR(RTOS_RX_manager_handle, &xHigherPriorityTaskWoken); // notify task
+// 	// vTaskNotifyGiveIndexedFromISR(xTaskToNotify, RX_PACKET_START_IDX, &xHigherPriorityTaskWoken); // notify task
+// 	// xTaskToNotify = NULL; // Reset task to notify
+
+// 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+// }
+
+// Notify correct task of a radio event
+ICACHE_RAM_ATTR void packetEvent(void)
 {
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
+	configASSERT(xTaskToNotify != NULL); // Task to notify must be set
 
-	// prvClearInterrupt();
-
-	// xTaskNotifyFromISR(radio_manager, RX_STARTING_BIT, eSetBits, &xHigherPriorityTaskWoken); // Notify task
-	// vTaskNotifyGiveIndexedFromISR(radio_manager, RX_PACKET_START_IDX, &xHigherPriorityTaskWoken); // Notify task
-	// vTaskNotifyGiveIndexedFromISR(xTaskToNotify, RX_PACKET_START_IDX, &xHigherPriorityTaskWoken); // Notify task
-	// xTaskToNotify = NULL; // Reset task to notify
-
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
-
-// Notify radio task that packet has been received
-ICACHE_RAM_ATTR void packetReceived(void)
-{
-	Serial.println("Packet received ISR");
-
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
-
-	// ;
-
-	// xTaskNotifyFromISR(radio_manager, RX_ENDING_BIT, eSetBits, &xHigherPriorityTaskWoken); // notify task
-	vTaskNotifyGiveFromISR(RTOS_RX_manager_handle, &xHigherPriorityTaskWoken); // notify task
-	// vTaskNotifyGiveIndexedFromISR(xTaskToNotify, RX_PACKET_START_IDX, &xHigherPriorityTaskWoken); // notify task
+	vTaskNotifyGiveFromISR(xTaskToNotify, &xHigherPriorityTaskWoken); // notify task
 	// xTaskToNotify = NULL; // Reset task to notify
 
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -277,11 +217,25 @@ ICACHE_RAM_ATTR void packetReceived(void)
 TaskHandle_t RTOS_TX_manager_handle;
 QueueHandle_t RTOS_TX_queue;
 
+int8_t tx_state;
+
+// Helper function to start transmission
+void startTransmision(uint8_t *tx_packet, uint8_t packet_size)
+{
+	// Start transmission
+	Serial.print("Transmitting ... ");
+	tx_state = radio1.startTransmit(tx_packet, packet_size);
+
+	// Set task to notify by packetEvent
+	xTaskToNotify = RTOS_TX_manager_handle;
+
+	// TODO: should transmissions tatus be reported there or after full transmission?
+}
+
 // Main task
 void TX_manager(void *parameter)
 {
 	uint8_t tx_packet[TX_PACKET_SIZE];
-	int8_t tx_state;
 
 	// uint8_t packet[] = {0x01, 0x23, 0x45, 0x67,
 	//                   0x89, 0xAB, 0xCD, 0xEF};
@@ -294,8 +248,7 @@ void TX_manager(void *parameter)
 		// xTaskNotify(radio_manager, TX_STARTING_BIT, eSetBits);
 
 		// Start transmission
-		Serial.print("Transmitting ... ");
-		tx_state = radio1.startTransmit(tx_packet, TX_PACKET_SIZE);
+		startTransmision(tx_packet, TX_PACKET_SIZE);
 		
 		// tx_state = radio1.transmit(tx_packet, TX_PACKET_SIZE);
 		// tx_state = radio1.transmit("XXXX");
@@ -312,15 +265,11 @@ void TX_manager(void *parameter)
 		// Report transmission status
 		printRadioStatus(tx_state);
 
-		// Notify manager task that transmission is over
-		// xTaskNotify(radio_manager, TX_ENDING_BIT, eSetBits);
-
-		// Resume listening
-		Serial.print("Listening ... ");
-		int8_t rx_state = radio1.startReceive();
-
-		// Report listening status
-		printRadioStatus(rx_state);
+		// Resume listening if no more packets are in the queue
+		if (uxQueueMessagesWaiting(RTOS_TX_queue) == 0)
+		{
+			startReception();
+		}
 	}
 
 	// Clean task if there is error in execution
@@ -328,18 +277,18 @@ void TX_manager(void *parameter)
 }
 
 // Notify TX task that packet has been sent
-ICACHE_RAM_ATTR void packetSent(void)
-{
-	Serial.println("Packet sent ISR");
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
+// ICACHE_RAM_ATTR void packetSent(void)
+// {
+// 	Serial.println("Packet sent ISR");
+// 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+// 	// configASSERT(xTaskToNotify != NULL); // Task to notify must be set
 
-	vTaskNotifyGiveFromISR(RTOS_TX_manager_handle, &xHigherPriorityTaskWoken); // Notify task
-	// vTaskNotifyGiveFromISR(xTaskToNotify, &xHigherPriorityTaskWoken); // Notify task
-	// xTaskToNotify = NULL; // Reset task to notify
+// 	vTaskNotifyGiveFromISR(RTOS_TX_manager_handle, &xHigherPriorityTaskWoken); // Notify task
+// 	// vTaskNotifyGiveFromISR(xTaskToNotify, &xHigherPriorityTaskWoken); // Notify task
+// 	// xTaskToNotify = NULL; // Reset task to notify
 
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
+// 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+// }
 
 
 // SERIAL MANAGER TASK
@@ -353,7 +302,7 @@ void serial_manager(void *parameter)
 	const TickType_t xDelay = 100 / portTICK_PERIOD_MS; // 100 ms delay
 
 	String data;
-	uint8_t packet[TX_PACKET_SIZE];
+	// uint8_t packet[TX_PACKET_SIZE];
 	
 	for(;;)
 	{
@@ -369,7 +318,13 @@ void serial_manager(void *parameter)
 		// Read the data from the serial port
 		data = Serial.readStringUntil('\n');
 		
-		// debug
+		// Reboot the device if the user sends "reboot"
+		if (data == "reboot")
+		{
+			Serial.println("Rebooting ...");
+			delay(1000);
+			ESP.restart();
+		}
 
 		// Create packet(s) from user input
 		uint8_t packets_needed = ceil((float) data.length() / TX_PACKET_SIZE); // calculate the number of packets needed
@@ -381,11 +336,11 @@ void serial_manager(void *parameter)
 
 		for (uint8_t i = 0; i < packets_needed; i++)
 		{
-			// Initialize packet with 0 padding
-			uint8_t packet[TX_PACKET_SIZE] = {0};
-
 			// Calculate the size of the current packet
 			uint8_t packet_size = min(TX_PACKET_SIZE, (int) data.length() - i * TX_PACKET_SIZE);
+
+			// Initialize packet with 0 padding
+			uint8_t packet[packet_size] = {0};
 
 			// Copy data to the packet
 			data.getBytes(packet, packet_size + 1, i * TX_PACKET_SIZE);
@@ -394,9 +349,8 @@ void serial_manager(void *parameter)
 			Serial.println("Packet " + String(i) + ": " + String((char*) packet));
 
 			// Send packet to TX queue
-			xQueueSend(RTOS_TX_queue, &packet, portMAX_DELAY); // Send the packet to the TX queue
+			xQueueSend(RTOS_TX_queue, &packet, portMAX_DELAY);
 		}
-		
 	}
 }
 
@@ -425,11 +379,10 @@ void setup()
 	printRadioStatus(state, true);
 
 	// Set ISRs to be called when packets are sent or received
-	radio1.setPacketSentAction(packetSent);
-	// radio1.setDio0Action(packetSent, RISING);
-	// radio1.setDio0Action(setFlagTimeout, RISING); // LoRa preamble not detected
-	// radio1.setDio1Action(setFlagDetected, RISING); // LoRa preamble detected
-	radio1.setPacketReceivedAction(packetReceived);
+	// radio1.setPacketSentAction(packetSent);
+	// radio1.setPacketReceivedAction(packetReceived);
+	radio1.setPacketSentAction(packetEvent);
+	radio1.setPacketReceivedAction(packetEvent);
 
 	// FreeRTOS task creation
 
@@ -452,16 +405,16 @@ void setup()
 	xTaskCreate(RX_manager, "RX manager", 2000, NULL, 2, &RTOS_RX_manager_handle);
 
 	// TX manager task
-	RTOS_TX_queue = xQueueCreate(5, 64); // 5 packets of 64 bytes max
+	RTOS_TX_queue = xQueueCreate(5, TX_PACKET_SIZE); // 5 packets of TX_PACKET_SIZE bytes max
 	xTaskCreate(TX_manager, "TX manager", 2000, NULL, 3, &RTOS_TX_manager_handle);
 
  	// Serial manager task
-	xTaskCreate(serial_manager, "Serial manager", 2000, NULL, 1, &RTOS_serial_handle);
+	xTaskCreate(serial_manager, "Serial manager", 4000, NULL, 1, &RTOS_serial_handle);
 
 }
 
 // ---------------------------------
-// LOOP
+// LOOP (leaving empty for freeRTOS)
 // ---------------------------------
 
 void loop()
