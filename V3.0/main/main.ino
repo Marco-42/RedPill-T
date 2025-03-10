@@ -1,31 +1,30 @@
 /*
-	Programma di trasmissione/ricezione per il modulo SX1278 usando la libreria RadioLib 
-	Un modulo manda in trasmissione un messaggio passato dall'utente in modalità seriale
-	Il modulo ricevente ritrasmette poi all'utente una copia di tale messaggio
-	Scheda usata: TTGO LoRa32 T3_V1.6.1 433 MHz
+-------------------------------------------
+	Telecom software - RedPill by J2050 
+-------------------------------------------
 
-	Per le impostazioni di default per il modulo visualizzare il seguente link:
+Management software for the comunication beetwen two Lora module
+Used module: TTGO LoRa32 T3_V1.6.1 433 MHz
+
+	Default setting end other informations about the lora module: 
 	https://github.com/jgromes/RadioLib/wiki/Default-configuration
 
-	Per informazioni sulla libreria:
-	https://github.com/jgromes/RadioLib/tree/master
+	Used library:
+	- Radiolib --> https://github.com/jgromes/RadioLib/tree/master
 
-	Librerie necessarie:
-	- Esp32
-	- Radiolib
-
-	Link del board manager per l'esp32:
+	Used board manager: 
+	- Esp
 	https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 */
 
 #include <Arduino.h>
 
+// RadioLib library for communication management
+#include <RadioLib.h>
+
 // ---------------------------------
 // LORA CONFIGURATION
 // ---------------------------------
-
-// RadioLib library for communication management
-#include <RadioLib.h>
 
 // Initialize SX1278 LoRa module pins
 #define CS_PIN 18
@@ -44,6 +43,10 @@ SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
 #define OUTPUT_POWER 10 // 10 dBm is set for testing phase (ideal value to use: 22 dBm)
 #define PREAMBLE_LENGTH 8 // standard
 #define GAIN 1 // set automatic gain control
+
+// ---------------------------------
+// SENSORS CONFIGURATION
+// ---------------------------------
 
 // Initialize ST-100 temperature sensor pin and standard ESP32 output tension
 #define TEMPERATURE_PIN = 13
@@ -83,8 +86,9 @@ void printRadioStatus(int8_t state, bool blocking = false)
 // Handles
 static TaskHandle_t xTaskToNotify = NULL; // task to notify
 
+//---------------------------------------------------------
 
-// RX MANAGER TASK
+// RX MANAGER TASK - RECEPTION 
 
 // Handles
 TaskHandle_t RTOS_RX_manager_handle;
@@ -109,7 +113,7 @@ void startReception(void)
 void RX_manager(void *parameter)
 {
 	uint8_t rx_packet_size;
-
+	 
 	// uint8_t packet[] = {0x01, 0x23, 0x45, 0x67,
 	//                   0x89, 0xAB, 0xCD, 0xEF};
 
@@ -140,6 +144,10 @@ void RX_manager(void *parameter)
 				Serial.print(" ");
 			}
 			Serial.println();
+
+			// check if received message is connected with setting function
+			String received_data = String((char*)rx_packet);
+			check_packet(received_data);
 
 			// Print packet info
 			Serial.println((String) "Length: " + rx_packet_size);
@@ -173,8 +181,9 @@ ICACHE_RAM_ATTR void packetEvent(void)
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
+//---------------------------------------------------------
 
-// TX MANAGER TASK
+// TX MANAGER TASK - TRANSMISSION
 
 #define TX_PACKET_SIZE 8
 
@@ -242,8 +251,9 @@ void TX_manager(void *parameter)
 	vTaskDelete(NULL);
 }
 
+//---------------------------------------------------------
 
-// SERIAL MANAGER TASK
+// PACKET MANAGEMENT 
 
 #define SERIAL_BUFFER_SIZE 64
 
@@ -269,13 +279,9 @@ void serial_manager(void *parameter)
 		// Read the data from the serial port
 		String data = Serial.readStringUntil('\n');
 		
-		// Reboot the device if the user sends "reboot"
-		if (data == "reboot")
-		{
-			Serial.println("Rebooting ...");
-			delay(1000);
-			ESP.restart();
-		}
+		// check if packet can run some pre-set function
+		check_packet(data)
+
 		// using makePacket to create and send packet to TX manager
 		makePacket(data);
 	}
@@ -312,8 +318,36 @@ void makePacket(String data){
 		}
 }
 
+// check if the package is connected to any setting function and if so execute it
+void check_packet(String data){
 
-// TEMPERATURE SENSOR TASK
+	// Reboot the device if the user sends "reboot"
+	if (data.substring(0,6) == "reboot")
+	{
+		Serial.println("Rebooting ...");
+		delay(1000);
+		ESP.restart();
+	}
+
+	// Reboot both modules if the user sends "rebootall"
+	// reboot the current module and send a reboot request to the other one
+	if (data.substring(0,9) == "rebootall")
+	{
+		Serial.println("Rebooting both module ...");
+		delay(1000);
+		String reboot_string = "reboot";
+		
+		// sending the reboot request to the other module
+		makePacket(reboot_string)
+
+		// reboot current device
+		delay(1000);
+		ESP.restart();
+	}
+}
+//---------------------------------------------------------
+
+// TEMPERATURE SENSOR 
 
 // Handles
 TaskHandle_t RTOS_temperature_handle;
@@ -350,6 +384,8 @@ void temperature_sensor_manager(void *parameter){
 		makePacket(String(temperature));
     }
 }
+
+//---------------------------------------------------------
 
 // ---------------------------------
 // SETUP
