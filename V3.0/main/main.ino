@@ -190,6 +190,7 @@ ICACHE_RAM_ATTR void packetEvent(void)
 // Handles
 TaskHandle_t RTOS_TX_manager_handle;
 QueueHandle_t RTOS_TX_queue;
+QueueHandle_t temperatureQueue;
 
 int8_t tx_state;
 
@@ -344,6 +345,48 @@ void check_packet(String data){
 		delay(1000);
 		ESP.restart();
 	}
+
+	// Activate the temperature sensor if the user sends "starttemp"
+	if (data.substring(0,9) == "starttemp")
+	{
+		// Resume the temperature sensor manager task
+		vTaskResume(RTOS_temperature_handle);
+	}
+
+	// Deactivate the temperature sensor if the user sends "stoptemp"
+	if (data.substring(0,8) == "stoptemp")
+	{
+		// Suspend the temperature sensor manager task
+		vTaskSuspend(RTOS_temperature_handle);
+	}
+
+	// Set the temperature reading interval if the user sends "settempVALUE" 
+	// Example: settemp3000 --> interval = 3 seconds
+	if (data.substring(0,8) == "settemp")
+	{
+		// Extract the time interval from the user input
+		String time_interval = data.substring(9, data.length());
+		float time_interval_float = time_interval.toFloat();
+
+		// Check if the time interval is valid
+		if (time_interval_float > 0)
+		{
+			// Send the time interval to the temperature sensor manager task
+			xQueueSend(temperatureQueue, &time_interval_float, portMAX_DELAY);
+			
+			// Resume the temperature sensor manager task if it is suspended
+			if (eTaskGetState(RTOS_temperature_handle) == eSuspended) {
+				vTaskResume(RTOS_temperature_handle);
+			} 
+
+		}
+		else
+		{
+			Serial.println("Invalid time interval. Please enter a positive number.");
+		}
+	}
+
+	// Start 
 }
 //---------------------------------------------------------
 
@@ -361,9 +404,20 @@ void temperature_sensor_manager(void *parameter){
 	float temp_B = 0.0002341077;
 	float temp_C = 0.00000008775468;
 	
-	// Do the task every 1 seconds 
+	// time interval for the temperature reading 
+	// it will be taken from temperatureQueue and set initially to 1 second
+	float variable = 0;
+	float time_interval = 1000;
+
+	// Check if a parameter is available in the queue, if not, don't wait for it
+	// if there isn't element in the queue, time_intervall remain the last selection
+	if (xQueueReceive(temperatureQueue, &variable, 0) == pdPASS) {
+		time_interval = variable;
+	}
+
+	// Do the task every time_intervall milliseconds 
 	TickType_t xLastWakeTime;
-    const TickType_t xFrequency = pdMS_TO_TICKS(1000);
+    const TickType_t xFrequency = pdMS_TO_TICKS((int)time_interval);
 
     // Initialise the xLastWakeTime variable with the current time.
     xLastWakeTime = xTaskGetTickCount();
@@ -445,6 +499,8 @@ void setup()
 	// Temperature sensor manager task
 	xTaskCreate(temperature_sensor_manager, "Temperature sensor manager", 4000, NULL, 1, &RTOS_temperature_handle);
 
+	// Suspend the task immediately after creation
+	vTaskSuspend(RTOS_temperature_handle);
 }
 
 // ---------------------------------
