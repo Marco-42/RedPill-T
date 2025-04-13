@@ -2,52 +2,6 @@
 #include "comms_fun.h"
 
 
-// ---------------------------------
-// LORA CONFIGURATION
-// ---------------------------------
-
-// SX1278 LoRa module pins
-#define CS_PIN 18
-#define DIO0_PIN 26
-#define RESET_PIN 23
-#define DIO1_PIN 33
-
-// SX1278 LoRa module configuration
-#define F 433.0 // frequency [MHz]
-#define BW 125.0 // bandwidth [kHz]
-#define SF 10 // spreading factor
-#define CR 8 // coding rate
-#define SYNC_WORD 0x12 // standard for private communications
-#define OUTPUT_POWER 10 // 10 dBm is set for testing phase (ideal value to use: 22 dBm)
-#define PREAMBLE_LENGTH 8 // standard
-#define GAIN 1 // set automatic gain control
-
-
-// ---------------------------------
-// RTOS CONFIGURATION
-// ---------------------------------
-
-// TX queue configuration
-#define TX_QUEUE_SIZE 5 // [packets] size of tx queue
-#define TX_QUEUE_PACKET_SIZE 64 // [bytes] max size of packets to be sent
-
-
-// ---------------------------------
-// COMMS STATE MACHINE
-// ---------------------------------
-
-// States configuration
-#define COMMS_IDLE 0 // default idle state
-#define COMMS_TX 1 // tx state
-#define COMMS_TX_ERROR 2 // tx error state
-#define COMMS_RX 3 // rx state
-#define COMMS_RX_ERROR 4 // rx error state
-#define COMMS_ERROR 5 // error state
-
-// Syayes timing
-#define IDLE_TIMEOUT 500 // [ms] tx timeout
-#define RX_TIMEOUT 3000 // [ms] tx timeout
-
 // Main COMMS loop
 void COMMS_stateMachine(void)
 {
@@ -110,6 +64,10 @@ void COMMS_stateMachine(void)
 			// Incoming packet to be processed
 			case COMMS_RX:
 			{
+				// Initialize command variables
+				uint8_t command_packets_processed = 0
+				PacketRX command_packets[RX_PACKET_NUMBER_MAX];
+
 				do
 				{
 					// Read packet
@@ -117,7 +75,7 @@ void COMMS_stateMachine(void)
 					uint8_t rx_packet[rx_packet_size];
 					int8_t rx_state = radio.readData(rx_packet, rx_packet_size);
 
-					// Successful reception
+					// Reception successfull
 					if (rx_state == RADIOLIB_ERR_NONE)
 					{
 						// Print received packet
@@ -126,10 +84,33 @@ void COMMS_stateMachine(void)
 						//TODO: decode Reed Salomon packet
 						//TODO: deinterleave packet
 
-						Packet incoming = packetTransform(rx_packet, rx_packet_size)
+						// Parse packet
+						PacketRX incoming = getPacketRX(rx_packet, rx_packet_size)
+
+						// Successfully decoded packet
+						if (incoming.state == PACKET_ERR_NONE)
+						{
+							command_packets[command_packets_processed] = incoming; // store packet in command array
+							command_packets_processed += 1; // increment number of packets processed
+						}
+
+						// Packet can not be decoded
+						else
+						{
+							//	TODO: handle error
+						}
 					}
 
-				} while (!ulTaskNotifyTake(pdTRUE, RX_TIMEOUT) == 0); // repeat if another packet is received before timeout
+					// Reception error
+					{
+						// TODO: handle error
+					}
+
+
+				} while (!ulTaskNotifyTake(pdTRUE, RX_TIMEOUT) == 0); // repeat if another packet is received before timeout (command is multipacket)
+
+				// Check if all packets have been received
+				if (checkCommand())
 
 				break;
 			}
