@@ -29,11 +29,10 @@
 
 // TX queue configuration
 #define TX_QUEUE_SIZE 5 // [packets] size of tx queue
-#define TX_QUEUE_PACKET_SIZE 64 // [bytes] max size of packets to be sent
 
 
 // ---------------------------------
-// COMMS STATE MACHINE CONFIGURATION
+// COMMS STATE MACHINE FUNCTION
 // ---------------------------------
 
 // States configuration
@@ -48,19 +47,8 @@
 #define IDLE_TIMEOUT 500 // [ms] idle timeout to wait before checking if a packet needs to be sent
 #define RX_TIMEOUT 3000 // [ms] rx timeout to wait before going back to idle state
 
-
-// ---------------------------------
-// PACKET CONFIGURATION
-// ---------------------------------
-
-// Packet size configuration
-#define RX_PACKET_SIZE_MAX 64 // maximum size of the RX packet
-#define RX_PACKET_NUMBER_MAX 4 // maximum number of packets in single command
-#define RX_PACKET_HEADER_LENGTH 13
-
-// Error codes
-#define RX_PACKET_ERR_NONE 0
-#define RK_PACKET_ERR_END 1
+// Main COMMS loop
+void COMMS_stateMachine(void);
 
 
 // ---------------------------------
@@ -68,12 +56,74 @@
 // ---------------------------------
 
 // Print boot message on serial
-void printBootMessage();
+void printStartupMessage();
 
 // Print radio status on serial
 void printRadioStatus(int8_t state, bool blocking = false);
 
 // Print received packet on serial
 void printPacket(const uint8_t* packet, uint8_t length)
+
+
+// ---------------------------------
+// RADIO FUNCTIONS
+// ---------------------------------
+
+// Packet size configuration
+#define RX_PACKET_SIZE_MAX 64 // [bytes] max size of RX packets
+#define RX_PACKET_NUMBER_MAX 4 // [bytes] max number of packets in single command
+#define RX_PACKET_HEADER_LENGTH 13 // [bytes] length of the header in the RX packet
+#define TX_PACKET_SIZE_MAX 128 // [bytes] max size of TX packets
+
+// Error codes
+#define RX_PACKET_ERR_NONE 0
+#define RX_PACKET_ERR_END 1
+
+// TEC codes
+#define TEC_OBC_REBOOT 0x00 // reboot OBC command
+#define TEC_TLM_BEACON 0x02 // send telemetry beacon
+
+// TEC lengths
+
+// TRC codes
+#define TRC_BEACON 0x00 // telemetry beacon reply
+#define TRC_ACK 0x01 // ACK reply
+#define TRC_NACK 0x02 // NACK reply
+
+// TRC lengths
+#define TRC_BEACON_LENGTH 8 // [bytes] length of the telemetry beacon reply
+#define TRC_ACK_LENGTH 8 // [bytes] length of the ACK reply
+#define TRC_NACK_LENGTH 8 // [bytes] length of the NACK reply
+
+// TRC header
+#define MISSION_ID 0x01 // mission ID
+#define POCKETQUBE_ID 0x01 // pocketqube ID
+
+
+// Notify COMMS task of a radio event (called when packet sent or received)
+void packetEvent(void);
+
+// Start LoRa reception
+void startReception(void);
+
+// Start LoRa transmission
+void startTransmision(uint8_t *tx_packet, uint8_t packet_size);
+
+// Struct to hold RX packet information
+struct PacketRX;
+
+// Struct to hold TX packet information
+struct PacketTX;
+
+// Convert received packet to struct
+PacketRX dataToPacketRX(uint8_t* data, uint8_t length);
+
+
+// ---------------------------------
+// COMMAND FUNCTIONS
+// ---------------------------------
+
+// Make TEC and payload from packets
+bool processCommand(PacketRX* packets, uint8_t packets_total);
 
 #endif

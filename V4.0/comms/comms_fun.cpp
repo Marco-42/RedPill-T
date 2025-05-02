@@ -8,13 +8,13 @@
 
 
 // Print boot message on serial
-void printBootMessage()
+void printStartupMessage(const char* module)
 {
 	Serial.println(" ");
 	delay(1000);
-	Serial.println("Booting...");
+	Serial.println(printf("%s starting ...", module));
 	delay(500);
-	Serial.println("Boot complete.");
+	Serial.println("Startup complete.");
 	delay(500);
 }
 
@@ -82,6 +82,18 @@ void startReception(void)
 	printRadioStatus(rx_state);
 }
 
+// Start LoRa transmission
+void startTransmision(uint8_t *tx_packet, uint8_t packet_size)
+{
+	// Start transmission
+	Serial.print("Transmitting: " + String((char*) tx_packet) + " ... ");
+	tx_state = radio.startTransmit(tx_packet, packet_size);
+
+	// Set task to notify by packetEvent
+	xTaskToNotify = RTOS_TX_manager_handle;
+
+	// TODO: should transmissions tatus be reported there or after full transmission?
+}
 
 // ---------------------------------
 // PACKET FUNCTIONS
@@ -101,9 +113,19 @@ struct PacketRX
 
 };
 
+// Struct to hold TX packet information
+struct PacketTX
+{
+	uint8_t TRC;
+	uint8_t ID_total;
+	uint8_t ID;
+	uint32_t time_unix;
+	uint8_t payload_length;
+	uint8_t payload[TX_PACKET_SIZE_MAX];
+}
 
 // Convert received packet to struct
-PacketRX makePacketRX(uint8_t* data, uint8_t length)
+PacketRX dataToPacketRX(uint8_t* data, uint8_t length)
 {
 	// Create output struct
 	PacketRX packet;
@@ -144,16 +166,6 @@ PacketRX makePacketRX(uint8_t* data, uint8_t length)
 // ---------------------------------
 // COMMAND FUNCTIONS
 // ---------------------------------
-
-
-// Check if received telecommand is valid
-bool checkCommandPackets(PacketRX* packets, uint8_t packets_total)
-{
-	
-
-	// Return true if all checks passed
-	return true; // no error
-}
 
 
 // Make TEC and payload from packets
@@ -209,12 +221,31 @@ bool processCommand(PacketRX* packets, uint8_t packets_total)
 
 	// Combine payloads from all packets
 	uint8_t command[command_length];
+	uint8_t command_processed = 0;
 	for (uint8_t i = 0; i < packets_total; i++)
 	{
-		// TODO THIS NEEDS TO BE FIXED
-		memcpy(command + i * packets[i].payload_length, packets[i].payload, packets[i].payload_length);
+		for (uint8_t j = 0; j < packets[i].payload_length; j++)
+		{
+			command[command_processed] = packets[i].payload[j];
+			command_processed++;
+		}
 	}
 	
+	// Execute command
+	switch TEC
+	{
+		case TEC_OBC_REBOOT:
+			// TODO execute command
+			Serial.println("TEC: OBC_REBOOT!");
+			break;
+		case TEC_TLM_BEACON:
+			// TODO process data
+			Serial.println("TEC: TLM_BEACON!");
+			break;
+		default:
+			Serial.println("Unknown TEC!");
+			return false; // invalid TEC
+	}
 
 	return true; // command processed
 }

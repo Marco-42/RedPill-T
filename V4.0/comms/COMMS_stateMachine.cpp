@@ -7,10 +7,10 @@ void COMMS_stateMachine(void)
 {
 	// Start serial communication
 	Serial.begin(9600);
-	printBootMessage();
+	printStartupMessage('COMMS');
 	
 	// Create queue for TX packets
-	RTOS_queue_TX = xQueueCreate(TX_QUEUE_SIZE, TX_QUEUE_PACKET_SIZE);
+	RTOS_queue_TX = xQueueCreate(TX_QUEUE_SIZE, sizeof(PacketTX));
 
 	// Initialize variables
 	COMMS_state = COMMS_IDLE; // initial state
@@ -85,20 +85,24 @@ void COMMS_stateMachine(void)
 						//TODO: deinterleave packet
 
 						// Parse packet
-						PacketRX incoming = getPacketRX(rx_packet, rx_packet_size)
+						PacketRX incoming = dataToPacketRX(rx_packet, rx_packet_size)
 
-						// Successfully decoded packet
-						if (incoming.state == PACKET_ERR_NONE)
-						{
-							command_packets[command_packets_processed] = incoming; // store packet in command array
-							command_packets_processed += 1; // increment number of packets processed
-						}
+						// Store packet in command array
+						command_packets[command_packets_processed] = incoming; // store packet in command array
+						command_packets_processed += 1; // increment number of packets processed
 
-						// Packet can not be decoded
-						else
-						{
-							//	TODO: handle error
-						}
+						// Next code has been deprecated as check is done in processCommand
+						// // Successfully decoded packet
+						// if (incoming.state == PACKET_ERR_NONE)
+						// {
+							
+						// }
+
+						// // Packet can not be decoded
+						// else
+						// {
+						// 	//	TODO: handle error
+						// }
 					}
 
 					// Reception error
@@ -110,11 +114,55 @@ void COMMS_stateMachine(void)
 				} while (!ulTaskNotifyTake(pdTRUE, RX_TIMEOUT) == 0); // repeat if another packet is received before timeout (command is multipacket)
 
 				// Check if all packets have been received
-				if (checkCommand())
+				bool command_valid = processCommand(command_packets, command_packets_processed);
+
+				//
+				if (!command_valid)
+				{
+					// TODO: send NACK
+				}
 
 				break;
 			}
 			
+			case COMMS_TX:
+			{
+				do
+				{
+					// Get packet from queue
+					uint8_t tx_packet[TX_QUEUE_PACKET_SIZE];
+					xQueueReceive(RTOS_queue_TX, &tx_packet, portMAX_DELAY);
+
+					// Transform packet to data based on TRC
+					switch (tx_packet.TRC)
+					{
+					case TRC_BEACON:
+					{
+						// Send telemetry beacon without coding or interleaving
+						Serial.println("Sending telemetry beacon...");
+						break;
+					}
+					
+					default:
+					{
+						// TODO: interleave
+						// TODO: encode Reed Salomon packet
+						Serial.println("Sending data packet...");
+						break;
+					}
+
+					// Start transmission
+					startTransmision(tx_packet, TX_PACKET_SIZE);
+
+					// Wait for transmission to end
+					ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+					// Report transmission status
+					printRadioStatus(tx_state);
+
+				} while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0); // repeat if there are multiple packets to be sent
+				
+			}
 			default:
 				// TODO: bitflip protection
 				COMMS_state = COMMS_ERROR;
