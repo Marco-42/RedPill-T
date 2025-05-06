@@ -62,7 +62,7 @@ void printStartupMessage();
 void printRadioStatus(int8_t state, bool blocking = false);
 
 // Print received packet on serial
-void printPacket(const uint8_t* packet, uint8_t length)
+void printPacket(const uint8_t* packet, uint8_t length);
 
 
 // ---------------------------------

@@ -36,7 +36,7 @@ void COMMS_stateMachine(void)
 		switch (COMMS_state)
 		{
 			// Nothing to process
-			case COMMS_IDLE:
+			case COMMS_IDLE: //--> non fa nulla
 			{
 				// Check if a packet has been received
 				if (!ulTaskNotifyTake(pdTRUE, IDLE_TIMEOUT) == 0) // if a packet is received
@@ -163,6 +163,7 @@ void COMMS_stateMachine(void)
 				} while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0); // repeat if there are multiple packets to be sent
 				
 			}
+
 			default:
 				// TODO: bitflip protection
 				COMMS_state = COMMS_ERROR;
