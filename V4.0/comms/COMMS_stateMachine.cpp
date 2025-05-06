@@ -1,19 +1,31 @@
+// Arduino library
 #include <Arduino.h>
+
+// Custom functions
 #include "comms_fun.h"
 
+// RadioLib library for communication management
+#include <RadioLib.h>
+
+// General comunication state configuration 
+uint8_t COMMS_state = 0;
 
 // Main COMMS loop
-void COMMS_stateMachine(void)
+void COMMS_stateMachine(void *parameter)
 {
 	// Start serial communication
 	Serial.begin(9600);
-	printStartupMessage('COMMS');
+	printStartupMessage("COMMS");
 	
+	// Defining the Queue Handle
+	QueueHandle_t RTOS_queue_TX;
+
 	// Create queue for TX packets
 	RTOS_queue_TX = xQueueCreate(TX_QUEUE_SIZE, sizeof(PacketTX));
 
-	// Initialize variables
-	COMMS_state = COMMS_IDLE; // initial state
+	// Initialize variables 
+	// initial state --> for default setting COMMS_IDLE = 0
+	COMMS_state = COMMS_IDLE;
 	
 	// Start LoRa module
 	SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
@@ -29,14 +41,20 @@ void COMMS_stateMachine(void)
 	// Start listening
 	startReception();
 
-	for(;;) // only way to end state machine is killing COMMS thread (by the OBC)
+	// Initialize command variables
+	uint8_t command_packets_processed = 0;
+	PacketRX command_packets[RX_PACKET_NUMBER_MAX];
+
+	// only way to end state machine is killing COMMS thread (by the OBC)
+	for(;;)
 	{
 		
 		// State machine
 		switch (COMMS_state)
 		{
-			// Nothing to process
-			case COMMS_IDLE: //--> non fa nulla
+			// NOTHING TO PROCESS
+			// Check if there is packet waiting in the queue, in case it switch to COMMS_TX
+			case COMMS_IDLE: //COMMS_IDLE = 0
 			{
 				// Check if a packet has been received
 				if (!ulTaskNotifyTake(pdTRUE, IDLE_TIMEOUT) == 0) // if a packet is received
@@ -61,13 +79,9 @@ void COMMS_stateMachine(void)
 				break;
 			}
 
-			// Incoming packet to be processed
+			// PACKET RECEPTION
 			case COMMS_RX:
 			{
-				// Initialize command variables
-				uint8_t command_packets_processed = 0
-				PacketRX command_packets[RX_PACKET_NUMBER_MAX];
-
 				do
 				{
 					// Read packet
@@ -85,7 +99,7 @@ void COMMS_stateMachine(void)
 						//TODO: deinterleave packet
 
 						// Parse packet
-						PacketRX incoming = dataToPacketRX(rx_packet, rx_packet_size)
+						PacketRX incoming = dataToPacketRX(rx_packet, rx_packet_size);
 
 						// Store packet in command array
 						command_packets[command_packets_processed] = incoming; // store packet in command array
@@ -125,14 +139,15 @@ void COMMS_stateMachine(void)
 				break;
 			}
 			
+			// PACKET TRANSMITION
 			case COMMS_TX:
 			{
 				do
 				{
-					// Get packet from queue
-					uint8_t tx_packet[TX_QUEUE_PACKET_SIZE];
-					xQueueReceive(RTOS_queue_TX, &tx_packet, portMAX_DELAY);
-
+					// Get uint8_t data from queue
+					uint8_t tx_packet_data[TX_PACKET_SIZE_MAX];
+					xQueueReceive(RTOS_queue_TX, &tx_packet_data, portMAX_DELAY);
+					/*
 					// Transform packet to data based on TRC
 					switch (tx_packet.TRC)
 					{
@@ -150,17 +165,17 @@ void COMMS_stateMachine(void)
 						Serial.println("Sending data packet...");
 						break;
 					}
-
+					*/
 					// Start transmission
-					startTransmision(tx_packet, TX_PACKET_SIZE);
+					startTransmision(tx_packet_data, TX_PACKET_SIZE_MAX);
 
 					// Wait for transmission to end
 					ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
 					// Report transmission status
-					printRadioStatus(tx_state);
+					printRadioStatus(state);
 
-				} while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0); // repeat if there are multiple packets to be sent
+				}while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0); // repeat if there are multiple packets to be sent
 				
 			}
 

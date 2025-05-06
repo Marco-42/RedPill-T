@@ -1,6 +1,11 @@
+// Arduino library
 #include <Arduino.h>
+
+// Custom functions
 #include "comms_fun.h"
 
+// RadioLib library for communication management
+#include <RadioLib.h>
 
 // ---------------------------------
 // PRINT FUNCTIONS
@@ -20,14 +25,16 @@ void printStartupMessage(const char* module)
 
 
 // Print radio status on serial
-void printRadioStatus(int8_t state, bool blocking = false)
+void printRadioStatus(int8_t state, bool blocking)
 {
+
+	// No error reported
 	if (state == RADIOLIB_ERR_NONE)
 	{
-		Serial.println("ok");
+		Serial.println("NO ERROR REPORTED");
 	} else
 	{
-		Serial.println((String) "failed, code " + state);
+		Serial.println((String) "FAILD --> CODE: " + state);
 		if (blocking)
 		{
 			Serial.println("Blocking program until user forces restart!");
@@ -44,7 +51,7 @@ void printRadioStatus(int8_t state, bool blocking = false)
 // Print received packet on serial
 void printPacket(const uint8_t* packet, uint8_t length)
 {
-	Serial.print("Data: ");
+	Serial.print("DATA: ");
 	for (uint8_t i = 0; i < length; i++)
 	{
 		Serial.print((char)packet[i]);
@@ -57,6 +64,15 @@ void printPacket(const uint8_t* packet, uint8_t length)
 // ---------------------------------
 // RADIO FUNCTIONS
 // ---------------------------------
+
+// Start LoRa module
+SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
+
+// Defining handle for COMMS_StateMachine
+TaskHandle_t RTOS_handle_COMMS_StateMachine;
+
+// Defining handle TX manager
+TaskHandle_t RTOS_TX_manager_handle;
 
 // Notify COMMS task of a radio event (called when packet sent or received)
 ICACHE_RAM_ATTR void packetEvent(void)
@@ -87,42 +103,19 @@ void startTransmision(uint8_t *tx_packet, uint8_t packet_size)
 {
 	// Start transmission
 	Serial.print("Transmitting: " + String((char*) tx_packet) + " ... ");
-	tx_state = radio.startTransmit(tx_packet, packet_size);
+	int8_t tx_state = radio.startTransmit(tx_packet, packet_size);
 
 	// Set task to notify by packetEvent
-	xTaskToNotify = RTOS_TX_manager_handle;
-
+	//xTaskNotify = RTOS_TX_manager_handle; //NOT CLEAR
+	//POSSIBLE CORRECTION:
+	xTaskNotifyGive(RTOS_TX_manager_handle);
+	
 	// TODO: should transmissions tatus be reported there or after full transmission?
 }
 
 // ---------------------------------
 // PACKET FUNCTIONS
 // ---------------------------------
-
-// Struct to hold packet information
-struct PacketRX
-{
-	uint8_t state;
-	uint8_t station;
-	uint8_t TEC;
-	uint8_t ID_total;
-	uint8_t ID;
-	uint32_t time_unix;
-	uint8_t payload_length;
-	uint8_t payload[RX_PACKET_SIZE_MAX];
-
-};
-
-// Struct to hold TX packet information
-struct PacketTX
-{
-	uint8_t TRC;
-	uint8_t ID_total;
-	uint8_t ID;
-	uint32_t time_unix;
-	uint8_t payload_length;
-	uint8_t payload[TX_PACKET_SIZE_MAX];
-}
 
 // Convert received packet to struct
 PacketRX dataToPacketRX(uint8_t* data, uint8_t length)
@@ -133,31 +126,34 @@ PacketRX dataToPacketRX(uint8_t* data, uint8_t length)
 	// Parse header
 	packet.station = data[0];
 	packet.TEC = data[1];
-	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 2
-	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 2
+	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 2 --> NON E' IL BYTE 3?
+	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 2 --> NON E' IL BYTE 3?
 	packet.time_unix = (data[3] << 24) | (data[4] << 16) | (data[5] << 8) | data[6];
-	packet.payload_length = getPayloadLength(packet.TEC, packet.ID);
+	//packet.payload_length = getPayloadLength(packet.TEC, packet.ID); //--> NOT DEFINE
+	packet.payload_length = 3; //--> ONLY FOR DEBUG OPERATIONS
 
 	// Parse payload (from byte 14 to byte 14 + payload_length)
-	payload_start_byte = RX_PACKET_HEADER_LENGTH + 1
-	for (uint8_t i = 0; i < payload_length; i++)
+	uint8_t payload_start_byte = RX_PACKET_HEADER_LENGTH + 1;
+	for (uint8_t i = 0; i < packet.payload_length; i++)
 	{
 		packet.payload[i] = data[payload_start_byte + i];
 	}
 
 	// Check end byte
-	end_byte = RX_PACKET_HEADER_LENGTH + payload_length + 1;
+	uint8_t end_byte = RX_PACKET_HEADER_LENGTH + packet.payload_length + 1;
 	if (data[end_byte] != 0xFF)
 	{
 		Serial.println("End byte value wrong!");
-		packet.state = PACKET_ERR_END; // TODO handle error
+		//packet.state = PACKET_ERR_END; // TODO handle error //--> E' RX_PACKET_ERR_END?
+		packet.state = RX_PACKET_ERR_END;
 		return packet;
 	}
 
 	// Check padding TODO?
 
 	// Packet successfully decoded
-	packet.state = PACKET_ERR_NONE;
+	//packet.state = PACKET_ERR_NONE;//--> E' RX_PACKET_ERR_NONE?
+	packet.state = RX_PACKET_ERR_NONE;
 
 	return packet;
 }
@@ -214,7 +210,7 @@ bool processCommand(PacketRX* packets, uint8_t packets_total)
 	// Now all packets are validated, we can start parsing command
 
 	// Calculate total payload length
-	command_length = 0;
+	uint8_t command_length = 0;
 	for (uint8_t i = 0; i < packets_total; i++) {
 		command_length += packets[i].payload_length;
 	}
@@ -232,7 +228,7 @@ bool processCommand(PacketRX* packets, uint8_t packets_total)
 	}
 	
 	// Execute command
-	switch TEC
+	switch(TEC)
 	{
 		case TEC_OBC_REBOOT:
 			// TODO execute command

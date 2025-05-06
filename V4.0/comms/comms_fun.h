@@ -48,15 +48,14 @@
 #define RX_TIMEOUT 3000 // [ms] rx timeout to wait before going back to idle state
 
 // Main COMMS loop
-void COMMS_stateMachine(void);
-
+void COMMS_stateMachine(void *parameter);
 
 // ---------------------------------
 // UTILITY FUNCTIONS
 // ---------------------------------
 
 // Print boot message on serial
-void printStartupMessage();
+void printStartupMessage(const char*);
 
 // Print radio status on serial
 void printRadioStatus(int8_t state, bool blocking = false);
@@ -109,11 +108,30 @@ void startReception(void);
 // Start LoRa transmission
 void startTransmision(uint8_t *tx_packet, uint8_t packet_size);
 
-// Struct to hold RX packet information
-struct PacketRX;
+// Struct to hold packet information
+struct PacketRX
+{
+	uint8_t state;
+	uint8_t station;
+	uint8_t TEC;
+	uint8_t ID_total;
+	uint8_t ID;
+	uint32_t time_unix;
+	uint8_t payload_length;
+	uint8_t payload[RX_PACKET_SIZE_MAX];
+
+};
 
 // Struct to hold TX packet information
-struct PacketTX;
+struct PacketTX
+{
+	uint8_t TRC;
+	uint8_t ID_total;
+	uint8_t ID;
+	uint32_t time_unix;
+	uint8_t payload_length;
+	uint8_t payload[TX_PACKET_SIZE_MAX];
+};
 
 // Convert received packet to struct
 PacketRX dataToPacketRX(uint8_t* data, uint8_t length);
