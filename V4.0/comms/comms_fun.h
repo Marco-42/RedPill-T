@@ -22,10 +22,15 @@
 #define PREAMBLE_LENGTH 8 // standard
 #define GAIN 1 // set automatic gain control
 
+// Define LoRa module
+SX1278 radio;
 
 // ---------------------------------
 // RTOS CONFIGURATION
 // ---------------------------------
+
+// Define handle for COMMS_StateMachine
+TaskHandle_t RTOS_handle_COMMS_StateMachine;
 
 // TX queue configuration
 #define TX_QUEUE_SIZE 5 // [packets] size of tx queue
@@ -58,7 +63,7 @@ void COMMS_stateMachine(void *parameter);
 void printStartupMessage(const char*);
 
 // Print radio status on serial
-void printRadioStatus(int8_t state, bool blocking = false);
+void printRadioStatus(int8_t state, bool blocking);
 
 // Print received packet on serial
 void printPacket(const uint8_t* packet, uint8_t length);

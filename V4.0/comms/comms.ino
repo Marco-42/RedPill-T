@@ -32,7 +32,7 @@ Used module: TTGO LoRa32 T3_V1.6.1 433 MHz
 // ---------------------------------
 
 // FreeRTOS task handles
-TaskHandle_t RTOS_COMMS_handle;
+//TaskHandle_t RTOS_handle_COMMS_StateMachine;
 
 void setup()
 {
@@ -58,7 +58,7 @@ void setup()
 
 
 	// COMMS_stateMachine task
-	xTaskCreate(COMMS_stateMachine, "COMMS_stateMachine", 2000, NULL, 2, &RTOS_COMMS_handle);
+	xTaskCreate(COMMS_stateMachine, "COMMS_stateMachine", 2000, NULL, 2, &RTOS_handle_COMMS_StateMachine);
 }
 
 // ---------------------------------

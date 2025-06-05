@@ -25,7 +25,7 @@ void printStartupMessage(const char* module)
 
 
 // Print radio status on serial
-void printRadioStatus(int8_t state, bool blocking)
+void printRadioStatus(int8_t state, bool blocking = false)
 {
 
 	// No error reported
@@ -65,14 +65,6 @@ void printPacket(const uint8_t* packet, uint8_t length)
 // RADIO FUNCTIONS
 // ---------------------------------
 
-// Start LoRa module
-SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
-
-// Defining handle for COMMS_StateMachine
-TaskHandle_t RTOS_handle_COMMS_StateMachine;
-
-// Defining handle TX manager
-TaskHandle_t RTOS_TX_manager_handle;
 
 // Notify COMMS task of a radio event (called when packet sent or received)
 ICACHE_RAM_ATTR void packetEvent(void)
@@ -108,7 +100,7 @@ void startTransmision(uint8_t *tx_packet, uint8_t packet_size)
 	// Set task to notify by packetEvent
 	//xTaskNotify = RTOS_TX_manager_handle; //NOT CLEAR
 	//POSSIBLE CORRECTION:
-	xTaskNotifyGive(RTOS_TX_manager_handle);
+	//xTaskNotifyGive(RTOS_TX_manager_handle);
 	
 	// TODO: should transmissions tatus be reported there or after full transmission?
 }
@@ -126,7 +118,7 @@ PacketRX dataToPacketRX(uint8_t* data, uint8_t length)
 	// Parse header
 	packet.station = data[0];
 	packet.TEC = data[1];
-	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 2 --> NON E' IL BYTE 3?
+	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
 	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 2 --> NON E' IL BYTE 3?
 	packet.time_unix = (data[3] << 24) | (data[4] << 16) | (data[5] << 8) | data[6];
 	//packet.payload_length = getPayloadLength(packet.TEC, packet.ID); //--> NOT DEFINE
