@@ -20,10 +20,7 @@ Used module: TTGO LoRa32 T3_V1.6.1 433 MHz
 // Arduino library
 #include <Arduino.h>
 
-// RadioLib library for communication management
-#include <RadioLib.h>
-
-// Custom functions
+// Functions and libraries
 #include "comms_fun.h"
 
 
@@ -32,12 +29,13 @@ Used module: TTGO LoRa32 T3_V1.6.1 433 MHz
 // ---------------------------------
 
 // FreeRTOS task handles
-//TaskHandle_t RTOS_handle_COMMS_StateMachine;
+TaskHandle_t RTOS_handle_COMMS_StateMachine;
 
 void setup()
 {
 	// Initialize serial port
 	Serial.begin(9600);
+	Serial.println("");
 	printStartupMessage("SETUP");
 
 	// FreeRTOS task creation
