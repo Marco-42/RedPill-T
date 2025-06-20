@@ -31,10 +31,6 @@ void COMMS_stateMachine(void *parameter)
 	radio.setPacketSentAction(packetEvent);
 	radio.setPacketReceivedAction(packetEvent);
 
-	// Start listening
-	startReception();
-
-
 	// only way to end state machine is killing COMMS thread (by the OBC)
 	for(;;)
 	{
@@ -46,10 +42,8 @@ void COMMS_stateMachine(void *parameter)
 			// Check if there is packet waiting in the queue, in case it switch to COMMS_TX
 			case COMMS_IDLE: //COMMS_IDLE = 0
 			{
-				Serial.println("COMMS_IDLE: Waiting for packets...");
+				Serial.println("COMMS_IDLE: Waiting for packets ...");
 
-				// Start listening for packets
-				startReception();
 				bool first_run = true; // flag to check if this is the first run of the loop
 
 				do
@@ -100,7 +94,7 @@ void COMMS_stateMachine(void *parameter)
 			// PACKET RECEPTION
 			case COMMS_RX:
 			{
-				Serial.println("COMMS_RX: starting packet reception...");
+				Serial.println("COMMS_RX: starting packet reception ...");
 				
 				// Initialize command variables
 				uint8_t command_packets_processed = 0;
@@ -168,7 +162,7 @@ void COMMS_stateMachine(void *parameter)
 			// PACKET TRANSMITION
 			case COMMS_TX:
 			{
-				Serial.println("COMMS_TX: starting packet transmission...");
+				Serial.println("COMMS_TX: starting packet transmission ...");
 
 				do
 				{
@@ -189,7 +183,7 @@ void COMMS_stateMachine(void *parameter)
 						{
 
 							// Send telemetry beacon without coding or interleaving
-							Serial.println("Sending telemetry beacon...");
+							// Serial.println("Sending telemetry beacon...");
 							break;
 						}
 						
@@ -198,7 +192,7 @@ void COMMS_stateMachine(void *parameter)
 							
 							// TODO: interleave
 							// TODO: encode Reed Salomon packet
-							Serial.println("Sending data packet...");
+							// Serial.println("Sending data packet...");
 							break;
 						}
 					}
@@ -250,7 +244,7 @@ void COMMS_stateMachine(void *parameter)
 
 							if (line_incoming.equalsIgnoreCase("go"))
 							{
-								Serial.println("Processing packets...");
+								Serial.println("Processing packets ...");
 								uint8_t lines_total = lines_raw.size();
 
 								for (uint8_t i = 0; i < lines_total; ++i)

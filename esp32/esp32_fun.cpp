@@ -13,7 +13,7 @@ void printStartupMessage(const char* device)
 {
 	delay(1000);
 	Serial.print(device);
-	Serial.print(" starting... ");
+	Serial.print(" starting ... ");
 	delay(500);
 	Serial.println("ok");
 	Serial.println("");
@@ -38,7 +38,7 @@ void printRadioStatus(int8_t state, bool blocking)
 			while (true)
 			{
 				delay(10000);
-				Serial.println("Program blocked, please restart...");
+				Serial.println("Program blocked, please restart ...");
 			}
 		}
 	}
@@ -80,7 +80,7 @@ ICACHE_RAM_ATTR void packetEvent(void)
 void startReception(void)
 {
 	// Start listening
-	Serial.print("Listening... ");
+	Serial.print("Listening ... ");
 	int8_t rx_state = radio.startReceive();
 
 	// Report listening status
