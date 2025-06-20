@@ -1,31 +1,30 @@
 /*
-	Programma di trasmissione/ricezione per il modulo SX1278 usando la libreria RadioLib 
-	Un modulo manda in trasmissione un messaggio passato dall'utente in modalità seriale
-	Il modulo ricevente ritrasmette poi all'utente una copia di tale messaggio
-	Scheda usata: TTGO LoRa32 T3_V1.6.1 433 MHz
+-------------------------------------------
+	Telecom software - RedPill by J2050 
+-------------------------------------------
 
-	Per le impostazioni di default per il modulo visualizzare il seguente link:
+Management software for the comunication beetwen two Lora module
+Used module: TTGO LoRa32 T3_V1.6.1 433 MHz
+
+	Default setting end other informations about the lora module: 
 	https://github.com/jgromes/RadioLib/wiki/Default-configuration
 
-	Per informazioni sulla libreria:
-	https://github.com/jgromes/RadioLib/tree/master
+	Used library:
+	- Radiolib --> https://github.com/jgromes/RadioLib/tree/master
 
-	Librerie necessarie:
-	- Esp32
-	- Radiolib
-
-	Link del board manager per l'esp32:
+	Used board manager: 
+	- Esp
 	https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 */
 
 #include <Arduino.h>
 
+// RadioLib library for communication management
+#include <RadioLib.h>
+
 // ---------------------------------
 // LORA CONFIGURATION
 // ---------------------------------
-
-// RadioLib library for communication management
-#include <RadioLib.h>
 
 // Initialize SX1278 LoRa module pins
 #define CS_PIN 18
@@ -45,6 +44,13 @@ SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
 #define PREAMBLE_LENGTH 8 // standard
 #define GAIN 1 // set automatic gain control
 
+// ---------------------------------
+// SENSORS CONFIGURATION
+// ---------------------------------
+
+// Initialize ST-100 temperature sensor pin and standard ESP32 output tension
+#define TEMPERATURE_PIN = 13
+float ESP32_TENSION = 3.3;
 
 // ---------------------------------
 // FUNCTIONS
@@ -80,8 +86,9 @@ void printRadioStatus(int8_t state, bool blocking = false)
 // Handles
 static TaskHandle_t xTaskToNotify = NULL; // task to notify
 
+//---------------------------------------------------------
 
-// RX MANAGER TASK
+// RX MANAGER TASK - RECEPTION 
 
 // Handles
 TaskHandle_t RTOS_RX_manager_handle;
@@ -102,11 +109,11 @@ void startReception(void)
 	printRadioStatus(rx_state);
 }
 
-// Main task
+// Main task --> manages the reception
 void RX_manager(void *parameter)
 {
 	uint8_t rx_packet_size;
-
+	 
 	// uint8_t packet[] = {0x01, 0x23, 0x45, 0x67,
 	//                   0x89, 0xAB, 0xCD, 0xEF};
 
@@ -137,6 +144,10 @@ void RX_manager(void *parameter)
 				Serial.print(" ");
 			}
 			Serial.println();
+
+			// check if received message is connected with setting function
+			String received_data = String((char*)rx_packet);
+			check_packet(received_data);
 
 			// Print packet info
 			Serial.println((String) "Length: " + rx_packet_size);
@@ -170,14 +181,16 @@ ICACHE_RAM_ATTR void packetEvent(void)
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
+//---------------------------------------------------------
 
-// TX MANAGER TASK
+// TX MANAGER TASK - TRANSMISSION
 
 #define TX_PACKET_SIZE 8
 
 // Handles
 TaskHandle_t RTOS_TX_manager_handle;
 QueueHandle_t RTOS_TX_queue;
+QueueHandle_t temperatureQueue;
 
 int8_t tx_state;
 
@@ -194,8 +207,8 @@ void startTransmision(uint8_t *tx_packet, uint8_t packet_size)
 	// TODO: should transmissions tatus be reported there or after full transmission?
 }
 
-// Main task
-void TX_manager(void *parameter)
+// Main task --> manages the transmission
+void TX_manager(void *parameter) 
 {
 	uint8_t tx_packet[TX_PACKET_SIZE];
 	uint16_t tx_start_tick;
@@ -239,8 +252,9 @@ void TX_manager(void *parameter)
 	vTaskDelete(NULL);
 }
 
+//---------------------------------------------------------
 
-// SERIAL MANAGER TASK
+// PACKET MANAGEMENT 
 
 #define SERIAL_BUFFER_SIZE 64
 
@@ -266,14 +280,17 @@ void serial_manager(void *parameter)
 		// Read the data from the serial port
 		String data = Serial.readStringUntil('\n');
 		
-		// Reboot the device if the user sends "reboot"
-		if (data == "reboot")
-		{
-			Serial.println("Rebooting ...");
-			delay(1000);
-			ESP.restart();
-		}
+		// check if packet can run some pre-set function
+		check_packet(data)
 
+		// using makePacket to create and send packet to TX manager
+		makePacket(data);
+	}
+}
+
+// makePacket function --> create stardards packet and sent them in the queue
+void makePacket(String data){
+	
 		// Create packet(s) from user input
 		uint8_t packets_needed = ceil((float) data.length() / TX_PACKET_SIZE); // calculate the number of packets needed
 		
@@ -300,10 +317,129 @@ void serial_manager(void *parameter)
 			// Send packet to TX queue
 			xQueueSend(RTOS_TX_queue, &packet, portMAX_DELAY);
 		}
-	}
 }
 
+// check if the package is connected to any setting function and if so execute it
+void check_packet(String data){
 
+	// Reboot the device if the user sends "reboot"
+	if (data.substring(0,6) == "reboot")
+	{
+		Serial.println("Rebooting ...");
+		delay(1000);
+		ESP.restart();
+	}
+
+	// Reboot both modules if the user sends "rebootall"
+	// reboot the current module and send a reboot request to the other one
+	if (data.substring(0,9) == "rebootall")
+	{
+		Serial.println("Rebooting both module ...");
+		delay(1000);
+		String reboot_string = "reboot";
+		
+		// sending the reboot request to the other module
+		makePacket(reboot_string)
+
+		// reboot current device
+		delay(1000);
+		ESP.restart();
+	}
+
+	// Activate the temperature sensor if the user sends "starttemp"
+	if (data.substring(0,9) == "starttemp")
+	{
+		// Resume the temperature sensor manager task
+		vTaskResume(RTOS_temperature_handle);
+	}
+
+	// Deactivate the temperature sensor if the user sends "stoptemp"
+	if (data.substring(0,8) == "stoptemp")
+	{
+		// Suspend the temperature sensor manager task
+		vTaskSuspend(RTOS_temperature_handle);
+	}
+
+	// Set the temperature reading interval if the user sends "settempVALUE" 
+	// Example: settemp3000 --> interval = 3 seconds
+	if (data.substring(0,8) == "settemp")
+	{
+		// Extract the time interval from the user input
+		String time_interval = data.substring(9, data.length());
+		float time_interval_float = time_interval.toFloat();
+
+		// Check if the time interval is valid
+		if (time_interval_float > 0)
+		{
+			// Send the time interval to the temperature sensor manager task
+			xQueueSend(temperatureQueue, &time_interval_float, portMAX_DELAY);
+			
+			// Resume the temperature sensor manager task if it is suspended
+			if (eTaskGetState(RTOS_temperature_handle) == eSuspended) {
+				vTaskResume(RTOS_temperature_handle);
+			} 
+
+		}
+		else
+		{
+			Serial.println("Invalid time interval. Please enter a positive number.");
+		}
+	}
+
+	// Start 
+}
+//---------------------------------------------------------
+
+// TEMPERATURE SENSOR 
+
+// Handles
+TaskHandle_t RTOS_temperature_handle;
+
+// Main task
+void temperature_sensor_manager(void *parameter){
+
+	// Initialize some constants used in the temperature convertion - ST100 data:
+	//https://www.apogeeinstruments.com/content/ST-100-110-200-300-manual.pdf
+	float temp_A = 0.00129241;
+	float temp_B = 0.0002341077;
+	float temp_C = 0.00000008775468;
+	
+	// time interval for the temperature reading 
+	// it will be taken from temperatureQueue and set initially to 1 second
+	float variable = 0;
+	float time_interval = 1000;
+
+	// Check if a parameter is available in the queue, if not, don't wait for it
+	// if there isn't element in the queue, time_intervall remain the last selection
+	if (xQueueReceive(temperatureQueue, &variable, 0) == pdPASS) {
+		time_interval = variable;
+	}
+
+	// Do the task every time_intervall milliseconds 
+	TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS((int)time_interval);
+
+    // Initialise the xLastWakeTime variable with the current time.
+    xLastWakeTime = xTaskGetTickCount();
+
+    for( ;; )
+    {
+        // Wait for the next cycle.
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+
+		// read analog temperature values from the sensor 
+		float analog_temperature = analogRead(TEMPERATURE_PIN);
+		
+		// convert the analog temperature in usefull data
+		float temperature_resistance = 24900*(ESP32_TENSION/(analog_temp*ESP32_TENSION/4095) - 1);
+		float temperature = 1/(temp_A+temp_B*log(temperature_resistance)+temp_C*(pow(log(temperature_resistance), 3)))
+
+		// using makePacket to create and send packet to TX manager
+		makePacket(String(temperature));
+    }
+}
+
+//---------------------------------------------------------
 
 // ---------------------------------
 // SETUP
@@ -360,6 +496,11 @@ void setup()
  	// Serial manager task
 	xTaskCreate(serial_manager, "Serial manager", 4000, NULL, 1, &RTOS_serial_handle);
 
+	// Temperature sensor manager task
+	xTaskCreate(temperature_sensor_manager, "Temperature sensor manager", 4000, NULL, 1, &RTOS_temperature_handle);
+
+	// Suspend the task immediately after creation
+	vTaskSuspend(RTOS_temperature_handle);
 }
 
 // ---------------------------------
