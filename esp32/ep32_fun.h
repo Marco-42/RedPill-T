@@ -1,7 +1,10 @@
-#ifndef COMMSFUN_H
+#ifndef ESP32_H
 
-	#define COMMSFUN_H
+	#define ESP32_H
 
+	// Arduino library
+	#include <Arduino.h>
+	
 	// RadioLib library for communication management
 	#include <RadioLib.h>
 

@@ -1,8 +1,5 @@
-// Arduino library
-#include <Arduino.h>
-
 // Functions and libraries
-#include "comms_fun.h"
+#include "esp32_fun.h"
 
 // Define LoRa module
 SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);

@@ -17,11 +17,8 @@ Used module: TTGO LoRa32 T3_V1.6.1 433 MHz
 	https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 */
 
-// Arduino library
-#include <Arduino.h>
-
 // Functions and libraries
-#include "comms_fun.h"
+#include "esp32_fun.h"
 
 
 // ---------------------------------

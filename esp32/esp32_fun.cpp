@@ -1,8 +1,6 @@
-// Arduino library
-#include <Arduino.h>
+// Functions and libraries
+#include "esp32_fun.h"
 
-// Custom functions
-#include "comms_fun.h"
 
 
 // ---------------------------------
