@@ -31,10 +31,8 @@ void COMMS_stateMachine(void *parameter)
 	radio.setPacketSentAction(packetEvent);
 	radio.setPacketReceivedAction(packetEvent);
 
-	// Start listening
-	startReception();
-
-
+	//radio.setBufferAction(packetEvent);
+	
 	// only way to end state machine is killing COMMS thread (by the OBC)
 	for(;;)
 	{

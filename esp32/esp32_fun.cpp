@@ -126,7 +126,7 @@ PacketRX dataToPacketRX(const uint8_t* data, uint8_t length)
 	packet.station = data[0];
 	packet.TEC = data[1];
 	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
-	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 2 --> NON E' IL BYTE 3?
+	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 3 
 	packet.time_unix = (data[3] << 24) | (data[4] << 16) | (data[5] << 8) | data[6];
 	//packet.payload_length = getPayloadLength(packet.TEC, packet.ID); //--> NOT DEFINE
 	packet.payload_length = 3; //--> ONLY FOR DEBUG OPERATIONS TODO change this
