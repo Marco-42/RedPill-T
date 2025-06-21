@@ -3,7 +3,6 @@ import serial
 import serial.tools.list_ports
 from datetime import datetime
 from PyQt5.QtWidgets import *
-# from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import QTimer
 
@@ -16,9 +15,29 @@ class MainWindow(QWidget):
         self.command_queue = []
 
         # === Left Panel Components ===
+        self.gs_selector = QComboBox()
+        self.gs_selector.addItems(["UniPD", "Mobile"])
+
         self.packet_type = QComboBox()
         self.packet_type.addItems(["Custom", "A", "B"])
-        self.payload_input = QLineEdit()
+        self.packet_type.currentIndexChanged.connect(self.switch_input_form)
+
+        # Input widgets for different packet types
+        # Custom input
+        self.custom_input = QLineEdit()
+
+        # A input
+        self.a_opt1 = QComboBox()
+        self.a_opt1.addItems(["1", "2", "3"])
+        self.a_opt2 = QComboBox()
+        self.a_opt2.addItems(["1", "2", "3"])
+
+        # B input
+        self.b_set1 = QComboBox()
+        self.b_set1.addItems(["1", "2", "3"])
+        self.b_set2 = QComboBox()
+        self.b_set2.addItems(["1", "2", "3"])
+
         self.add_to_queue_button = QPushButton("Add to Queue")
         self.add_to_queue_button.clicked.connect(self.add_to_queue)
 
@@ -27,19 +46,18 @@ class MainWindow(QWidget):
         self.queue_table.setHorizontalHeaderLabels(["CMD", "Command", "Packet", "Delay", "HEX"])
         self.queue_table.horizontalHeader().setStretchLastSection(True)
         self.queue_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.queue_table.setMaximumHeight(400)
-
-        # Resize columns to fit header for narrow columns
+        self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.queue_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)  # CMD
         self.queue_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Packet
         self.queue_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Delay
 
-        self.execute_next_button = QPushButton("Execute Next Command")
+        self.execute_next_button = QPushButton("Execute Next")
         self.execute_next_button.clicked.connect(self.execute_next_command)
         self.execute_next_button.setEnabled(False)
 
-        self.abort_next_button = QPushButton("Abort Next Command")
+        self.abort_next_button = QPushButton("Abort Next")
         self.abort_next_button.clicked.connect(self.abort_next_command)
+        self.abort_next_button.setStyleSheet("background-color: #ffcccc;")
 
         # === Right Panel Components ===
         self.port_selector = QComboBox()
@@ -64,44 +82,80 @@ class MainWindow(QWidget):
         # === Layouts ===
         main_layout = QHBoxLayout()
 
-        # LEFT COLUMN (Commands)
+        # === LEFT PANEL ===
         left_col = QVBoxLayout()
-        left_col.addWidget(QLabel("Packet Type:"))
-        left_col.addWidget(self.packet_type)
-        left_col.addWidget(QLabel("Payload:"))
-        left_col.addWidget(self.payload_input)
+
+        # TEC Setup group (form layout)
+        packet_group = QGroupBox("TEC Setup")
+        packet_layout = QFormLayout()
+        packet_layout.addRow("Ground Station:", self.gs_selector)
+        packet_layout.addRow("Command:", self.packet_type)
+        packet_group.setLayout(packet_layout)
+        packet_group.adjustSize()
+        packet_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+        # TEC Content group (single form layout for all inputs)
+        packet_setup_group = QGroupBox("TEC Content")
+        self.packet_setup_layout = QFormLayout()
+        packet_setup_group.setLayout(self.packet_setup_layout)
+
+        # Initially populate input fields for the default packet type
+        self.switch_input_form(self.packet_type.currentIndex())
+
+        # Add groups and buttons
+        left_col.addWidget(packet_group)
+        left_col.addWidget(packet_setup_group)
         left_col.addWidget(self.add_to_queue_button)
 
-        left_col.addWidget(QLabel("Queued Commands:"))
-        left_col.addWidget(self.queue_table)
+        # Queued commands table inside group box
+        queued_commands_group = QGroupBox("Queued Commands")
+        queued_commands_layout = QVBoxLayout()
+        queued_commands_layout.addWidget(self.queue_table)
 
-        # Abort and execute buttons
+        # Add buttons inside this group box
         button_row = QHBoxLayout()
         button_row.addWidget(self.abort_next_button)
         button_row.addWidget(self.execute_next_button)
-        left_col.addLayout(button_row)
-        # self.execute_next_button.setStyleSheet("background-color: #ccffcc;") # light green
-        # self.abort_next_button.setStyleSheet("background-color: #ffcccc;") # light red
+        queued_commands_layout.addLayout(button_row)
 
-        # RIGHT COLUMN (Connection & Status)
-        right_col = QVBoxLayout()
-        right_col.addWidget(QLabel("Select COM Port:"))
-        right_col.addWidget(self.port_selector)
+        queued_commands_group.setLayout(queued_commands_layout)
+        # queued_commands_group.setMaximumHeight(500)
+
+        self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        left_col.addWidget(queued_commands_group)
+
+        # === RIGHT PANEL ===
+        serial_group = QGroupBox("Serial Communication")
+        serial_layout = QVBoxLayout()
+
+        form_layout = QFormLayout()
+        form_layout.addRow("Select COM Port:", self.port_selector)
+        serial_layout.addLayout(form_layout)
 
         button_row = QHBoxLayout()
         button_row.addWidget(self.refresh_button)
         button_row.addWidget(self.connect_button)
-        right_col.addLayout(button_row)
+        serial_layout.addLayout(button_row)
 
-        right_col.addWidget(self.status_label)
+        serial_layout.addWidget(self.status_label)
 
-        right_col.addWidget(QLabel("Status Messages:"))
-        right_col.addWidget(self.status_console)
+        serial_group.setLayout(serial_layout)
 
-        right_col.addWidget(QLabel("Serial Port Traffic:"))
-        right_col.addWidget(self.serial_console)
+        status_group = QGroupBox("Status Messages")
+        status_layout = QVBoxLayout()
+        status_layout.addWidget(self.status_console)
+        status_group.setLayout(status_layout)
 
-        # Combine into main layout with 1:1 ratio
+        traffic_group = QGroupBox("Serial Port Traffic")
+        traffic_layout = QVBoxLayout()
+        traffic_layout.addWidget(self.serial_console)
+        traffic_group.setLayout(traffic_layout)
+
+        right_col = QVBoxLayout()
+        right_col.addWidget(serial_group)
+        right_col.addWidget(status_group)
+        right_col.addWidget(traffic_group)
+
         main_layout.addLayout(left_col, 1)
         main_layout.addLayout(right_col, 1)
 
@@ -110,6 +164,26 @@ class MainWindow(QWidget):
         # Timer for serial read
         self.timer = QTimer()
         self.timer.timeout.connect(self.read_serial)
+
+    def switch_input_form(self, index):
+        # Remove all widgets from the layout but do NOT delete them, so they can be reused
+        while self.packet_setup_layout.count():
+            item = self.packet_setup_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                # Just remove from layout, don't delete!
+                widget.setParent(None)
+
+        # Add widgets according to packet type
+        if index == 0:  # Custom
+            self.packet_setup_layout.addRow("Payload:", self.custom_input)
+        elif index == 1:  # A
+            self.packet_setup_layout.addRow("Opt 1:", self.a_opt1)
+            self.packet_setup_layout.addRow("Opt 2:", self.a_opt2)
+        elif index == 2:  # B
+            self.packet_setup_layout.addRow("Set 1:", self.b_set1)
+            self.packet_setup_layout.addRow("Set 2:", self.b_set2)
+
 
     def refresh_ports(self):
         self.port_selector.clear()
@@ -130,6 +204,7 @@ class MainWindow(QWidget):
             self.set_status_light(True)
             self.connect_button.setText("Disconnect")
             self.execute_next_button.setEnabled(True)
+            self.execute_next_button.setStyleSheet("background-color: #ccffcc;")  # green
             self.log_status(f"[INFO] Connected to {port}")
             self.timer.start(100)
         except Exception as e:
@@ -143,6 +218,7 @@ class MainWindow(QWidget):
             self.set_status_light(False)
             self.connect_button.setText("Connect")
             self.execute_next_button.setEnabled(False)
+            self.execute_next_button.setStyleSheet("")
             self.log_status("[INFO] Disconnected")
 
     def set_status_light(self, connected):
@@ -159,13 +235,26 @@ class MainWindow(QWidget):
 
     def add_to_queue(self):
         packet_type = self.packet_type.currentText()
-        payload = self.payload_input.text().strip()
 
-        if not payload:
-            self.log_status("[WARNING] Payload is empty.")
-            return
+        if packet_type == "Custom":
+            payload = self.custom_input.text().strip()
+            if not payload:
+                self.log_status("[WARNING] Payload is empty.")
+                return
+            packets = [payload[i:i + 10] for i in range(0, len(payload), 10)]
 
-        # Simulate splitting payload into multiple packets (e.g., max 10 chars each)
+        elif packet_type == "A":
+            val1 = self.a_opt1.currentText()
+            val2 = self.a_opt2.currentText()
+            payload = f"A_{val1}_{val2}"
+            packets = [payload]
+
+        elif packet_type == "B":
+            val1 = self.b_set1.currentText()
+            val2 = self.b_set2.currentText()
+            payload = f"B_{val1}_{val2}"
+            packets = [payload]
+
         max_packet_len = 10
         packets = [payload[i:i + max_packet_len] for i in range(0, len(payload), max_packet_len)]
 
@@ -175,28 +264,38 @@ class MainWindow(QWidget):
             packet_id = i + 1
             command_str = f"{packet_type}:{packet_payload}"
 
-            # Dummy delay and HEX values for now
             delay = "0"
             hex_repr = self.generate_hex(packet_type, packet_payload)
 
             self.command_queue.append((cmd_id, packet_id, command_str, delay, hex_repr))
 
         self.update_queue_display()
-        self.log_status(f"[INFO] Added CMD {cmd_id} with {len(packets)} packet to queue.")
-
+        self.log_status(f"[INFO] Added CMD {cmd_id} with {len(packets)} packet(s) to queue.")
 
     def generate_hex(self, packet_type, payload):
-        # if packet_type == "Custom":
-        #     prefix = b'\x00'
-        # elif packet_type == "A":
-        #     prefix = b'\xA0'
-        # elif packet_type == "B":
-        #     prefix = b'\xB0'
-        # else:
-        #     prefix = b'\x00'
+        if self.gs_selector.currentText() == "UniPD":
+            gs_byte = b'\x01'
+        elif self.gs_selector.currentText() == "Mobile":
+            gs_byte = b'\x02'
+        else:
+            gs_byte = b'\x00'
 
-        # packet_bytes = prefix + payload.encode()
-        packet_bytes = payload.encode()
+        if packet_type == "Custom":
+            type_bytes = b'\x02\x03'
+        elif packet_type == "A":
+            type_bytes = b'\xA2\xA3'
+        elif packet_type == "B":
+            type_bytes = b'\xB2\xB3'
+        else:
+            type_bytes = b'\x00\x00'
+
+        header = gs_byte + type_bytes
+        unix_time = int(datetime.now().timestamp())
+        time_bytes = unix_time.to_bytes(4, byteorder='big')
+        payload_bytes = payload.encode()
+        end_byte = b'\xFF'
+
+        packet_bytes = header + time_bytes + payload_bytes + end_byte
         return ' '.join(f"{byte:02X}" for byte in packet_bytes)
 
 
@@ -277,6 +376,6 @@ class MainWindow(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.resize(900, 600)
+    window.resize(1000, 800)
     window.show()
     sys.exit(app.exec_())
