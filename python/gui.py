@@ -3,40 +3,85 @@ import serial
 import serial.tools.list_ports
 from datetime import datetime
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QColor, QPalette
+from PyQt5.QtGui import QColor, QPalette, QIntValidator, QDoubleValidator
 from PyQt5.QtCore import QTimer
 
 
 class MainWindow(QWidget):
+    # Centralized task definitions + codes
+    TASKS = {
+        0: {  # HK
+            "OBC reboot": 0,
+            "Exit state": 1,
+            "Variable change": 2,
+            "EPS reboot": 8,
+            "ADCS reboot": 16,
+            "TLE update": 17
+        },
+        1: {  # DAQ
+            "Start DAQ": 5,
+            "Stop DAQ": 6
+        },
+        2: {  # PE
+            "Execute A": 22,
+            "Execute B": 23
+        },
+        3: {  # DT
+            "Upload": 30,
+            "Download": 31
+        }
+    }
+
+    # Define your form input configs here:
+    # Each key is a (type_index, task_name) tuple
+    # Each value is a list of input field definitions:
+    # (label, widget_type, optional widget args)
+    INPUT_FIELDS_CONFIG = {
+        (0, "OBC reboot"): [
+            ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ],
+        (0, "Exit state"): [
+            # ("Delay:", QSpinBox, 0, 0, 100, "[s]"),
+            ("From state:", QSpinBox, 0, 0, 15, "0-15"),
+            ("To state:", QSpinBox, 1, 0, 15, "0-15"),
+        ],
+        (0, "Variable change"): [
+            ("Address:", QSpinBox, 0, 0, 255, "0-255"),
+            ("Value:", QSpinBox, 0, 0, 255, "0-255")
+        ],
+        (0, "EPS reboot"): [
+            ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ],
+        (0, "ADCS reboot"): [
+            ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ],
+        (0, "TLE update"): [
+            ("to be done...", QLabel, None, None, None, None)
+        ]
+    }
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ESP32 Serial GUI")
         self.serial_conn = None
         self.command_queue = []
+        self.created_widgets = {}
 
         # === Left Panel Components ===
         self.gs_selector = QComboBox()
         self.gs_selector.addItems(["UniPD", "Mobile"])
 
-        self.packet_type = QComboBox()
-        self.packet_type.addItems(["Custom", "A", "B"])
-        self.packet_type.currentIndexChanged.connect(self.switch_input_form)
+        self.type_selector = QComboBox()
+        self.type_selector.addItems([
+            "[HK] Housekeeping",
+            "[DAQ] Data Acquisition",
+            "[PE] Payload Execution",
+            "[DT] Data Transfer"
+        ])
+        self.type_selector.currentIndexChanged.connect(self.update_task_selector)
 
-        # Input widgets for different packet types
-        # Custom input
-        self.custom_input = QLineEdit()
-
-        # A input
-        self.a_opt1 = QComboBox()
-        self.a_opt1.addItems(["1", "2", "3"])
-        self.a_opt2 = QComboBox()
-        self.a_opt2.addItems(["1", "2", "3"])
-
-        # B input
-        self.b_set1 = QComboBox()
-        self.b_set1.addItems(["1", "2", "3"])
-        self.b_set2 = QComboBox()
-        self.b_set2.addItems(["1", "2", "3"])
+        self.task_selector = QComboBox()
+        self.task_selector.currentIndexChanged.connect(self.update_packet_content_form)
 
         self.add_to_queue_button = QPushButton("Add to Queue")
         self.add_to_queue_button.clicked.connect(self.add_to_queue)
@@ -89,7 +134,8 @@ class MainWindow(QWidget):
         packet_group = QGroupBox("TEC Setup")
         packet_layout = QFormLayout()
         packet_layout.addRow("Ground Station:", self.gs_selector)
-        packet_layout.addRow("Command:", self.packet_type)
+        packet_layout.addRow("Type:", self.type_selector)
+        packet_layout.addRow("Task:", self.task_selector)
         packet_group.setLayout(packet_layout)
         packet_group.adjustSize()
         packet_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
@@ -98,9 +144,8 @@ class MainWindow(QWidget):
         packet_setup_group = QGroupBox("TEC Content")
         self.packet_setup_layout = QFormLayout()
         packet_setup_group.setLayout(self.packet_setup_layout)
-
-        # Initially populate input fields for the default packet type
-        self.switch_input_form(self.packet_type.currentIndex())
+        self.update_task_selector(0)  # Initialize with options for the first typeù
+        self.update_packet_content_form()
 
         # Add groups and buttons
         left_col.addWidget(packet_group)
@@ -164,26 +209,82 @@ class MainWindow(QWidget):
         # Timer for serial read
         self.timer = QTimer()
         self.timer.timeout.connect(self.read_serial)
+        
+    def update_task_selector(self, index):
+        self.task_selector.blockSignals(True)
+        self.task_selector.clear()
 
-    def switch_input_form(self, index):
-        # Remove all widgets from the layout but do NOT delete them, so they can be reused
+        # Get the task names for this type index or empty dict if none
+        tasks_for_type = self.TASKS.get(index, {})
+        self.task_selector.addItems(tasks_for_type.keys())
+
+        self.task_selector.blockSignals(False)
+        self.update_packet_content_form()
+
+    def update_packet_content_form(self):
         while self.packet_setup_layout.count():
             item = self.packet_setup_layout.takeAt(0)
             widget = item.widget()
             if widget:
-                # Just remove from layout, don't delete!
-                widget.setParent(None)
+                widget.hide()
 
-        # Add widgets according to packet type
-        if index == 0:  # Custom
-            self.packet_setup_layout.addRow("Payload:", self.custom_input)
-        elif index == 1:  # A
-            self.packet_setup_layout.addRow("Opt 1:", self.a_opt1)
-            self.packet_setup_layout.addRow("Opt 2:", self.a_opt2)
-        elif index == 2:  # B
-            self.packet_setup_layout.addRow("Set 1:", self.b_set1)
-            self.packet_setup_layout.addRow("Set 2:", self.b_set2)
+        type_index = self.type_selector.currentIndex()
+        task_name = self.task_selector.currentText()
 
+        key = (type_index, task_name)
+        fields = self.INPUT_FIELDS_CONFIG.get(key, [])
+
+        for field in fields:
+            label_text = field[0]
+            widget_class = field[1]
+
+            default_value = field[2] if len(field) > 2 else None
+            min_val = field[3] if len(field) > 3 else None
+            max_val = field[4] if len(field) > 4 else None
+            right_text = field[5] if len(field) > 5 else None  # Optional label text
+
+            cache_key = (type_index, task_name, label_text)
+            if cache_key not in self.created_widgets:
+
+                if widget_class in (QSpinBox, QDoubleSpinBox):
+                    spinbox = widget_class()
+                    if min_val is not None and max_val is not None:
+                        spinbox.setRange(min_val, max_val)
+                    if default_value is not None:
+                        spinbox.setValue(default_value)
+
+                    if right_text:
+                        container = QWidget()
+                        h_layout = QHBoxLayout(container)
+                        h_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+                        h_layout.setSpacing(5)  # Some space between spinbox and label
+
+                        spinbox.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+                        h_layout.addWidget(spinbox)
+
+                        label = QLabel(right_text)
+                        label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+                        h_layout.addWidget(label)
+
+                        container.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+                        self.created_widgets[cache_key] = (container, spinbox)  # store both for access
+                    else:
+                        self.created_widgets[cache_key] = spinbox
+
+                else:
+                    widget = widget_class()
+                    if default_value is not None:
+                        widget.setText(str(default_value))
+                    self.created_widgets[cache_key] = widget
+
+            stored = self.created_widgets[cache_key]
+            if isinstance(stored, tuple):  # container + spinbox
+                container, spinbox = stored
+                self.packet_setup_layout.addRow(label_text, container)
+                container.show()
+            else:
+                self.packet_setup_layout.addRow(label_text, stored)
+                stored.show()
 
     def refresh_ports(self):
         self.port_selector.clear()
@@ -234,27 +335,31 @@ class MainWindow(QWidget):
         self.status_console.append(f"{timestamp} {message}")
 
     def add_to_queue(self):
-        packet_type = self.packet_type.currentText()
+        type_label = self.type_selector.currentText()
+        task_label = self.task_selector.currentText()
 
-        if packet_type == "Custom":
-            payload = self.custom_input.text().strip()
-            if not payload:
-                self.log_status("[WARNING] Payload is empty.")
-                return
-            packets = [payload[i:i + 10] for i in range(0, len(payload), 10)]
+        # Construct payload based on input fields in self.packet_setup_layout
+        payload_parts = []
+        for i in range(self.packet_setup_layout.rowCount()):
+            label_item = self.packet_setup_layout.itemAt(i, QFormLayout.LabelRole)
+            field_item = self.packet_setup_layout.itemAt(i, QFormLayout.FieldRole)
+            if label_item and field_item:
+                widget = field_item.widget()
+                if isinstance(widget, QLineEdit):
+                    value = widget.text().strip()
+                    if not value:
+                        self.log_status(f"[WARNING] '{label_item.widget().text()}' cannot be empty.")
+                        return
+                    payload_parts.append(value)
+                elif isinstance(widget, QComboBox):
+                    payload_parts.append(widget.currentText())
 
-        elif packet_type == "A":
-            val1 = self.a_opt1.currentText()
-            val2 = self.a_opt2.currentText()
-            payload = f"A_{val1}_{val2}"
-            packets = [payload]
+        payload = "_".join(payload_parts)
+        if not payload:
+            self.log_status("[WARNING] Payload is empty.")
+            return
 
-        elif packet_type == "B":
-            val1 = self.b_set1.currentText()
-            val2 = self.b_set2.currentText()
-            payload = f"B_{val1}_{val2}"
-            packets = [payload]
-
+        # Chunk into packets if needed
         max_packet_len = 10
         packets = [payload[i:i + max_packet_len] for i in range(0, len(payload), max_packet_len)]
 
@@ -262,36 +367,46 @@ class MainWindow(QWidget):
 
         for i, packet_payload in enumerate(packets):
             packet_id = i + 1
-            command_str = f"{packet_type}:{packet_payload}"
+            command_str = f"{type_label}:{task_label}:{packet_payload}"
 
             delay = "0"
-            hex_repr = self.generate_hex(packet_type, packet_payload)
+            hex_repr = self.generate_hex(packet_payload, packet_id=packet_id, total_packets=len(packets))
 
             self.command_queue.append((cmd_id, packet_id, command_str, delay, hex_repr))
 
         self.update_queue_display()
         self.log_status(f"[INFO] Added CMD {cmd_id} with {len(packets)} packet(s) to queue.")
 
-    def generate_hex(self, packet_type, payload):
-        if self.gs_selector.currentText() == "UniPD":
+
+
+    def generate_hex(self, payload, packet_id=1, total_packets=1):
+        gs_text = self.gs_selector.currentText()
+        if gs_text == "UniPD":
             gs_byte = b'\x01'
-        elif self.gs_selector.currentText() == "Mobile":
+        elif gs_text == "Mobile":
             gs_byte = b'\x02'
         else:
-            gs_byte = b'\x00'
+            self.log_status(f"[ERROR] Invalid Ground Station selected: {gs_text}")
+            return None
 
-        if packet_type == "Custom":
-            type_bytes = b'\x02\x03'
-        elif packet_type == "A":
-            type_bytes = b'\xA2\xA3'
-        elif packet_type == "B":
-            type_bytes = b'\xB2\xB3'
-        else:
-            type_bytes = b'\x00\x00'
+        type_code = self.type_selector.currentIndex()
+        task_text = self.task_selector.currentText()
 
-        header = gs_byte + type_bytes
+        # Lookup the task code
+        task_code = self.TASKS.get(type_code, {}).get(task_text, 0)
+        if task_code == 0:
+            self.log_status(f"[DEBUG] Task '{task_text}' not found in mapping for type {type_code}, defaulting to 0")
+
+        second_byte = (type_code << 6) | (task_code & 0x3F)
+        type_byte = bytes([second_byte])
+
+        third_byte_val = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
+        third_byte = bytes([third_byte_val])
+
+        header = gs_byte + type_byte + third_byte
         unix_time = int(datetime.now().timestamp())
         time_bytes = unix_time.to_bytes(4, byteorder='big')
+
         payload_bytes = payload.encode()
         end_byte = b'\xFF'
 
