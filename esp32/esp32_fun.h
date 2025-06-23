@@ -9,6 +9,12 @@
 	// RadioLib library for communication management
 	#include <RadioLib.h>
 
+	// Reed-Salomon library for error correction
+	extern "C"
+	{
+		#include <rscode-1.3/ecc.h>
+	}
+
 
 	// ---------------------------------
 	// LORA CONFIGURATION

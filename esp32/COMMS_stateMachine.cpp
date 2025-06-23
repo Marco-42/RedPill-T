@@ -212,6 +212,7 @@ void COMMS_stateMachine(void *parameter)
 				break;
 			}
 
+			// SERIAL INPUT
 			case COMMS_SERIAL:
 			{
 
