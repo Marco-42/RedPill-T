@@ -1,0 +1,8 @@
+Not urgent:
+- add password for GS selection
+
+Next:
+- check issue with command execution ✅
+- add TLE selector ✅
+- handle TLE error better ✅
+- change packet splitting

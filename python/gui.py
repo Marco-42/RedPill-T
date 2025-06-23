@@ -1,9 +1,10 @@
+import struct
 import sys
 import serial
 import serial.tools.list_ports
 from datetime import datetime
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QColor, QPalette, QIntValidator, QDoubleValidator
+from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import QTimer
 
 
@@ -31,10 +32,52 @@ def build_payload(type_index, task_name, input_widgets):
         return b''
 
     elif (type_index, task_name) == (0, "TLE update"):
-        tle_line1 = input_widgets["TLE Line 1:"].text().encode('ascii')
-        tle_line2 = input_widgets["TLE Line 2:"].text().encode('ascii')
-        return tle_line1 + b'\n' + tle_line2
-    # Add additional tasks here for DAQ, PE, DT as needed
+        tle_data = input_widgets["TLE Data:"].toPlainText().strip()
+        tle_lines = tle_data.splitlines()
+        if len(tle_lines) < 2:
+            raise ValueError("TLE Data must contain two lines.")
+
+        tle_line1 = tle_lines[0]
+        tle_line2 = tle_lines[1]
+
+        # Validate TLE lengths
+        if len(tle_line1) < 69 or len(tle_line2) < 69:
+            raise ValueError("TLE lines must be at least 69 characters long.")
+
+        try:
+            epoch_year = int(tle_line1[18:20])
+            epoch_year += 2000 if epoch_year < 57 else 1900
+            epoch_day = float(tle_line1[20:32])
+            mm_dot = float(tle_line1[33:43])
+            mm_ddot = float(f"{tle_line1[44:50].strip()}e{tle_line1[50:52]}")
+            bstar = float(f"{tle_line1[53:59].strip()}e{tle_line1[59:61]}")
+            
+            inclination = float(tle_line2[8:16])
+            raan = float(tle_line2[17:25])
+            eccentricity = float(f"0.{tle_line2[26:33].strip()}")
+            arg_perigee = float(tle_line2[34:42])
+            mean_anomaly = float(tle_line2[43:51])
+            mean_motion = float(tle_line2[52:63])
+            rev_number = int(tle_line2[63:68])
+        except Exception as e:
+            raise ValueError(f"Invalid TLE format: {e}")
+
+        # Pack into 43 bytes, big-endian
+        return struct.pack(
+            ">HffffffffffI",  # > = big endian
+            epoch_year,
+            epoch_day,
+            mm_dot,
+            mm_ddot,
+            bstar,
+            inclination,
+            raan,
+            eccentricity,
+            arg_perigee,
+            mean_anomaly,
+            mean_motion,
+            rev_number
+        )
 
     else:
         return b''
@@ -70,7 +113,7 @@ def build_packet(gs_text, type_index, task_name, packet_id, total_packets, paylo
 def split_payload_if_needed(type_index, task_label, payload):
     # Define commands that require payload splitting and their max chunk size
     MULTI_PACKET_TASKS = {
-        (0, "TLE update"): 10
+        # (0, "TLE update"): 10
     }
 
     max_len = MULTI_PACKET_TASKS.get((type_index, task_label))
@@ -128,7 +171,7 @@ class MainWindow(QWidget):
             ("No configuration available, execution is immediate", QLabel, None, None, None, None)
         ],
         (0, "TLE update"): [
-            ("to be done...", QLabel, None, None, None, None)
+            ("TLE Data:", QPlainTextEdit, "Line 1\nLine 2", None, None, None)
         ]
     }
 
@@ -168,15 +211,25 @@ class MainWindow(QWidget):
         self.queue_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Packet
         # self.queue_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Delay
 
-        self.execute_next_button = QPushButton("Execute Next")
-        self.execute_next_button.clicked.connect(self.execute_next_command)
-        self.execute_next_button.setEnabled(False)
+        # Abort command buttons
+        self.abort_last_button = QPushButton("Abort Last")
+        self.abort_last_button.clicked.connect(self.abort_last_command)
+        self.abort_last_button.setStyleSheet("background-color: #ffcccc;")
 
         self.abort_next_button = QPushButton("Abort Next")
         self.abort_next_button.clicked.connect(self.abort_next_command)
         self.abort_next_button.setStyleSheet("background-color: #ffcccc;")
 
+        # Execute next command button
+        self.execute_next_button = QPushButton("Execute Next")
+        self.execute_next_button.clicked.connect(self.execute_next_command)
+        self.execute_next_button.setEnabled(False)
+
         # === Right Panel Components ===
+        self.status_label = QLabel("Disconnected")
+        self.status_label.setAutoFillBackground(True)
+        self.set_status_light(False)
+
         self.port_selector = QComboBox()
         self.refresh_ports()
 
@@ -186,15 +239,17 @@ class MainWindow(QWidget):
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.toggle_connection)
 
-        self.status_label = QLabel("Disconnected")
-        self.status_label.setAutoFillBackground(True)
-        self.set_status_light(False)
-
+        # Status console for events
         self.status_console = QTextEdit()
         self.status_console.setReadOnly(True)
+        self.clear_status_button = QPushButton("Clear")
+        self.clear_status_button.clicked.connect(self.status_console.clear)
 
+        # Serial console for traffic
         self.serial_console = QTextEdit()
         self.serial_console.setReadOnly(True)
+        self.clear_serial_button = QPushButton("Clear")
+        self.clear_serial_button.clicked.connect(self.serial_console.clear)
 
         # === Layouts ===
         main_layout = QHBoxLayout()
@@ -202,7 +257,7 @@ class MainWindow(QWidget):
         # === LEFT PANEL ===
         left_col = QVBoxLayout()
 
-        # TEC Setup group (form layout)
+        # TEC Setup group
         packet_group = QGroupBox("TEC Setup")
         packet_layout = QFormLayout()
         packet_layout.addRow("Ground Station:", self.gs_selector)
@@ -210,21 +265,22 @@ class MainWindow(QWidget):
         packet_layout.addRow("Task:", self.task_selector)
         packet_group.setLayout(packet_layout)
         packet_group.adjustSize()
-        packet_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        packet_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
 
-        # TEC Content group (single form layout for all inputs)
+        # TEC Content group
         packet_setup_group = QGroupBox("TEC Content")
         self.packet_setup_layout = QFormLayout()
         packet_setup_group.setLayout(self.packet_setup_layout)
-        self.update_task_selector(0)  # Initialize with options for the first typeù
+        self.update_task_selector(0)  # Initialize with options for the first type
         self.update_packet_content_form()
+        packet_setup_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
 
         # Add groups and buttons
-        left_col.addWidget(packet_group)
-        left_col.addWidget(packet_setup_group)
-        left_col.addWidget(self.add_to_queue_button)
+        left_col.addWidget(packet_group, 0)
+        left_col.addWidget(packet_setup_group, 0)
+        left_col.addWidget(self.add_to_queue_button, 0)
 
-        # Queued commands table inside group box
+        # Queued commands group
         queued_commands_group = QGroupBox("Queued Commands")
         queued_commands_layout = QVBoxLayout()
         queued_commands_layout.addWidget(self.queue_table)
@@ -232,18 +288,20 @@ class MainWindow(QWidget):
         # Add buttons inside this group box
         button_row = QHBoxLayout()
         button_row.addWidget(self.abort_next_button)
-        button_row.addWidget(self.execute_next_button)
+        button_row.addWidget(self.abort_last_button)
         queued_commands_layout.addLayout(button_row)
-
+        queued_commands_layout.addWidget(self.execute_next_button)
         queued_commands_group.setLayout(queued_commands_layout)
         # queued_commands_group.setMaximumHeight(500)
-
         self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        left_col.addWidget(queued_commands_group)
+
+        left_col.addWidget(queued_commands_group, 1)
 
         # === RIGHT PANEL ===
         serial_group = QGroupBox("Serial Communication")
         serial_layout = QVBoxLayout()
+
+        serial_layout.addWidget(self.status_label)
 
         form_layout = QFormLayout()
         form_layout.addRow("Select COM Port:", self.port_selector)
@@ -254,18 +312,20 @@ class MainWindow(QWidget):
         button_row.addWidget(self.connect_button)
         serial_layout.addLayout(button_row)
 
-        serial_layout.addWidget(self.status_label)
-
         serial_group.setLayout(serial_layout)
 
         status_group = QGroupBox("Status Messages")
         status_layout = QVBoxLayout()
         status_layout.addWidget(self.status_console)
+        # status_layout.addWidget(self.clear_status_button, alignment=Qt.AlignRight)
+        status_layout.addWidget(self.clear_status_button)
         status_group.setLayout(status_layout)
 
         traffic_group = QGroupBox("Serial Port Traffic")
         traffic_layout = QVBoxLayout()
         traffic_layout.addWidget(self.serial_console)
+        # traffic_layout.addWidget(self.clear_serial_button, alignment=Qt.AlignRight)
+        traffic_layout.addWidget(self.clear_serial_button)
         traffic_group.setLayout(traffic_layout)
 
         right_col = QVBoxLayout()
@@ -362,69 +422,62 @@ class MainWindow(QWidget):
         self.update_packet_content_form()
 
     def update_packet_content_form(self):
+    # Clear and remove all widgets from layout and memory
         while self.packet_setup_layout.count():
             item = self.packet_setup_layout.takeAt(0)
             widget = item.widget()
             if widget:
-                widget.hide()
+                widget.deleteLater()
+
+        self.created_widgets.clear()  # Fully reset cache
 
         type_index = self.type_selector.currentIndex()
         task_name = self.task_selector.currentText()
-
         key = (type_index, task_name)
+
         fields = self.INPUT_FIELDS_CONFIG.get(key, [])
 
         for field in fields:
             label_text = field[0]
             widget_class = field[1]
-
             default_value = field[2] if len(field) > 2 else None
             min_val = field[3] if len(field) > 3 else None
             max_val = field[4] if len(field) > 4 else None
-            right_text = field[5] if len(field) > 5 else None  # Optional label text
+            right_text = field[5] if len(field) > 5 else None
 
-            cache_key = (type_index, task_name, label_text)
-            if cache_key not in self.created_widgets:
+            if widget_class in (QSpinBox, QDoubleSpinBox):
+                spinbox = widget_class()
+                if min_val is not None and max_val is not None:
+                    spinbox.setRange(min_val, max_val)
+                if default_value is not None:
+                    spinbox.setValue(default_value)
 
-                if widget_class in (QSpinBox, QDoubleSpinBox):
-                    spinbox = widget_class()
-                    if min_val is not None and max_val is not None:
-                        spinbox.setRange(min_val, max_val)
-                    if default_value is not None:
-                        spinbox.setValue(default_value)
+                if right_text:
+                    container = QWidget()
+                    h_layout = QHBoxLayout(container)
+                    h_layout.setContentsMargins(0, 0, 0, 0)
+                    h_layout.setSpacing(5)
 
-                    if right_text:
-                        container = QWidget()
-                        h_layout = QHBoxLayout(container)
-                        h_layout.setContentsMargins(0, 0, 0, 0)  # No margins
-                        h_layout.setSpacing(5)  # Some space between spinbox and label
+                    h_layout.addWidget(spinbox)
+                    h_layout.addWidget(QLabel(right_text))
 
-                        spinbox.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-                        h_layout.addWidget(spinbox)
-
-                        label = QLabel(right_text)
-                        label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-                        h_layout.addWidget(label)
-
-                        container.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-                        self.created_widgets[cache_key] = (container, spinbox)  # store both for access
-                    else:
-                        self.created_widgets[cache_key] = spinbox
-
+                    self.created_widgets[(type_index, task_name, label_text)] = (container, spinbox)
+                    self.packet_setup_layout.addRow(label_text, container)
                 else:
-                    widget = widget_class()
-                    if default_value is not None:
-                        widget.setText(str(default_value))
-                    self.created_widgets[cache_key] = widget
+                    self.created_widgets[(type_index, task_name, label_text)] = spinbox
+                    self.packet_setup_layout.addRow(label_text, spinbox)
 
-            stored = self.created_widgets[cache_key]
-            if isinstance(stored, tuple):  # container + spinbox
-                container, spinbox = stored
-                self.packet_setup_layout.addRow(label_text, container)
-                container.show()
             else:
-                self.packet_setup_layout.addRow(label_text, stored)
-                stored.show()
+                widget = widget_class()
+                if default_value is not None:
+                    if isinstance(widget, QPlainTextEdit):
+                        widget.setPlainText(str(default_value))
+                        widget.setMaximumHeight(100)
+                    else:
+                        widget.setText(str(default_value))
+
+                self.created_widgets[(type_index, task_name, label_text)] = widget
+                self.packet_setup_layout.addRow(label_text, widget)
 
     
     # ========== PACKET GENERATION ==========
@@ -465,26 +518,49 @@ class MainWindow(QWidget):
 
     def add_to_queue(self):
         type_index = self.type_selector.currentIndex()
-        type_label = self.type_selector.currentText()
+        # Extract only the text between brackets [] for type_label
+        type_text = self.type_selector.currentText()
+        if "[" in type_text and "]" in type_text:
+            type_label = type_text[type_text.find("["):type_text.find("]")+1]
+        else:
+            type_label = type_text
         task_label = self.task_selector.currentText()
 
         input_widgets = {}
-        for i in range(self.packet_setup_layout.rowCount()):
-            label_item = self.packet_setup_layout.itemAt(i, QFormLayout.LabelRole)
-            field_item = self.packet_setup_layout.itemAt(i, QFormLayout.FieldRole)
-            if label_item and field_item:
-                label_text = label_item.widget().text()
-                widget = field_item.widget()
+        rows = self.packet_setup_layout.rowCount()
 
-                if isinstance(widget, QWidget):
-                    spinbox = widget.findChild(QSpinBox)
-                    if spinbox:
-                        input_widgets[label_text] = spinbox
-                elif isinstance(widget, QSpinBox):
-                    input_widgets[label_text] = widget
-                elif isinstance(widget, QLineEdit):
-                    input_widgets[label_text] = widget
+        for row in range(rows):
+            label_item = self.packet_setup_layout.itemAt(row, QFormLayout.LabelRole)
+            field_item = self.packet_setup_layout.itemAt(row, QFormLayout.FieldRole)
+            if not label_item or not field_item:
+                continue
 
+            label_widget = label_item.widget()
+            field_widget = field_item.widget()
+
+            if label_widget is None or field_widget is None:
+                continue
+
+            label_text = label_widget.text()
+
+            # Check if the field widget is a container (like QWidget containing spinbox)
+            if isinstance(field_widget, QWidget):
+                # Try to find spinbox inside container
+                spinbox = field_widget.findChild(QSpinBox)
+                if spinbox:
+                    input_widgets[label_text] = spinbox
+                    continue
+
+                # Try to find plain text edit inside container
+                plain_text = field_widget.findChild(QPlainTextEdit)
+                if plain_text:
+                    input_widgets[label_text] = plain_text
+                    continue
+
+            # If not a container, check if field_widget itself is input widget
+            if isinstance(field_widget, (QSpinBox, QLineEdit, QPlainTextEdit)):
+                input_widgets[label_text] = field_widget
+                    
         try:
             payload = build_payload(type_index, task_label, input_widgets)
         except Exception as e:
@@ -501,7 +577,7 @@ class MainWindow(QWidget):
 
         for i, packet_payload in enumerate(packets):
             packet_id = i + 1
-            command_str = f"{type_label}:{task_label}"
+            command_str = f"{type_label} {task_label}"
 
             try:
                 packet_bytes = build_packet(
@@ -533,16 +609,29 @@ class MainWindow(QWidget):
             self.queue_table.setItem(row, 2, QTableWidgetItem(str(packet_id)))
             self.queue_table.setItem(row, 3, QTableWidgetItem(hex_str))
 
+    def abort_last_command(self):
+        if not self.command_queue:
+            self.log_status("[INFO] No commands to abort.")
+            return
+
+        last_cmd_id = self.command_queue[-1][0]
+        last_command_name = self.command_queue[-1][2]
+        num_removed = sum(1 for entry in self.command_queue if entry[0] == last_cmd_id)
+        self.command_queue = [entry for entry in self.command_queue if entry[0] != last_cmd_id]
+        self.update_queue_display()
+        self.log_status(f"[INFO] Aborted CMD {last_cmd_id} {last_command_name} with {num_removed} packet.")
+
     def abort_next_command(self):
         if not self.command_queue:
             self.log_status("[INFO] No commands to abort.")
             return
 
         next_cmd_id = self.command_queue[0][0]
+        next_command_name = self.command_queue[0][2]
         num_removed = sum(1 for entry in self.command_queue if entry[0] == next_cmd_id)
         self.command_queue = [entry for entry in self.command_queue if entry[0] != next_cmd_id]
         self.update_queue_display()
-        self.log_status(f"[INFO] Aborted CMD {next_cmd_id} with {num_removed} packet.")
+        self.log_status(f"[INFO] Aborted CMD {next_cmd_id} {next_command_name} with {num_removed} packet.")
 
     def execute_next_command(self):
         if not self.command_queue:
@@ -560,14 +649,19 @@ class MainWindow(QWidget):
         packets_to_send = [entry for entry in self.command_queue if entry[0] == next_cmd_id]
 
         for entry in packets_to_send:
-            _, packet_id, command_str, _, hex_str = entry
+            _, packet_id, command_str, hex_str = entry
             try:
-                # Convert HEX back to bytes
+                # Convert HEX back to bytes and send it
                 hex_bytes = bytes.fromhex(hex_str)
                 self.serial_conn.write(hex_bytes + b'\n')
 
+                # Add "go" string to execute TX
+                self.serial_conn.write(b"go\n")
+                
+                # Log command execution and display message on serial console
                 timestamp = datetime.now().strftime("[%H:%M:%S]")
-                self.serial_console.append(f"{timestamp} [TX]: CMD {next_cmd_id} P{packet_id} -> {command_str}")
+                # self.serial_console.append(f"{timestamp} [TX]: CMD {next_cmd_id} P{packet_id} -> {command_str}")
+                self.serial_console.append(f"{timestamp} [TX]: {command_str}")
 
                 self.log_status(f"[INFO] Executed CMD {next_cmd_id} with {len(packets_to_send)} packet.")
 
