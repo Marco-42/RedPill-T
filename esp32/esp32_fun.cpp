@@ -2,7 +2,6 @@
 #include "esp32_fun.h"
 
 
-
 // ---------------------------------
 // PRINT FUNCTIONS
 // ---------------------------------
@@ -75,7 +74,6 @@ ICACHE_RAM_ATTR void packetEvent(void)
 	portYIELD_FROM_ISR(higher_priority_task_woken);
 }
 
-
 // Start LoRa reception
 void startReception(void)
 {
@@ -127,19 +125,19 @@ PacketRX dataToPacketRX(const uint8_t* data, uint8_t length)
 	packet.TEC = data[1];
 	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
 	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 2 --> NON E' IL BYTE 3?
-	packet.time_unix = (data[3] << 24) | (data[4] << 16) | (data[5] << 8) | data[6];
-	//packet.payload_length = getPayloadLength(packet.TEC, packet.ID); //--> NOT DEFINE
-	packet.payload_length = 3; //--> ONLY FOR DEBUG OPERATIONS TODO change this
+	packet.time_unix = ((uint32_t)(data[3]) << 24) | ((uint32_t)(data[4]) << 16) | ((uint32_t)(data[5]) << 8) | (uint32_t)(data[6]);
 
+	// TODO: change this if RS encoding is used
 	// Parse payload (from byte 14 to byte 14 + payload_length)
-	uint8_t payload_start_byte = RX_PACKET_HEADER_LENGTH + 1;
+	packet.payload_length = data[7];
+	uint8_t payload_start_byte = RX_PACKET_HEADER_LENGTH + 1; // +1 because payload_length is the 8th byte, so payload starts from 9th byte
 	for (uint8_t i = 0; i < packet.payload_length; i++)
 	{
 		packet.payload[i] = data[payload_start_byte + i];
 	}
 
 	// Check end byte
-	uint8_t end_byte = RX_PACKET_HEADER_LENGTH + packet.payload_length; // array starts from 0 so need to add 1
+	uint8_t end_byte = RX_PACKET_HEADER_LENGTH + packet.payload_length; // array starts from 0 so no need to add 1
 	if (data[end_byte] != BYTE_END)
 	{
 		Serial.println("End byte value wrong!");
@@ -155,19 +153,22 @@ PacketRX dataToPacketRX(const uint8_t* data, uint8_t length)
 	return packet;
 }
 
-
-// Convert serial line to TX packet
-PacketTX serialToPacketTX(const String& line, uint8_t ID, uint8_t ID_total)
+// Convert serial line to TX packet, GS only
+PacketTX serialToPacketTX(const String& line)
 {
+	// Create output struct
 	PacketTX packet;
 
-	// TODO: change all of this
-	packet.TRC = 1;
-	packet.ID_total = ID_total; // total number of packets in command
-	packet.ID = ID; // ID of this packet
-	packet.time_unix = millis(); // millis since boot
+	// Parse header
+	packet.station = line[0]; // station is byte 1
+	packet.TRC = line[1]; // TRC is byte 2
+	packet.ID_total = (line[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
+	packet.ID = line[2] & 0x0F; // ID is the last 4 bits of byte 3
+	packet.time_unix = ((uint32_t)(line[3]) << 24) | ((uint32_t)(line[4]) << 16) | ((uint32_t)(line[5]) << 8) | (uint32_t)(line[6]); // time_unix is bytes 4-7
 
-	packet.payload_length = line.length();
+	// Parse payload (from byte 8 to byte 8 + payload_length)
+	packet.payload_length = line[7]; // payload_length is byte 8
+	uint8_t payload_start_byte = RX_PACKET_HEADER_LENGTH + 1; // +1 because payload_length is the 8th byte, so payload starts from 9th byte
 	for (uint8_t i = 0; i < packet.payload_length && i < sizeof(packet.payload); i++)
 	{
 		packet.payload[i] = (uint8_t)line[i];
@@ -200,6 +201,7 @@ uint8_t packetTXtoData(const PacketTX* packet, uint8_t* data)
 	// Add end byte
 	data[TX_PACKET_HEADER_LENGTH + packet->payload_length] = BYTE_END;
 
+	Serial.println("TX packet length: " + String(TX_PACKET_HEADER_LENGTH + packet->payload_length + 1)); // +1 for end byte
 	// Return total length of data
 	return TX_PACKET_HEADER_LENGTH + packet->payload_length + 1; // +1 for end byte
 }

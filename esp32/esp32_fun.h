@@ -1,6 +1,7 @@
 #ifndef ESP32_H
 
 	#define ESP32_H
+	#define GS_MODE 0 // define GS_MODE to enable serial input mode
 
 	// Arduino library
 	#include <Arduino.h>
@@ -84,7 +85,8 @@
 	// Packet size configuration
 	#define RX_PACKET_SIZE_MAX 64 // [bytes] max size of RX packets
 	#define RX_PACKET_NUMBER_MAX 4 // [bytes] max number of packets in single command
-	#define RX_PACKET_HEADER_LENGTH 13 // [bytes] length of the header in the RX packet
+	// #define RX_PACKET_HEADER_LENGTH 13 // [bytes] length of the header in the RX packet TODO change if RS enabled
+	#define RX_PACKET_HEADER_LENGTH 7 // [bytes] length of the header in the RX packet
 	#define TX_PACKET_SIZE_MAX 128 // [bytes] max size of TX packets
 	#define TX_PACKET_HEADER_LENGTH 7 // [bytes] length of the header in the TX packet
 
@@ -148,6 +150,7 @@
 	// Struct to hold TX packet information
 	struct PacketTX
 	{
+		uint8_t station;
 		uint8_t TRC;
 		uint8_t ID_total;
 		uint8_t ID;
@@ -159,8 +162,8 @@
 	// Convert received packet to struct
 	PacketRX dataToPacketRX(const uint8_t* data, uint8_t length);
 
-	// Convert serial line to TX packet
-	PacketTX serialToPacketTX(const String& line, uint8_t ID, uint8_t ID_total);
+	// Convert serial line to TX packet, GS only
+	PacketTX serialToPacketTX(const String& line);
 
 	// Convert struct to packet to be sent
 	uint8_t packetTXtoData(const PacketTX* packet, uint8_t* data);

@@ -252,7 +252,7 @@ void COMMS_stateMachine(void *parameter)
 									const String& line = lines_raw[i];
 
 									// Create a PacketTX from the current line
-									PacketTX packet = serialToPacketTX(line, i + 1, lines_total);
+									PacketTX packet = serialToPacketTX(line);
 
 									// Send packet to the TX queue
 									xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
