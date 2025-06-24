@@ -6,7 +6,13 @@ from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import QTimer
-
+import hashlib
+import numpy as np
+from sgp4.api import Satrec, jday
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 # ========== HELPER FUNCTIONS ==========
 
@@ -173,7 +179,49 @@ class MainWindow(QWidget):
         (0, "TLE update"): [
             ("TLE Data:", QPlainTextEdit, "Line 1\nLine 2", None, None, None)
         ]
+
+        
+        # TLE form(TO CHECK NOT SURE): 
+        # line 1: 25544U 98067A   24174.42871528  .00005597  00000+0  10490-3 0  9990
+        # line2: 25544  51.6425 121.0145 0005864  64.1487  54.4007 15.49923611452417
     }
+
+    # ========== GROUND STATION PASSWORD CHECKING ==========
+    
+    # Check the password for the selected ground station
+    def check_gs_password(self, index):
+        # It dosn't make sense to check password if the GS is not selected
+        if index == self.last_gs_index:
+            return
+
+        selected_gs = self.gs_selector.itemText(index)
+
+        # Codification of passwords with hashing
+        def hash_password(password: str) -> str:
+            return hashlib.sha256(password.encode()).hexdigest()
+    
+        EXPECTED_HASHES = {
+        "UniPD": "428a78083a063c44052773604b01378ed403d29fa913fa7ba48a9ef46a19d931",
+        "Mobile": "e691608526fb575a015ebdd21c4d4676c6660ec9ed200a1fc301acf2cac7c18f"
+        }
+
+        password, ok = QInputDialog.getText(
+            self,
+            "Insert Password",
+            f"Insert Password for: '{selected_gs}':",
+            QLineEdit.Password
+        )
+
+        user_hash = hash_password(password)
+        expected_hash = EXPECTED_HASHES.get(selected_gs, "")
+
+        if not ok or user_hash != expected_hash:
+            QMessageBox.warning(self, "Access denied", "Wrong password!")
+            self.gs_selector.blockSignals(True)
+            self.gs_selector.setCurrentIndex(self.last_gs_index)
+            self.gs_selector.blockSignals(False)
+        else:
+            self.last_gs_index = index
 
     def __init__(self):
         super().__init__()
@@ -184,7 +232,11 @@ class MainWindow(QWidget):
 
         # === Left Panel Components ===
         self.gs_selector = QComboBox()
-        self.gs_selector.addItems(["UniPD", "Mobile"])
+        self.gs_selector.addItems(["None", "UniPD", "Mobile"])
+
+        self.last_gs_index = 0  # default is first item (UniPD)
+        self.gs_selector.currentIndexChanged.connect(self.check_gs_password)
+
 
         self.type_selector = QComboBox()
         self.type_selector.addItems([
@@ -479,7 +531,6 @@ class MainWindow(QWidget):
                 self.created_widgets[(type_index, task_name, label_text)] = widget
                 self.packet_setup_layout.addRow(label_text, widget)
 
-    
     # ========== PACKET GENERATION ==========
 
     
@@ -672,6 +723,72 @@ class MainWindow(QWidget):
         # Remove sent packets from queue
         self.command_queue = [entry for entry in self.command_queue if entry[0] != next_cmd_id]
         self.update_queue_display()
+
+    def simula_orbita(self, line1, line2):
+
+        def gmst_from_jd(jd):
+            T = (jd - 2451545.0) / 36525.0
+            GMST = 280.46061837 + 360.98564736629 * (jd - 2451545) + \
+                0.000387933 * T**2 - (T**3) / 38710000.0
+            GMST = GMST % 360.0
+            return np.radians(GMST)
+
+        def eci_to_latlon(r_eci, gmst):
+            x_eci, y_eci, z_eci = r_eci
+            x_ecef = x_eci * np.cos(gmst) + y_eci * np.sin(gmst)
+            y_ecef = -x_eci * np.sin(gmst) + y_eci * np.cos(gmst)
+            z_ecef = z_eci
+
+            r = np.sqrt(x_ecef**2 + y_ecef**2 + z_ecef**2)
+            lon = np.arctan2(y_ecef, x_ecef)
+            lat = np.arcsin(z_ecef / r)
+
+            lat_deg = np.degrees(lat)
+            lon_deg = np.degrees(lon)
+            return lat_deg, lon_deg
+
+        satellite = Satrec.twoline2rv(line1, line2)
+
+        start_time = datetime.utcnow()
+        time_steps = [start_time + timedelta(minutes=i) for i in range(0, 90)]
+
+        latitudes = []
+        longitudes = []
+
+        for t in time_steps:
+            jd, fr = jday(t.year, t.month, t.day, t.hour, t.minute, t.second + t.microsecond*1e-6)
+            e, r, v = satellite.sgp4(jd, fr)
+            if e == 0:
+                gmst = gmst_from_jd(jd + fr)
+                lat, lon = eci_to_latlon(r, gmst)
+                latitudes.append(lat)
+                longitudes.append(lon)
+            else:
+                latitudes.append(np.nan)
+                longitudes.append(np.nan)
+
+        plt.figure(figsize=(12,6))
+        ax = plt.axes(projection=ccrs.PlateCarree())
+
+        ax.add_feature(cfeature.LAND)
+        ax.add_feature(cfeature.OCEAN)
+        ax.add_feature(cfeature.COASTLINE)
+        ax.add_feature(cfeature.BORDERS, linestyle=':')
+
+        ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+
+        lons = np.array(longitudes)
+        lats = np.array(latitudes)
+
+        lons = np.unwrap(np.radians(lons))
+        lons = np.degrees(lons)
+
+        ax.plot(lons, lats, '-', color='orange', linewidth=1.5, transform=ccrs.PlateCarree())
+        ax.plot(lons[0], lats[0], marker='o', color='darkred', markersize=10, transform=ccrs.PlateCarree(), label='Inizio')
+
+        plt.title('ORBIT SIMULATION FROM TLE DATA (90 MINUTES)')
+        plt.legend()
+        plt.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -1,6 +1,7 @@
-Not urgent:
+Not urgent: ✅
 - add password for GS selection
-
+    --> Passowrd uniPd gs: j2050uniPD
+    --> Password mobile gs: j2050mobile
 Next:
 - check issue with command execution ✅
 - add TLE selector ✅
