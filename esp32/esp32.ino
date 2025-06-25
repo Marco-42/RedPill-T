@@ -57,7 +57,7 @@ void setup()
 }
 
 // ---------------------------------
-// LOOP (leaving empty for freeRTOS)
+// LOOP (leaving empty for freeRTOS)  
 // ---------------------------------
 
 void loop()

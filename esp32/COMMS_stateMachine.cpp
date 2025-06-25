@@ -203,10 +203,20 @@ void COMMS_stateMachine(void *parameter)
 						// Encode Reed-Solomon codeword to tx_packet
 						uint8_t tx_packet_encoded[PACKET_SIZE_MAX];
 						encode_data(tx_packet, tx_packet_size, tx_packet_encoded);
+						Serial.printf("Before RS encoding:");
+						for (uint8_t i = 0; i < tx_packet_size; ++i) {
+							Serial.printf("%02X ", tx_packet[i]);
+						}
+						Serial.println();
 
 						// Copy encoded data to tx_packet
 						tx_packet_size += NPAR; // increase size by number of parity bytes
 						memcpy(tx_packet, tx_packet_encoded, tx_packet_size);
+						Serial.printf("After RS encoding:");
+						for (uint8_t i = 0; i < tx_packet_size; ++i) {
+							Serial.printf("%02X ", tx_packet[i]);
+						}
+						Serial.println();
 					}
 					
 					// Start transmission

@@ -129,7 +129,6 @@ Packet dataToPacket(const uint8_t* data, uint8_t length)
 		packet.rs_encode = false; // plain encoding is used
 	} else
 	{
-		// Serial.println("Packet header is wrong!");
 		packet.state = PACKET_ERR_RS; // TODO handle error
 		return packet;
 	}
@@ -141,10 +140,9 @@ Packet dataToPacket(const uint8_t* data, uint8_t length)
 
 	// Parse payload (from byte 9 to byte 9 + payload_length)
 	packet.payload_length = data[9]; // payload_length is byte 10
-	uint8_t payload_start_byte = PACKET_HEADER_LENGTH + 1; // +1 because payload_length is byte 10, so payload starts from byte 11
 	for (uint8_t i = 0; i < packet.payload_length; i++)
 	{
-		packet.payload[i] = data[payload_start_byte + i];
+		packet.payload[i] = data[PACKET_HEADER_LENGTH + i];
 	}
 
 	// Check end byte
@@ -208,7 +206,7 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 	data[6] = (packet->time_unix >> 16) & 0xFF; // time_unix byte 2
 	data[7] = (packet->time_unix >> 8) & 0xFF; // time_unix byte 3
 	data[8] = packet->time_unix & 0xFF; // time_unix byte 4
-
+	
 	// TODO: should RS parity bits be added here?
 
 	// Copy payload to data
@@ -251,7 +249,7 @@ void handleSerialInput()
                      (temp_buffer[1] == 'o' || temp_buffer[1] == 'O')))
                 {
                     Serial.printf("Processing %d packet(s)...\n", packet_count);
-                      queuePackets(packet_buffers, packet_lengths, packet_count);
+                    queuePackets(packet_buffers, packet_lengths, packet_count);
                     return;
                 }
                 else if ((temp_length == 3 &&
@@ -267,7 +265,11 @@ void handleSerialInput()
                     memcpy(packet_buffers[packet_count], temp_buffer, temp_length);
                     packet_lengths[packet_count] = temp_length;
                     packet_count++;
-                    Serial.printf("Stored packet %d (%d bytes): %s\n", packet_count, temp_length, temp_buffer);
+					Serial.printf("Stored packet %d (%d bytes): ", packet_count, temp_length);
+					for (uint8_t i = 0; i < temp_length; ++i) {
+						Serial.printf("%02X ", temp_buffer[i]);
+					}
+					Serial.println();
                 }
                 else
                 {
@@ -300,11 +302,11 @@ void queuePackets(uint8_t buffers[][PACKET_SIZE_MAX], const uint8_t* lengths, ui
         if (packet.state == PACKET_ERR_NONE)
         {
             xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
-            Serial.printf("Packet %d sent.\n", i);
+            // Serial.printf("Packet %d sent.\n", i);
         }
         else
         {
-            Serial.printf("Packet %d invalid. Skipped.\n", i);
+            Serial.printf("Packet %d invalid. Skipped. Error: %d\n", i, packet.state);
         }
     }
 }
