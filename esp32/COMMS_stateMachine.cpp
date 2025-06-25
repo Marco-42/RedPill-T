@@ -4,6 +4,9 @@
 // Define LoRa module
 SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
 
+// Define the queue handle
+QueueHandle_t RTOS_queue_TX;
+
 // General comunication state configuration 
 uint8_t COMMS_state = 0;
 
@@ -11,15 +14,11 @@ uint8_t COMMS_state = 0;
 void COMMS_stateMachine(void *parameter)
 {	
 	printStartupMessage("COMMS");
-	
-	// Defining the Queue Handle
-	QueueHandle_t RTOS_queue_TX;
 
 	// Create queue for TX packets
-	RTOS_queue_TX = xQueueCreate(TX_QUEUE_SIZE, sizeof(PacketTX));
+	RTOS_queue_TX = xQueueCreate(TX_QUEUE_SIZE, sizeof(Packet));
 
-	// Initialize variables 
-	// initial state --> for default setting COMMS_IDLE = 0
+	// Initial state
 	COMMS_state = COMMS_IDLE;
 	
 	// Start LoRa module
@@ -31,8 +30,12 @@ void COMMS_stateMachine(void *parameter)
 	radio.setPacketSentAction(packetEvent);
 	radio.setPacketReceivedAction(packetEvent);
 
-	// only way to end state machine is killing COMMS thread (by the OBC)
-	for(;;)
+	// Initialize Reed-Solomon error correction
+	initialize_ecc();
+	bool rs_enabled = true; // flag to check if Reed-Solomon is enabled
+	bool rs_should_encode = true; // flag to check if Reed-Solomon encoding should be done
+
+	for(;;) // only way to end state machine is killing COMMS thread (by the OBC)
 	{
 		
 		// State machine
@@ -40,7 +43,7 @@ void COMMS_stateMachine(void *parameter)
 		{
 			// NOTHING TO PROCESS
 			// Check if there is packet waiting in the queue, in case it switch to COMMS_TX
-			case COMMS_IDLE: //COMMS_IDLE = 0
+			case COMMS_IDLE:
 			{
 				Serial.println("COMMS_IDLE: Waiting for packets ...");
 
@@ -98,13 +101,13 @@ void COMMS_stateMachine(void *parameter)
 				
 				// Initialize command variables
 				uint8_t command_packets_processed = 0;
-				PacketRX command_packets[RX_PACKET_NUMBER_MAX];
+				Packet command_packets[PACKET_CMD_MAX]; // array to store received packets in command
 
 				do
 				{
 					// Read packet
 					uint8_t rx_packet_size = radio.getPacketLength();
-					uint8_t rx_packet[rx_packet_size];
+					uint8_t rx_packet[PACKET_SIZE_MAX];
 					int8_t rx_state = radio.readData(rx_packet, rx_packet_size);
 
 					// Reception successfull
@@ -115,9 +118,10 @@ void COMMS_stateMachine(void *parameter)
 
 						//TODO: decode Reed Salomon packet
 						//TODO: deinterleave packet
+						decode_data(rx_packet, rx_packet_size); // decode Reed-Solomon
 
 						// Parse packet
-						PacketRX incoming = dataToPacketRX(rx_packet, rx_packet_size);
+						Packet incoming = dataToPacket(rx_packet, rx_packet_size);
 
 						// Store packet in command array
 						command_packets[command_packets_processed] = incoming; // store packet in command array
@@ -167,23 +171,19 @@ void COMMS_stateMachine(void *parameter)
 				do
 				{
 					// Get packet data from queue
-					PacketTX tx_packet_struct;
+					Packet tx_packet_struct;
 					xQueueReceive(RTOS_queue_TX, &tx_packet_struct, portMAX_DELAY);
 					
 					// Prepare packet
-					uint8_t tx_buffer[TX_PACKET_SIZE_MAX];
-					uint8_t tx_packet_size = packetTXtoData(&tx_packet_struct, tx_buffer);
-					uint8_t tx_packet[tx_packet_size];
-					memcpy(tx_packet, tx_buffer, tx_packet_size);
+					uint8_t tx_packet[PACKET_SIZE_MAX];
+					uint8_t tx_packet_size = packetToData(&tx_packet_struct, tx_packet);
 
-					// Transform packet to data based on TRC
-					switch (tx_packet_struct.TRC)
+					// Transform packet to data based on command
+					switch (tx_packet_struct.command)
 					{
 						case TRC_BEACON:
 						{
-
-							// Send telemetry beacon without coding or interleaving
-							// Serial.println("Sending telemetry beacon...");
+							rs_should_encode = false;
 							break;
 						}
 						
@@ -195,6 +195,18 @@ void COMMS_stateMachine(void *parameter)
 							// Serial.println("Sending data packet...");
 							break;
 						}
+					}
+
+					// If Reed-Solomon encoding is enabled, encode the packet
+					if (rs_enabled && rs_should_encode)
+					{
+						// Encode Reed-Solomon codeword to tx_packet
+						uint8_t tx_packet_encoded[PACKET_SIZE_MAX];
+						encode_data(tx_packet, tx_packet_size, tx_packet_encoded);
+
+						// Copy encoded data to tx_packet
+						tx_packet_size += NPAR; // increase size by number of parity bytes
+						memcpy(tx_packet, tx_packet_encoded, tx_packet_size);
 					}
 					
 					// Start transmission
@@ -215,84 +227,22 @@ void COMMS_stateMachine(void *parameter)
 			// SERIAL INPUT
 			case COMMS_SERIAL:
 			{
+				Serial.println("COMMS_SERIAL: enter packets -> 'go' to send, 'end' to discard");
 
-				// Serial input listener
-				Serial.println("COMMS_SERIAL: enter payloads -> 'go' to send, 'end' to discard");
 
-				std::vector<String> lines_raw; // ChatGPT magic
-				String line_incoming;
-
-				while (true)
-				{
-					// Throttle execution
-					vTaskDelay(100);
-
-					// Read incoming characters
-					if (Serial.available())
-					{
-						char c = Serial.read();
-
-						// Build the input line
-						if (c == '\n' || c == '\r') // line is terminated
-						{
-							line_incoming.trim();  // Remove any stray whitespace
-
-							// Skip empty lines
-							if (line_incoming.length() == 0)
-							{
-								continue;  // this skips the rest of the loop
-							}
-
-							if (line_incoming.equalsIgnoreCase("go"))
-							{
-								Serial.println("Processing packets ...");
-								uint8_t lines_total = lines_raw.size();
-
-								for (uint8_t i = 0; i < lines_total; ++i)
-								{
-									const String& line = lines_raw[i];
-
-									// Create a PacketTX from the current line
-									PacketTX packet = serialToPacketTX(line);
-
-									// Send packet to the TX queue
-									xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
-								}
-								break;  // Exit the listener
-							}
-
-							else if (line_incoming.equalsIgnoreCase("end"))
-							{
-								Serial.println("Cancelled! Packets discarded, resuming operation");
-								break;  // Exit and discard
-							}
-
-							else
-							{
-								lines_raw.push_back(line_incoming);
-								Serial.println("Packet: " + line_incoming);
-							}
-
-							// Reset for next line
-							line_incoming = "";
-						}
-
-						// Add character to the current line
-						else
-						{
-							line_incoming += c;
-						}
-					}
-				}
+				handleSerialInput();
 
 				COMMS_state = COMMS_IDLE;
 				break;
 			}
 
+
 			default:
-				// TODO: bitflip protection etc
-				COMMS_state = COMMS_ERROR;
+			{
+				Serial.println("Unknown COMMS state! Resetting to IDLE.");
+				COMMS_state = COMMS_IDLE; // reset to idle state if unknown state
 				break;
+			}
 		}
 	}
 	

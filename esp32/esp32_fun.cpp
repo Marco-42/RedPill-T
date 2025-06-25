@@ -115,32 +115,43 @@ void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 // ---------------------------------
 
 // Convert received packet to struct
-PacketRX dataToPacketRX(const uint8_t* data, uint8_t length)
+Packet dataToPacket(const uint8_t* data, uint8_t length)
 {
 	// Create output struct
-	PacketRX packet;
-	
-	// Parse header
-	packet.station = data[0];
-	packet.TEC = data[1];
-	packet.ID_total = (data[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
-	packet.ID = data[2] & 0x0F; // ID is the last 4 bits of byte 2 --> NON E' IL BYTE 3?
-	packet.time_unix = ((uint32_t)(data[3]) << 24) | ((uint32_t)(data[4]) << 16) | ((uint32_t)(data[5]) << 8) | (uint32_t)(data[6]);
+	Packet packet;
 
-	// TODO: change this if RS encoding is used
-	// Parse payload (from byte 14 to byte 14 + payload_length)
-	packet.payload_length = data[7];
-	uint8_t payload_start_byte = RX_PACKET_HEADER_LENGTH + 1; // +1 because payload_length is the 8th byte, so payload starts from 9th byte
+	// Parse header
+	if (data[0] == RS_ON_BYTE_1 && data[1] == RS_ON_BYTE_2)
+	{
+		packet.rs_encode = true; // RS encoding is used
+	} else if (data[0] == RS_OFF_BYTE_1 && data[1] == RS_OFF_BYTE_2)
+	{
+		packet.rs_encode = false; // plain encoding is used
+	} else
+	{
+		// Serial.println("Packet header is wrong!");
+		packet.state = PACKET_ERR_RS; // TODO handle error
+		return packet;
+	}
+	packet.station = data[2]; // station is byte 3
+	packet.command = data[3]; // command is byte 4
+	packet.ID_total = (data[4] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 5
+	packet.ID = data[4] & 0x0F; // ID is the last 4 bits of byte 5
+	packet.time_unix = ((uint32_t)(data[5]) << 24) | ((uint32_t)(data[6]) << 16) | ((uint32_t)(data[7]) << 8) | (uint32_t)(data[8]); // time_unix is bytes 6-9
+
+	// Parse payload (from byte 9 to byte 9 + payload_length)
+	packet.payload_length = data[9]; // payload_length is byte 10
+	uint8_t payload_start_byte = PACKET_HEADER_LENGTH + 1; // +1 because payload_length is byte 10, so payload starts from byte 11
 	for (uint8_t i = 0; i < packet.payload_length; i++)
 	{
 		packet.payload[i] = data[payload_start_byte + i];
 	}
 
 	// Check end byte
-	uint8_t end_byte = RX_PACKET_HEADER_LENGTH + packet.payload_length; // array starts from 0 so no need to add 1
+	uint8_t end_byte = PACKET_HEADER_LENGTH + packet.payload_length; // array starts from 0 so no need to add 1
 	if (data[end_byte] != BYTE_END)
 	{
-		Serial.println("End byte value wrong!");
+		// Serial.println("End byte value wrong!");
 		packet.state = PACKET_ERR_END; // TODO handle error
 		return packet;
 	}
@@ -149,63 +160,154 @@ PacketRX dataToPacketRX(const uint8_t* data, uint8_t length)
 
 	// Packet successfully decoded
 	packet.state = PACKET_ERR_NONE;
-
 	return packet;
 }
 
-// Convert serial line to TX packet, GS only
-PacketTX serialToPacketTX(const String& line)
-{
-	// Create output struct
-	PacketTX packet;
+// // Convert serial line to TX packet, GS only
+// Packet serialToPacket(const String& line)
+// {
+// 	// Create output struct
+// 	Packet packet;
 
-	// Parse header
-	packet.station = line[0]; // station is byte 1
-	packet.TRC = line[1]; // TRC is byte 2
-	packet.ID_total = (line[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
-	packet.ID = line[2] & 0x0F; // ID is the last 4 bits of byte 3
-	packet.time_unix = ((uint32_t)(line[3]) << 24) | ((uint32_t)(line[4]) << 16) | ((uint32_t)(line[5]) << 8) | (uint32_t)(line[6]); // time_unix is bytes 4-7
+// 	// Parse header
+// 	packet.station = line[0]; // station is byte 1
+// 	packet.TRC = line[1]; // TRC is byte 2
+// 	packet.ID_total = (line[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
+// 	packet.ID = line[2] & 0x0F; // ID is the last 4 bits of byte 3
+// 	packet.time_unix = ((uint32_t)(line[3]) << 24) | ((uint32_t)(line[4]) << 16) | ((uint32_t)(line[5]) << 8) | (uint32_t)(line[6]); // time_unix is bytes 4-7
 
-	// Parse payload (from byte 8 to byte 8 + payload_length)
-	packet.payload_length = line[7]; // payload_length is byte 8
-	uint8_t payload_start_byte = RX_PACKET_HEADER_LENGTH + 1; // +1 because payload_length is the 8th byte, so payload starts from 9th byte
-	for (uint8_t i = 0; i < packet.payload_length && i < sizeof(packet.payload); i++)
-	{
-		packet.payload[i] = (uint8_t)line[i];
-		// Serial.println((char)packet.payload[i]); // print payload for debug
-	}
+// 	// Parse payload (from byte 8 to byte 8 + payload_length)
+// 	packet.payload_length = line[7]; // payload_length is byte 8
+// 	uint8_t payload_start_byte = PACKET_HEADER_LENGTH + 1; // +1 because payload_length is the 8th byte, so payload starts from 9th byte
+// 	for (uint8_t i = 0; i < packet.payload_length && i < sizeof(packet.payload); i++)
+// 	{
+// 		packet.payload[i] = (uint8_t)line[i];
+// 		// Serial.println((char)packet.payload[i]); // print payload for debug
+// 	}
 
-	return packet;
-}
+// 	return packet;
+// }
 
 // Convert struct to packet to be sent
-uint8_t packetTXtoData(const PacketTX* packet, uint8_t* data)
+uint8_t packetToData(const Packet* packet, uint8_t* data)
 {
 	// Fill data with packet information
-	data[0] = MISSION_ID; // station
-	data[1] = packet->TRC; // TRC
-	data[2] = ((packet->ID_total & 0x0F) << 4) | (packet->ID & 0x0F); // fist 4 bits ID_total, last 4 bits ID
-	data[3] = (packet->time_unix >> 24) & 0xFF; // time_unix byte 1
-	data[4] = (packet->time_unix >> 16) & 0xFF; // time_unix byte 2
-	data[5] = (packet->time_unix >> 8) & 0xFF; // time_unix byte 3
-	data[6] = packet->time_unix & 0xFF; // time_unix byte 4
+	if (packet->rs_encode)
+	{
+		data[0] = RS_ON_BYTE_1; // RS encoding on byte 1
+		data[1] = RS_ON_BYTE_2; // RS encoding on byte 2
+	} else
+	{
+		data[0] = RS_OFF_BYTE_1; // RS encoding off byte 1
+		data[1] = RS_OFF_BYTE_2; // RS encoding off byte 2
+	}
+	data[2] = MISSION_ID; // station
+	data[3] = packet->command; // command
+	data[4] = ((packet->ID_total & 0x0F) << 4) | (packet->ID & 0x0F); // fist 4 bits ID_total, last 4 bits ID
+	data[5] = (packet->time_unix >> 24) & 0xFF; // time_unix byte 1
+	data[6] = (packet->time_unix >> 16) & 0xFF; // time_unix byte 2
+	data[7] = (packet->time_unix >> 8) & 0xFF; // time_unix byte 3
+	data[8] = packet->time_unix & 0xFF; // time_unix byte 4
 
 	// TODO: should RS parity bits be added here?
 
 	// Copy payload to data
 	for (uint8_t i = 0; i < packet->payload_length; i++)
 	{
-		data[TX_PACKET_HEADER_LENGTH + i] = packet->payload[i];
+		data[PACKET_HEADER_LENGTH + i] = packet->payload[i];
 	}
 
 	// Add end byte
-	data[TX_PACKET_HEADER_LENGTH + packet->payload_length] = BYTE_END;
+	data[PACKET_HEADER_LENGTH + packet->payload_length] = BYTE_END;
 
-	Serial.println("TX packet length: " + String(TX_PACKET_HEADER_LENGTH + packet->payload_length + 1)); // +1 for end byte
+	Serial.println("TX packet length: " + String(PACKET_HEADER_LENGTH + packet->payload_length + 1)); // +1 for end byte
 	// Return total length of data
-	return TX_PACKET_HEADER_LENGTH + packet->payload_length + 1; // +1 for end byte
+	return PACKET_HEADER_LENGTH + packet->payload_length + 1; // +1 for end byte
 }
 
+// Process commands in serial input
+void handleSerialInput()
+{
+    uint8_t packet_buffers[PACKET_CMD_MAX][PACKET_SIZE_MAX];
+    uint8_t packet_lengths[PACKET_CMD_MAX];
+    uint8_t packet_count = 0;
+
+    uint8_t temp_buffer[PACKET_SIZE_MAX];
+    uint8_t temp_length = 0;
+
+    while (true)
+    {
+        vTaskDelay(100);  // Throttle
+
+        while (Serial.available())
+        {
+            uint8_t c = Serial.read();
+
+            if (c == '\n' || c == '\r')
+            {
+                // Check for "go" or "end" commands by comparing raw buffer
+                if ((temp_length == 2 &&
+                     (temp_buffer[0] == 'g' || temp_buffer[0] == 'G') &&
+                     (temp_buffer[1] == 'o' || temp_buffer[1] == 'O')))
+                {
+                    Serial.printf("Processing %d packet(s)...\n", packet_count);
+                      queuePackets(packet_buffers, packet_lengths, packet_count);
+                    return;
+                }
+                else if ((temp_length == 3 &&
+                          (temp_buffer[0] == 'e' || temp_buffer[0] == 'E') &&
+                          (temp_buffer[1] == 'n' || temp_buffer[1] == 'N') &&
+                          (temp_buffer[2] == 'd' || temp_buffer[2] == 'D')))
+                {
+                    Serial.println("Cancelled. Packets discarded.");
+                    return;
+                }
+                else if (temp_length > 0 && packet_count < PACKET_CMD_MAX)
+                {
+                    memcpy(packet_buffers[packet_count], temp_buffer, temp_length);
+                    packet_lengths[packet_count] = temp_length;
+                    packet_count++;
+                    Serial.printf("Stored packet %d (%d bytes): %s\n", packet_count, temp_length, temp_buffer);
+                }
+                else
+                {
+                    Serial.println("Error or packet limit reached. Skipping.");
+                }
+
+                temp_length = 0; // reset for next line
+            }
+            else
+            {
+                if (temp_length < PACKET_SIZE_MAX)
+                {
+                    temp_buffer[temp_length++] = c;
+                }
+                else
+                {
+                    Serial.println("Packet too long. Ignoring rest.");
+                }
+            }
+        }
+    }
+}
+
+// Queue packets for transmission
+void queuePackets(uint8_t buffers[][PACKET_SIZE_MAX], const uint8_t* lengths, uint8_t count)
+{
+    for (uint8_t i = 0; i < count; ++i)
+    {
+        Packet packet = dataToPacket(buffers[i], lengths[i]);
+        if (packet.state == PACKET_ERR_NONE)
+        {
+            xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
+            Serial.printf("Packet %d sent.\n", i);
+        }
+        else
+        {
+            Serial.printf("Packet %d invalid. Skipped.\n", i);
+        }
+    }
+}
 
 // ---------------------------------
 // COMMAND FUNCTIONS
@@ -213,14 +315,14 @@ uint8_t packetTXtoData(const PacketTX* packet, uint8_t* data)
 
 
 // Make TEC and payload from packets
-int8_t processCommand(const PacketRX* packets, uint8_t packets_total)
+int8_t processCommand(const Packet* packets, uint8_t packets_total)
 {
 	// Initialize state
 	uint8_t command_state = CMD_ERR_NONE;
 
 	// Extract variables from first packet
 	uint8_t station = packets[0].station;
-	uint8_t TEC = packets[0].TEC;
+	uint8_t TEC = packets[0].command;
 	uint8_t ID_total = packets[0].ID_total;
 
 	// Packets variables
@@ -240,7 +342,7 @@ int8_t processCommand(const PacketRX* packets, uint8_t packets_total)
 
 		// Check if packet header matches
 		// TODO: if first packet is wrong, all packets are wrong (can be optimized)
-		if (packets[i].station != station || packets[i].ID_total != ID_total || packets[i].TEC != TEC)
+		if (packets[i].station != station || packets[i].ID_total != ID_total || packets[i].command != TEC)
 		{
 			Serial.println("Packet " + String(i + 1) + " has different header!");
 			command_state = CMD_ERR_HEADER; // mark command as invalid
