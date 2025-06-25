@@ -4,38 +4,38 @@ import serial
 import serial.tools.list_ports
 from datetime import datetime
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QColor, QPalette
+from PyQt5.QtGui import QColor, QPalette, QTextCursor
 from PyQt5.QtCore import QTimer
 import hashlib
-import numpy as np
-from sgp4.api import Satrec, jday
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
+# import numpy as np
+# from sgp4.api import Satrec, jday
+# from datetime import datetime, timedelta
+# import matplotlib.pyplot as plt
+# import cartopy.crs as ccrs
+# import cartopy.feature as cfeature
 
 # ========== HELPER FUNCTIONS ==========
 
 def build_payload(type_index, task_name, input_widgets):
     if (type_index, task_name) == (0, "OBC reboot"):
-        return b''
+        payload = b''
 
     elif (type_index, task_name) == (0, "Exit state"):
         from_state = input_widgets["From state:"].value() & 0x0F
         to_state = input_widgets["To state:"].value() & 0x0F
         byte_val = (from_state << 4) | to_state
-        return bytes([byte_val])
+        payload = bytes([byte_val])
 
     elif (type_index, task_name) == (0, "Variable change"):
         address = input_widgets["Address:"].value() & 0xFF
         value = input_widgets["Value:"].value() & 0xFF
-        return bytes([address, value])
+        payload = bytes([address, value])
 
     elif (type_index, task_name) == (0, "EPS reboot"):
-        return b''
+        payload = b''
 
     elif (type_index, task_name) == (0, "ADCS reboot"):
-        return b''
+        payload = b''
 
     elif (type_index, task_name) == (0, "TLE update"):
         tle_data = input_widgets["TLE Data:"].toPlainText().strip()
@@ -57,7 +57,6 @@ def build_payload(type_index, task_name, input_widgets):
             mm_dot = float(tle_line1[33:43])
             mm_ddot = float(f"{tle_line1[44:50].strip()}e{tle_line1[50:52]}")
             bstar = float(f"{tle_line1[53:59].strip()}e{tle_line1[59:61]}")
-            
             inclination = float(tle_line2[8:16])
             raan = float(tle_line2[17:25])
             eccentricity = float(f"0.{tle_line2[26:33].strip()}")
@@ -69,7 +68,7 @@ def build_payload(type_index, task_name, input_widgets):
             raise ValueError(f"Invalid TLE format: {e}")
 
         # Pack into 43 bytes, big-endian
-        return struct.pack(
+        payload = struct.pack(
             ">HffffffffffI",  # > = big endian
             epoch_year,
             epoch_day,
@@ -86,10 +85,19 @@ def build_payload(type_index, task_name, input_widgets):
         )
 
     else:
-        return b''
+        payload = b''
 
-def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes):
-    # First byte: Ground Station
+    length_byte = bytes([len(payload) + 1])  # +1 for the length byte itself
+    return length_byte + payload
+
+def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes, ecc_enabled):
+    # Byte 1 and 2: ECC prefix
+    if ecc_enabled:
+        ecc_prefix = b'\xBE\xEF'
+    else:
+        ecc_prefix = b'\xFA\xCE'
+
+    # Byte 3: Ground Station
     if gs_text == "UniPD":
         gs_byte = b'\x01'
     elif gs_text == "Mobile":
@@ -97,11 +105,11 @@ def build_packet(gs_text, type_index, task_name, packet_id, total_packets, paylo
     else:
         raise ValueError(f"Invalid Ground Station: {gs_text}")
 
-    # Second byte: Type (2 bit) + Task (6 bit)
+    # Byte 4: Type (2 bit) + Task (6 bit)
     task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0)
     second_byte = (type_index << 6) | (task_code & 0x3F)
 
-    # Third byte: Total Packets (4 bit) + Packet ID (4 bit)
+    # Byte 5: Total Packets (4 bit) + Packet ID (4 bit)
     third_byte_val = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
 
     header = bytes([gs_byte[0], second_byte, third_byte_val])
@@ -113,8 +121,9 @@ def build_packet(gs_text, type_index, task_name, packet_id, total_packets, paylo
     # End byte: 0xFF
     end_byte = b'\xFF'
 
-    # Assemble the full packet
-    return header + time_bytes + payload_bytes + end_byte
+    # Final packet
+    return ecc_prefix + header + time_bytes + payload_bytes + end_byte
+
 
 def split_payload_if_needed(type_index, task_label, payload):
     # Define commands that require payload splitting and their max chunk size
@@ -233,10 +242,23 @@ class MainWindow(QWidget):
         # === Left Panel Components ===
         self.gs_selector = QComboBox()
         self.gs_selector.addItems(["None", "UniPD", "Mobile"])
-
         self.last_gs_index = 0  # default is first item (UniPD)
         self.gs_selector.currentIndexChanged.connect(self.check_gs_password)
 
+        # ECC Radio Buttons
+        self.ecc_enable_radio = QRadioButton("Enabled")
+        self.ecc_disable_radio = QRadioButton("Disabled")
+        self.ecc_disable_radio.setChecked(True)  # Default selection
+
+        # Group the radio buttons
+        self.ecc_radio_group = QButtonGroup()
+        self.ecc_radio_group.addButton(self.ecc_enable_radio)
+        self.ecc_radio_group.addButton(self.ecc_disable_radio)
+
+        # Layout for ECC radio buttons
+        self.ecc_radio_layout = QHBoxLayout()
+        self.ecc_radio_layout.addWidget(self.ecc_enable_radio)
+        self.ecc_radio_layout.addWidget(self.ecc_disable_radio)
 
         self.type_selector = QComboBox()
         self.type_selector.addItems([
@@ -313,6 +335,7 @@ class MainWindow(QWidget):
         packet_group = QGroupBox("TEC Setup")
         packet_layout = QFormLayout()
         packet_layout.addRow("Ground Station:", self.gs_selector)
+        packet_layout.addRow("ECC:", self.ecc_radio_layout)
         packet_layout.addRow("Type:", self.type_selector)
         packet_layout.addRow("Task:", self.task_selector)
         packet_group.setLayout(packet_layout)
@@ -379,6 +402,7 @@ class MainWindow(QWidget):
         # traffic_layout.addWidget(self.clear_serial_button, alignment=Qt.AlignRight)
         traffic_layout.addWidget(self.clear_serial_button)
         traffic_group.setLayout(traffic_layout)
+        self.new_line_pending = True  # Flag to insert timestamp only at line start
 
         right_col = QVBoxLayout()
         right_col.addWidget(serial_group)
@@ -394,7 +418,7 @@ class MainWindow(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.read_serial)
     
-
+    
     # ========== SERIAL COMMUNICATION ==========
 
     def connect_serial(self):
@@ -442,18 +466,30 @@ class MainWindow(QWidget):
             self.connect_serial()
 
     def read_serial(self):
-        if self.serial_conn and self.serial_conn.in_waiting:
+        if self.serial_conn:
             try:
-                data = self.serial_conn.read(self.serial_conn.in_waiting).decode(errors='ignore')
-                # print(repr(data))  # See actual control characters like '\r'
-                lines = data.replace('\r', '\n').split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if line:
+                while self.serial_conn.in_waiting:
+                    char = self.serial_conn.read(1).decode(errors='ignore')
+
+                    if self.new_line_pending:
                         timestamp = datetime.now().strftime("[%H:%M:%S]")
-                        self.serial_console.append(f"{timestamp} [RX]: {line}")
+                        self.serial_console.moveCursor(QTextCursor.End)
+                        self.serial_console.insertPlainText(f"{timestamp} [RX]: ")
+                        self.new_line_pending = False
+
+                    if char == '\r':
+                        continue  # Ignore carriage return
+                    elif char == '\n':
+                        self.serial_console.insertPlainText("\n")
+                        self.new_line_pending = True
+                    else:
+                        self.serial_console.insertPlainText(char)
+
+                    self.serial_console.moveCursor(QTextCursor.End)
+
             except Exception as e:
                 self.log_status(f"[ERROR] Reading failed: {e}")
+                self.disconnect_serial()
 
     def log_status(self, message):
         timestamp = datetime.now().strftime("[%H:%M:%S]")
@@ -631,13 +667,15 @@ class MainWindow(QWidget):
             command_str = f"{type_label} {task_label}"
 
             try:
+                ecc_enabled = self.ecc_enable_radio.isChecked()
                 packet_bytes = build_packet(
                     self.gs_selector.currentText(),
                     type_index,
                     task_label,
                     packet_id,
                     len(packets),
-                    packet_payload
+                    packet_payload,
+                    ecc_enabled
                 )
                 hex_repr = ' '.join(f"{b:02X}" for b in packet_bytes)
             except Exception as e:
@@ -712,7 +750,7 @@ class MainWindow(QWidget):
                 # Log command execution and display message on serial console
                 timestamp = datetime.now().strftime("[%H:%M:%S]")
                 # self.serial_console.append(f"{timestamp} [TX]: CMD {next_cmd_id} P{packet_id} -> {command_str}")
-                self.serial_console.append(f"{timestamp} [TX]: {command_str}")
+                self.serial_console.append(f"{timestamp} [TX]: {command_str}\n")
 
                 self.log_status(f"[INFO] Executed CMD {next_cmd_id} with {len(packets_to_send)} packet.")
 
@@ -724,71 +762,71 @@ class MainWindow(QWidget):
         self.command_queue = [entry for entry in self.command_queue if entry[0] != next_cmd_id]
         self.update_queue_display()
 
-    def simula_orbita(self, line1, line2):
+    # def simula_orbita(self, line1, line2):
 
-        def gmst_from_jd(jd):
-            T = (jd - 2451545.0) / 36525.0
-            GMST = 280.46061837 + 360.98564736629 * (jd - 2451545) + \
-                0.000387933 * T**2 - (T**3) / 38710000.0
-            GMST = GMST % 360.0
-            return np.radians(GMST)
+    #     def gmst_from_jd(jd):
+    #         T = (jd - 2451545.0) / 36525.0
+    #         GMST = 280.46061837 + 360.98564736629 * (jd - 2451545) + \
+    #             0.000387933 * T**2 - (T**3) / 38710000.0
+    #         GMST = GMST % 360.0
+    #         return np.radians(GMST)
 
-        def eci_to_latlon(r_eci, gmst):
-            x_eci, y_eci, z_eci = r_eci
-            x_ecef = x_eci * np.cos(gmst) + y_eci * np.sin(gmst)
-            y_ecef = -x_eci * np.sin(gmst) + y_eci * np.cos(gmst)
-            z_ecef = z_eci
+    #     def eci_to_latlon(r_eci, gmst):
+    #         x_eci, y_eci, z_eci = r_eci
+    #         x_ecef = x_eci * np.cos(gmst) + y_eci * np.sin(gmst)
+    #         y_ecef = -x_eci * np.sin(gmst) + y_eci * np.cos(gmst)
+    #         z_ecef = z_eci
 
-            r = np.sqrt(x_ecef**2 + y_ecef**2 + z_ecef**2)
-            lon = np.arctan2(y_ecef, x_ecef)
-            lat = np.arcsin(z_ecef / r)
+    #         r = np.sqrt(x_ecef**2 + y_ecef**2 + z_ecef**2)
+    #         lon = np.arctan2(y_ecef, x_ecef)
+    #         lat = np.arcsin(z_ecef / r)
 
-            lat_deg = np.degrees(lat)
-            lon_deg = np.degrees(lon)
-            return lat_deg, lon_deg
+    #         lat_deg = np.degrees(lat)
+    #         lon_deg = np.degrees(lon)
+    #         return lat_deg, lon_deg
 
-        satellite = Satrec.twoline2rv(line1, line2)
+    #     satellite = Satrec.twoline2rv(line1, line2)
 
-        start_time = datetime.utcnow()
-        time_steps = [start_time + timedelta(minutes=i) for i in range(0, 90)]
+    #     start_time = datetime.utcnow()
+    #     time_steps = [start_time + timedelta(minutes=i) for i in range(0, 90)]
 
-        latitudes = []
-        longitudes = []
+    #     latitudes = []
+    #     longitudes = []
 
-        for t in time_steps:
-            jd, fr = jday(t.year, t.month, t.day, t.hour, t.minute, t.second + t.microsecond*1e-6)
-            e, r, v = satellite.sgp4(jd, fr)
-            if e == 0:
-                gmst = gmst_from_jd(jd + fr)
-                lat, lon = eci_to_latlon(r, gmst)
-                latitudes.append(lat)
-                longitudes.append(lon)
-            else:
-                latitudes.append(np.nan)
-                longitudes.append(np.nan)
+    #     for t in time_steps:
+    #         jd, fr = jday(t.year, t.month, t.day, t.hour, t.minute, t.second + t.microsecond*1e-6)
+    #         e, r, v = satellite.sgp4(jd, fr)
+    #         if e == 0:
+    #             gmst = gmst_from_jd(jd + fr)
+    #             lat, lon = eci_to_latlon(r, gmst)
+    #             latitudes.append(lat)
+    #             longitudes.append(lon)
+    #         else:
+    #             latitudes.append(np.nan)
+    #             longitudes.append(np.nan)
 
-        plt.figure(figsize=(12,6))
-        ax = plt.axes(projection=ccrs.PlateCarree())
+    #     plt.figure(figsize=(12,6))
+    #     ax = plt.axes(projection=ccrs.PlateCarree())
 
-        ax.add_feature(cfeature.LAND)
-        ax.add_feature(cfeature.OCEAN)
-        ax.add_feature(cfeature.COASTLINE)
-        ax.add_feature(cfeature.BORDERS, linestyle=':')
+    #     ax.add_feature(cfeature.LAND)
+    #     ax.add_feature(cfeature.OCEAN)
+    #     ax.add_feature(cfeature.COASTLINE)
+    #     ax.add_feature(cfeature.BORDERS, linestyle=':')
 
-        ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+    #     ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
 
-        lons = np.array(longitudes)
-        lats = np.array(latitudes)
+    #     lons = np.array(longitudes)
+    #     lats = np.array(latitudes)
 
-        lons = np.unwrap(np.radians(lons))
-        lons = np.degrees(lons)
+    #     lons = np.unwrap(np.radians(lons))
+    #     lons = np.degrees(lons)
 
-        ax.plot(lons, lats, '-', color='orange', linewidth=1.5, transform=ccrs.PlateCarree())
-        ax.plot(lons[0], lats[0], marker='o', color='darkred', markersize=10, transform=ccrs.PlateCarree(), label='Inizio')
+    #     ax.plot(lons, lats, '-', color='orange', linewidth=1.5, transform=ccrs.PlateCarree())
+    #     ax.plot(lons[0], lats[0], marker='o', color='darkred', markersize=10, transform=ccrs.PlateCarree(), label='Inizio')
 
-        plt.title('ORBIT SIMULATION FROM TLE DATA (90 MINUTES)')
-        plt.legend()
-        plt.show()
+    #     plt.title('ORBIT SIMULATION FROM TLE DATA (90 MINUTES)')
+    #     plt.legend()
+    #     plt.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
