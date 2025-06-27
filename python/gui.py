@@ -7,9 +7,11 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QColor, QPalette, QTextCursor
 from PyQt5.QtCore import QTimer
 import hashlib
+import hmac
 
 # ========== HELPER FUNCTIONS ==========
 
+# Build the payload based on type index and task name
 def build_payload(type_index, task_name, input_widgets):
     if (type_index, task_name) == (0, "OBC reboot"):
         payload = b''
@@ -84,41 +86,142 @@ def build_payload(type_index, task_name, input_widgets):
     length_byte = bytes([len(payload) + 1])  # +1 for the length byte itself
     return length_byte + payload
 
+# Build the full packet with header, payload, and ECC(for transmission)
 def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes, ecc_enabled):
-    # Byte 1 and 2: ECC prefix
-    if ecc_enabled:
-        ecc_prefix = b'\xBE\xEF'
-    else:
-        ecc_prefix = b'\xFA\xCE'
-
-    # Byte 3: Ground Station
+    # === Byte 1: Station ID ===
     if gs_text == "UniPD":
-        gs_byte = b'\x01'
+        station_id = b'\x01'
     elif gs_text == "Mobile":
-        gs_byte = b'\x02'
+        station_id = b'\x02'
     else:
         raise ValueError(f"Invalid Ground Station: {gs_text}")
 
-    # Byte 4: Type (2 bit) + Task (6 bit)
-    task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0)
-    second_byte = (type_index << 6) | (task_code & 0x3F)
+    # === Byte 2: ECC (bit 1), TEC Type (bit 2-3), Task (bit 4-8) ===
+    ecc_bit = 1 if ecc_enabled else 0
+    tec_type = type_index & 0b11  # 2 bits
+    task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0) & 0b11111  # 5 bits
 
-    # Byte 5: Total Packets (4 bit) + Packet ID (4 bit)
-    third_byte_val = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
+    second_byte = (ecc_bit << 7) | (tec_type << 5) | task_code
 
-    header = bytes([gs_byte[0], second_byte, third_byte_val])
+    # === Byte 3: Total packets (bit 1-4), Packet ID (bit 5-8) ===
+    third_byte = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
 
-    # Time bytes: 4 bytes of Unix timestamp
+    # === Byte 4: Payload length ===
+    payload_length = len(payload_bytes)
+    if payload_length > 255:
+        raise ValueError("Payload too long (max 255 bytes)")
+    length_byte = payload_length & 0xFF
+
+    # === Byte 5–8: MAC (first 4 bytes of SHA256 of payload) ===
+    secret_key = b'b1d53f5b338259053d0b91f43f1f2ab3f4e575cb5160e2c93bce86f7c6fa0d79' 
+
+    mac = hmac.new(secret_key, payload_bytes, hashlib.sha256).digest()[:4]
+
+    # === Byte 9–12: Unix timestamp ===
     unix_time = int(datetime.now().timestamp())
     time_bytes = unix_time.to_bytes(4, byteorder='big')
 
-    # End byte: 0xFF
+    # === Byte N+1: End byte ===
     end_byte = b'\xFF'
 
-    # Final packet
-    return ecc_prefix + header + time_bytes + payload_bytes + end_byte
+    # === Final packet ===
+    header = bytes([
+        station_id,
+        second_byte,
+        third_byte,
+        length_byte
+    ])
+
+    return header + mac + time_bytes + payload_bytes + end_byte
 
 
+# OLD OLD OLD OLD
+# def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes, ecc_enabled):
+#     # Byte 1 and 2: ECC prefix
+#     if ecc_enabled:
+#         ecc_prefix = b'\xBE\xEF'
+#     else:
+#         ecc_prefix = b'\xFA\xCE'
+
+#     # Byte 3: Ground Station
+#     if gs_text == "UniPD":
+#         gs_byte = b'\x01'
+#     elif gs_text == "Mobile":
+#         gs_byte = b'\x02'
+#     else:
+#         raise ValueError(f"Invalid Ground Station: {gs_text}")
+
+#     # Byte 4: Type (2 bit) + Task (6 bit)
+#     task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0)
+#     second_byte = (type_index << 6) | (task_code & 0x3F)
+
+#     # Byte 5: Total Packets (4 bit) + Packet ID (4 bit)
+#     third_byte_val = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
+
+#     header = bytes([gs_byte[0], second_byte, third_byte_val])
+
+#     # Time bytes: 4 bytes of Unix timestamp
+#     unix_time = int(datetime.now().timestamp())
+#     time_bytes = unix_time.to_bytes(4, byteorder='big')
+
+#     # End byte: 0xFF
+#     end_byte = b'\xFF'
+
+#     # Final packet
+#     return ecc_prefix + header + time_bytes + payload_bytes + end_byte
+
+# Decode a packet from bytes(for reception)
+def decode_packet(packet_bytes):
+    if len(packet_bytes) < 10:
+        raise ValueError("Received packet too short.")
+
+    # ECC prefix
+    ecc_prefix = packet_bytes[0:2]
+    if ecc_prefix == b'\xBE\xEF':
+        ecc_enabled = True
+    elif ecc_prefix == b'\xFA\xCE':
+        ecc_enabled = False
+    else:
+        raise ValueError(f"Invalid ECC prefix: {ecc_prefix.hex().upper()}")
+
+    # Header bytes
+    gs_byte = packet_bytes[2]
+    type_task_byte = packet_bytes[3]
+    packet_info_byte = packet_bytes[4]
+
+    # Timestamp
+    timestamp_bytes = packet_bytes[5:9]
+    timestamp = int.from_bytes(timestamp_bytes, byteorder='big')
+
+    # Payload (everything between time and 0xFF)
+    payload = packet_bytes[9:-1]
+    end_byte = packet_bytes[-1]
+
+    if end_byte != 0xFF:
+        raise ValueError("Invalid end byte (expected 0xFF)")
+
+    # Decode fields
+    gs_map = {0x01: "UniPD", 0x02: "Mobile"}
+    gs = gs_map.get(gs_byte, f"Unknown (0x{gs_byte:02X})")
+
+    type_index = (type_task_byte >> 6) & 0x03
+    task_code = type_task_byte & 0x3F
+
+    total_packets = (packet_info_byte >> 4) & 0x0F
+    packet_id = packet_info_byte & 0x0F
+
+    return {
+        "ecc_enabled": ecc_enabled,
+        "ground_station": gs,
+        "type_index": type_index,
+        "task_code": task_code,
+        "total_packets": total_packets,
+        "packet_id": packet_id,
+        "timestamp": timestamp,
+        "payload_bytes": payload,
+    }
+
+# Split payload into multiple packets if needed
 def split_payload_if_needed(type_index, task_label, payload):
     # Define commands that require payload splitting and their max chunk size
     MULTI_PACKET_TASKS = {
@@ -130,6 +233,8 @@ def split_payload_if_needed(type_index, task_label, payload):
         return [payload[i:i + max_len] for i in range(0, len(payload), max_len)]
     else:
         return [payload]
+
+# ========== MAIN WINDOW CLASS ==========
 
 class MainWindow(QWidget):
     # Centralized task definitions + codes
@@ -208,6 +313,8 @@ class MainWindow(QWidget):
         "Mobile": "e691608526fb575a015ebdd21c4d4676c6660ec9ed200a1fc301acf2cac7c18f"
         }
 
+        password = "Oracolo42"
+        print(hashlib.sha256(password.encode()).hexdigest())
         password, ok = QInputDialog.getText(
             self,
             "Insert Password",
@@ -226,6 +333,7 @@ class MainWindow(QWidget):
         else:
             self.last_gs_index = index
 
+    # Windows graphical user interface class
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ESP32 Serial GUI")
@@ -412,9 +520,9 @@ class MainWindow(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.read_serial)
     
-    
     # ========== SERIAL COMMUNICATION ==========
 
+    # Connect to the selected serial port
     def connect_serial(self):
         port = self.port_selector.currentText()
         try:
@@ -429,6 +537,7 @@ class MainWindow(QWidget):
             self.log_status(f"[ERROR] Could not connect: {e}")
             self.set_status_light(False)
 
+    # Disconnect from the serial port
     def disconnect_serial(self):
         if self.serial_conn:
             self.timer.stop()
@@ -439,6 +548,7 @@ class MainWindow(QWidget):
             self.execute_next_button.setStyleSheet("")
             self.log_status("[INFO] Disconnected")
 
+    # Set the status light color and text based on connection status
     def set_status_light(self, connected):
         palette = self.status_label.palette()
         color = QColor('green') if connected else QColor('red')
@@ -447,11 +557,13 @@ class MainWindow(QWidget):
         self.status_label.setPalette(palette)
         self.status_label.setText("Connected" if connected else "Disconnected")
 
+    # Refresh the list of available serial ports
     def refresh_ports(self):
         self.port_selector.clear()
         ports = serial.tools.list_ports.comports()
         for port in ports:
             self.port_selector.addItem(port.device)
+
 
     def toggle_connection(self):
         if self.serial_conn and self.serial_conn.is_open:
@@ -459,6 +571,7 @@ class MainWindow(QWidget):
         else:
             self.connect_serial()
 
+    # Read data from the serial port
     def read_serial(self):
         if self.serial_conn:
             try:
