@@ -9,6 +9,7 @@ from PyQt5.QtCore import QTimer
 import hashlib
 import hmac
 
+
 # ========== HELPER FUNCTIONS ==========
 
 # Build the payload based on type index and task name
@@ -83,94 +84,71 @@ def build_payload(type_index, task_name, input_widgets):
     else:
         payload = b''
 
-    length_byte = bytes([len(payload) + 1])  # +1 for the length byte itself
-    return length_byte + payload
+    return payload
 
 # Build the full packet with header, payload, and ECC(for transmission)
 def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes, ecc_enabled):
     # === Byte 1: Station ID ===
     if gs_text == "UniPD":
-        station_id = b'\x01'
+        byte_station = 0x01
     elif gs_text == "Mobile":
-        station_id = b'\x02'
+        byte_station = 0x02
     else:
         raise ValueError(f"Invalid Ground Station: {gs_text}")
 
-    # === Byte 2: ECC (bit 1), TEC Type (bit 2-3), Task (bit 4-8) ===
-    ecc_bit = 1 if ecc_enabled else 0
-    tec_type = type_index & 0b11  # 2 bits
-    task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0) & 0b11111  # 5 bits
+    # === Byte 2: ECC Flag ===
+    byte_ecc = 0xAA if ecc_enabled else 0x55
 
-    second_byte = (ecc_bit << 7) | (tec_type << 5) | task_code
+    # === Byte 3: TEC Type (bits 1-2), Task Code (bits 3-8) ===
+    tec_type = (type_index & 0b11) << 6  # bits 1-2 → bits 7-6
+    task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0) & 0b00111111  # bits 3–8
+    byte_TEC = tec_type | task_code
 
-    # === Byte 3: Total packets (bit 1-4), Packet ID (bit 5-8) ===
-    third_byte = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
+    # === Byte 4: Total packets (bits 1-4), Packet ID (bits 5-8) ===
+    if total_packets > 15 or packet_id > 15:
+        raise ValueError("total_packets and packet_id must be in 0-15")
+    byte_packet = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
 
-    # === Byte 4: Payload length ===
+    # === Byte 5: Payload length ===
     payload_length = len(payload_bytes)
-    if payload_length > 255:
-        raise ValueError("Payload too long (max 255 bytes)")
-    length_byte = payload_length & 0xFF
+    if payload_length > 116:
+        raise ValueError("Payload too long (max 116 bytes)")
+    byte_payload_length = payload_length
 
-    # === Byte 5–8: MAC (first 4 bytes of SHA256 of payload) ===
-    secret_key = b'b1d53f5b338259053d0b91f43f1f2ab3f4e575cb5160e2c93bce86f7c6fa0d79' 
+    # === Byte 6: Reserved ===
+    byte_reserved = 0xFF
 
-    mac = hmac.new(secret_key, payload_bytes, hashlib.sha256).digest()[:4]
-
-    # === Byte 9–12: Unix timestamp ===
+    # === Byte 7-10: MAC (custom formula) ===
     unix_time = int(datetime.now().timestamp())
-    time_bytes = unix_time.to_bytes(4, byteorder='big')
+    secret_key = 0xA1B2C3D4  # Replace with your actual 32-bit secret key
 
-    # === Byte N+1: End byte ===
-    end_byte = b'\xFF'
+    def simple_mac(timestamp, key):
+        x = timestamp ^ key
+        x = ((x >> 16) ^ x) * 0x45d9f3b
+        x = ((x >> 16) ^ x) * 0x45d9f3b
+        x = (x >> 16) ^ x
+        return x & 0xFFFFFFFF
+
+    mac = simple_mac(unix_time, secret_key)
+    bytes_mac = mac.to_bytes(4, byteorder='big')
+
+    # === Byte 11-14: UNIX timestamp ===
+    bytes_time = unix_time.to_bytes(4, byteorder='big')
 
     # === Final packet ===
     header = bytes([
-        station_id,
-        second_byte,
-        third_byte,
-        length_byte
+        byte_station,
+        byte_ecc,
+        byte_TEC,
+        byte_packet,
+        byte_payload_length,
+        byte_reserved
     ])
 
-    return header + mac + time_bytes + payload_bytes + end_byte
+    return header + bytes_mac + bytes_time + payload_bytes
 
 
-# OLD OLD OLD OLD
-# def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes, ecc_enabled):
-#     # Byte 1 and 2: ECC prefix
-#     if ecc_enabled:
-#         ecc_prefix = b'\xBE\xEF'
-#     else:
-#         ecc_prefix = b'\xFA\xCE'
-
-#     # Byte 3: Ground Station
-#     if gs_text == "UniPD":
-#         gs_byte = b'\x01'
-#     elif gs_text == "Mobile":
-#         gs_byte = b'\x02'
-#     else:
-#         raise ValueError(f"Invalid Ground Station: {gs_text}")
-
-#     # Byte 4: Type (2 bit) + Task (6 bit)
-#     task_code = MainWindow.TASKS.get(type_index, {}).get(task_name, 0)
-#     second_byte = (type_index << 6) | (task_code & 0x3F)
-
-#     # Byte 5: Total Packets (4 bit) + Packet ID (4 bit)
-#     third_byte_val = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
-
-#     header = bytes([gs_byte[0], second_byte, third_byte_val])
-
-#     # Time bytes: 4 bytes of Unix timestamp
-#     unix_time = int(datetime.now().timestamp())
-#     time_bytes = unix_time.to_bytes(4, byteorder='big')
-
-#     # End byte: 0xFF
-#     end_byte = b'\xFF'
-
-#     # Final packet
-#     return ecc_prefix + header + time_bytes + payload_bytes + end_byte
-
-# Decode a packet from bytes(for reception)
+# Decode a packet from bytes(for reception) TODO: update
 def decode_packet(packet_bytes):
     if len(packet_bytes) < 10:
         raise ValueError("Received packet too short.")
@@ -677,38 +655,38 @@ class MainWindow(QWidget):
     # ========== PACKET GENERATION ==========
 
     
-    def generate_hex(self, payload, packet_id=1, total_packets=1):
-        # === HEADER BYTE 1: Ground station ===
-        gs_text = self.gs_selector.currentText()
-        gs_byte = {
-            "UniPD": 0x01,
-            "Mobile": 0x02
-        }.get(gs_text)
+    # def generate_hex(self, payload, packet_id=1, total_packets=1):
+    #     # === HEADER BYTE 1: Ground station ===
+    #     gs_text = self.gs_selector.currentText()
+    #     gs_byte = {
+    #         "UniPD": 0x01,
+    #         "Mobile": 0x02
+    #     }.get(gs_text)
 
-        if gs_byte is None:
-            self.log_status(f"[ERROR] Invalid GS selected: {gs_text}")
-            return None
+    #     if gs_byte is None:
+    #         self.log_status(f"[ERROR] Invalid GS selected: {gs_text}")
+    #         return None
 
-        # === HEADER BYTE 2: Type + Task ===
-        type_code = self.type_selector.currentIndex()
-        task_text = self.task_selector.currentText()
-        task_code = self.TASKS.get(type_code, {}).get(task_text, 0)
-        second_byte = ((type_code & 0x03) << 6) | (task_code & 0x3F)
+    #     # === HEADER BYTE 2: Type + Task ===
+    #     type_code = self.type_selector.currentIndex()
+    #     task_text = self.task_selector.currentText()
+    #     task_code = self.TASKS.get(type_code, {}).get(task_text, 0)
+    #     second_byte = ((type_code & 0x03) << 6) | (task_code & 0x3F)
 
-        # === HEADER BYTE 3: Packet ID Info ===
-        third_byte = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
+    #     # === HEADER BYTE 3: Packet ID Info ===
+    #     third_byte = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
 
-        # === TIME BYTES ===
-        unix_time = int(datetime.now().timestamp())
-        time_bytes = unix_time.to_bytes(4, byteorder='big')
+    #     # === TIME BYTES ===
+    #     unix_time = int(datetime.now().timestamp())
+    #     time_bytes = unix_time.to_bytes(4, byteorder='big')
 
-        # === PAYLOAD + END ===
-        payload_bytes = payload.encode()
-        end_byte = b'\xFF'
+    #     # === PAYLOAD + END ===
+    #     payload_bytes = payload.encode()
+    #     end_byte = b'\xFF'
 
-        # === Assemble All ===
-        packet = bytes([gs_byte, second_byte, third_byte]) + time_bytes + payload_bytes + end_byte
-        return ' '.join(f"{b:02X}" for b in packet)
+    #     # === Assemble All ===
+    #     packet = bytes([gs_byte, second_byte, third_byte]) + time_bytes + payload_bytes + end_byte
+    #     return ' '.join(f"{b:02X}" for b in packet)
 
     def add_to_queue(self):
         type_index = self.type_selector.currentIndex()

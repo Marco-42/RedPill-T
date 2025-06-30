@@ -6,4 +6,5 @@ Next:
 - check issue with command execution ✅
 - add TLE selector ✅
 - handle TLE error better ✅
-- change packet splitting
+- update to new packet structure ✅
+- check packet splitting (split_payload_if_needed) ✅
