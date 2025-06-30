@@ -35,6 +35,11 @@ void setup()
 	Serial.println("");
 	printStartupMessage("SETUP");
 
+	// Initialize system
+	//......
+		
+	Serial.println(" ok");
+
 	// FreeRTOS task creation
 
 	// xTaskCreate(

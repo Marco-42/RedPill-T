@@ -93,7 +93,7 @@ void printPacket(const uint8_t* packet, uint8_t length);
 // Packet size configuration
 #define PACKET_SIZE_MAX 128 // [bytes] max size of packets
 #define PACKET_CMD_MAX 4 // [packets] max number of packets in single command
-#define PACKET_HEADER_LENGTH 14 // [bytes] length of the header in the packet
+#define PACKET_HEADER_LENGTH 13 // [bytes] length of the header in the packet
 #define PACKET_PAYLOAD_MAX 98 // [bytes] max size of payload in the packet
 
 // MAC configuration
@@ -102,7 +102,7 @@ void printPacket(const uint8_t* packet, uint8_t length);
 // RS encoding configuration
 #define BYTE_RS_OFF 0x55
 #define BYTE_RS_ON 0xAA
-#define BYTE_RESERVED 0xEE
+// #define BYTE_RESERVED 0xEE
 
 // Error codes
 #define PACKET_ERR_NONE 0 // no error in packet
@@ -117,13 +117,17 @@ void printPacket(const uint8_t* packet, uint8_t length);
 #define CMD_ERR_MISSING -4 // missing packet in command
 
 // TEC codes
-#define TEC_OBC_REBOOT 0x00 // reboot OBC command
-#define TEC_TLM_BEACON 0x02 // send telemetry beacon
+#define TEC_OBC_REBOOT 0x01 // reboot OBC command
+#define TEC_EXIT_STATE 0x02 // exit state command
+#define TEC_TLM_BEACON 0x03 // send telemetry beacon
+#define TEC_EPS_REBOOT 0x08 // reboot EPS command
+#define TEC_ADCS_REBOOT 0x10 // reboot ADCS command
+#define TEC_ADCS_TLE 0x11 // send TLE to ADCS command
 
 // TRC codes
-#define TRC_BEACON 0x00 // telemetry beacon reply
-#define TRC_ACK 0x01 // ACK reply
-#define TRC_NACK 0x02 // NACK reply
+#define TRC_BEACON 0x30 // telemetry beacon reply
+#define TRC_ACK 0x31 // ACK reply
+#define TRC_NACK 0x32 // NACK reply
 
 // TRC lengths
 #define TRC_BEACON_LENGTH 8 // [bytes] length of the telemetry beacon reply
@@ -133,6 +137,30 @@ void printPacket(const uint8_t* packet, uint8_t length);
 // TRC header
 #define MISSION_ID 0x01 // mission ID
 
+// ---------------------------------
+// PRINT FUNCTIONS
+// ---------------------------------
+
+// Print boot message on serial
+void printStartupMessage(const char* device);
+
+// Print radio status on serial
+void printRadioStatus(int8_t state, bool blocking);
+
+
+// ---------------------------------
+// HELPER FUNCTIONS
+// ---------------------------------
+
+// Get current UNIX time
+uint32_t getUNIX();
+
+// MAC function to generate a message authentication code
+uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
+
+// ---------------------------------
+// RADIO FUNCTIONS
+// ---------------------------------
 
 // Notify COMMS task of a radio event (called when packet sent or received)
 void packetEvent(void);
@@ -147,7 +175,7 @@ void startTransmission(uint8_t *tx_packet, uint8_t packet_size);
 struct Packet
 {
 	int8_t state;
-	bool ecc = false; // flag to indicate if RS ECC is used
+	bool ecc; // flag to indicate if RS ECC is used
 	uint8_t station;
 	uint8_t command;
 	uint8_t ID_total;
@@ -161,24 +189,22 @@ struct Packet
 // Convert received raw data to packet struct
 Packet dataToPacket(const uint8_t* data, uint8_t length);
 
-// MAC function to generate a message authentication code
-uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
-
 // Convert packet struct to raw data
 uint8_t packetToData(const Packet* packet, uint8_t* data);
 
 // Process commands in serial input
 void handleSerialInput();
 
-// Queue packets for transmission
-void queuePackets(uint8_t buffers[][PACKET_SIZE_MAX], const uint8_t* lengths, uint8_t count);
-
 
 // ---------------------------------
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-// Make TEC and payload from packets
+// Make command from packets and execute it
 int8_t processCommand(const Packet* packets, uint8_t packets_total);
+
+// Send ACK packet to confirm last command received
+void sendACK(uint8_t TEC);
+
 
 #endif

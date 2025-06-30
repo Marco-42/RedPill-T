@@ -20,6 +20,13 @@ void COMMS_stateMachine(void *parameter)
 
 	// Initial state
 	COMMS_state = COMMS_IDLE;
+
+	// Initialize Reed-Solomon error correction
+	initialize_ecc();
+	bool rs_enabled = true; // flag to check if Reed-Solomon is enabled
+	bool rs_should_encode; // flag to check if Reed-Solomon encoding should be done
+
+	Serial.println("ok");
 	
 	// Start LoRa module
 	Serial.print("[SX1278] Initializing ... ");
@@ -30,10 +37,6 @@ void COMMS_stateMachine(void *parameter)
 	radio.setPacketSentAction(packetEvent);
 	radio.setPacketReceivedAction(packetEvent);
 
-	// Initialize Reed-Solomon error correction
-	initialize_ecc();
-	bool rs_enabled = true; // flag to check if Reed-Solomon is enabled
-	bool rs_should_encode = true; // flag to check if Reed-Solomon encoding should be done
 
 	for(;;) // only way to end state machine is killing COMMS thread (by the OBC)
 	{
@@ -189,7 +192,7 @@ void COMMS_stateMachine(void *parameter)
 						
 						default:
 						{
-							
+							rs_should_encode = true;
 							// TODO: interleave
 							// TODO: encode Reed Salomon packet
 							// Serial.println("Sending data packet...");
