@@ -114,113 +114,143 @@ void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 // PACKET FUNCTIONS
 // ---------------------------------
 
+// Initialize packet with default values
+Packet::Packet()
+{
+	state = PACKET_ERR_NONE; // no error
+	ecc = false; // RS encoding off by default
+	station = MISSION_ID; // default station ID
+	// command = 0; // default command
+	// ID_total = 0; // total number of IDs in command
+	// ID = 0; // ID of this packet
+	time_unix = 0; // default UNIX time TODO: update with current time
+	MAC = makeMAC(time_unix, SECRET_KEY); // default MAC
+	payload_length = 0; // no payload by default
+	memset(payload, 0, PACKET_PAYLOAD_MAX); // clear payload
+}
+
 // Convert received packet to struct
 Packet dataToPacket(const uint8_t* data, uint8_t length)
 {
 	// Create output struct
 	Packet packet;
 
-	// Parse header
-	if (data[0] == RS_ON_BYTE_1 && data[1] == RS_ON_BYTE_2)
-	{
-		packet.rs_encode = true; // RS encoding is used
-	} else if (data[0] == RS_OFF_BYTE_1 && data[1] == RS_OFF_BYTE_2)
-	{
-		packet.rs_encode = false; // plain encoding is used
-	} else
-	{
-		packet.state = PACKET_ERR_RS; // TODO handle error
+	// Byte 0: station ID
+	packet.station = data[0];
+
+	// Byte 1: RS flag
+	if (data[1] == BYTE_RS_ON) {
+		packet.ecc = true;
+	} else if (data[1] == BYTE_RS_OFF) {
+		packet.ecc = false;
+	} else {
+		packet.state = PACKET_ERR_RS;
 		return packet;
 	}
-	packet.station = data[2]; // station is byte 3
-	packet.command = data[3]; // command is byte 4
-	packet.ID_total = (data[4] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 5
-	packet.ID = data[4] & 0x0F; // ID is the last 4 bits of byte 5
-	packet.time_unix = ((uint32_t)(data[5]) << 24) | ((uint32_t)(data[6]) << 16) | ((uint32_t)(data[7]) << 8) | (uint32_t)(data[8]); // time_unix is bytes 6-9
 
-	// Parse payload (from byte 9 to byte 9 + payload_length)
-	packet.payload_length = data[9]; // payload_length is byte 10
+	// Byte 2: command (TEC type + Task value)
+	packet.command = data[2];
+
+	// Byte 3: ID_total and ID
+	packet.ID_total = (data[3] >> 4) & 0x0F;
+	packet.ID = data[3] & 0x0F;
+
+	// Byte 4: Payload length
+	packet.payload_length = data[4];
+
+	// Check if packet length is valid
+	if (length != PACKET_HEADER_LENGTH + packet.payload_length)
+	{
+		packet.state = PACKET_ERR_LENGTH; // packet too short
+		return packet;
+	}
+
+	// Byte 5: Reserved (currently unused)
+	// BYTE_RESERVED = data[5]; (optional: verify if needed)
+
+	// Byte 6–9: MAC
+	packet.MAC = ((uint32_t)data[6] << 24) | ((uint32_t)data[7] << 16) | ((uint32_t)data[8] << 8) | (uint32_t)data[9];
+
+	// Byte 10–13: UNIX time
+	packet.time_unix = ((uint32_t)data[10] << 24) | ((uint32_t)data[11] << 16) | ((uint32_t)data[12] << 8) | (uint32_t)data[13];
+
+	// Check if MAC is valid
+	uint32_t expected_MAC = makeMAC(packet.time_unix, SECRET_KEY); // SECRET_KEY is a predefined constant
+	if (packet.MAC != expected_MAC)
+	{
+		packet.state = PACKET_ERR_MAC; // MAC error
+		return packet;
+	}
+
+	// Parse payload
 	for (uint8_t i = 0; i < packet.payload_length; i++)
 	{
 		packet.payload[i] = data[PACKET_HEADER_LENGTH + i];
 	}
-
-	// Check end byte
-	uint8_t end_byte = PACKET_HEADER_LENGTH + packet.payload_length; // array starts from 0 so no need to add 1
-	if (data[end_byte] != BYTE_END)
-	{
-		// Serial.println("End byte value wrong!");
-		packet.state = PACKET_ERR_END; // TODO handle error
-		return packet;
-	}
-
-	// Check padding TODO?
 
 	// Packet successfully decoded
 	packet.state = PACKET_ERR_NONE;
 	return packet;
 }
 
-// // Convert serial line to TX packet, GS only
-// Packet serialToPacket(const String& line)
-// {
-// 	// Create output struct
-// 	Packet packet;
-
-// 	// Parse header
-// 	packet.station = line[0]; // station is byte 1
-// 	packet.TRC = line[1]; // TRC is byte 2
-// 	packet.ID_total = (line[2] & 0xF0) >> 4; // ID_total is the first 4 bits of byte 3
-// 	packet.ID = line[2] & 0x0F; // ID is the last 4 bits of byte 3
-// 	packet.time_unix = ((uint32_t)(line[3]) << 24) | ((uint32_t)(line[4]) << 16) | ((uint32_t)(line[5]) << 8) | (uint32_t)(line[6]); // time_unix is bytes 4-7
-
-// 	// Parse payload (from byte 8 to byte 8 + payload_length)
-// 	packet.payload_length = line[7]; // payload_length is byte 8
-// 	uint8_t payload_start_byte = PACKET_HEADER_LENGTH + 1; // +1 because payload_length is the 8th byte, so payload starts from 9th byte
-// 	for (uint8_t i = 0; i < packet.payload_length && i < sizeof(packet.payload); i++)
-// 	{
-// 		packet.payload[i] = (uint8_t)line[i];
-// 		// Serial.println((char)packet.payload[i]); // print payload for debug
-// 	}
-
-// 	return packet;
-// }
+// MAC function to generate a message authentication code
+uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key)
+{
+    uint32_t x = timestamp ^ secret_key;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x;
+}
 
 // Convert struct to packet to be sent
 uint8_t packetToData(const Packet* packet, uint8_t* data)
 {
-	// Fill data with packet information
-	if (packet->rs_encode)
+	// Byte 0: station ID
+    data[0] = packet->station;
+
+	// Byte 1: RS encoding flag
+	if (packet->ecc) 
 	{
-		data[0] = RS_ON_BYTE_1; // RS encoding on byte 1
-		data[1] = RS_ON_BYTE_2; // RS encoding on byte 2
+		data[1] = BYTE_RS_ON; // RS encoding on
 	} else
 	{
-		data[0] = RS_OFF_BYTE_1; // RS encoding off byte 1
-		data[1] = RS_OFF_BYTE_2; // RS encoding off byte 2
+		data[1] = BYTE_RS_OFF; // RS encoding off
 	}
-	data[2] = MISSION_ID; // station
-	data[3] = packet->command; // command
-	data[4] = ((packet->ID_total & 0x0F) << 4) | (packet->ID & 0x0F); // fist 4 bits ID_total, last 4 bits ID
-	data[5] = (packet->time_unix >> 24) & 0xFF; // time_unix byte 1
-	data[6] = (packet->time_unix >> 16) & 0xFF; // time_unix byte 2
-	data[7] = (packet->time_unix >> 8) & 0xFF; // time_unix byte 3
-	data[8] = packet->time_unix & 0xFF; // time_unix byte 4
-	
-	// TODO: should RS parity bits be added here?
 
-	// Copy payload to data
+	// Byte 2: command
+	data[2] = packet->command;
+
+	// Byte 3: ID_total and ID
+	data[3] = ((packet->ID_total & 0x0F) << 4) | (packet->ID & 0x0F); // fist 4 bits ID_total, last 4 bits ID
+
+	// Byte 4: payload length
+	data[4] = (packet->payload_length);
+
+	// Byte 5: reserved
+	data[5] = BYTE_RESERVED; // reserved byte, can be used for future extensions
+
+	// Byte 6–9: MAC
+	data[6] = (packet->MAC >> 24) & 0xFF;
+	data[7] = (packet->MAC >> 16) & 0xFF;
+	data[8] = (packet->MAC >> 8) & 0xFF;
+	data[9] = packet->MAC & 0xFF;
+
+	// Byte 10–13: UNIX time
+	data[10] = (packet->time_unix >> 24) & 0xFF; // time_unix byte 1
+	data[11] = (packet->time_unix >> 16) & 0xFF; // time_unix byte 2
+	data[12] = (packet->time_unix >> 8) & 0xFF; // time_unix byte 3
+	data[13] = packet->time_unix & 0xFF; // time_unix byte 4
+
+	// Payload bytes
 	for (uint8_t i = 0; i < packet->payload_length; i++)
 	{
 		data[PACKET_HEADER_LENGTH + i] = packet->payload[i];
 	}
 
-	// Add end byte
-	data[PACKET_HEADER_LENGTH + packet->payload_length] = BYTE_END;
-
-	Serial.println("TX packet length: " + String(PACKET_HEADER_LENGTH + packet->payload_length + 1)); // +1 for end byte
+	Serial.println("TX packet length: " + String(PACKET_HEADER_LENGTH + packet->payload_length));
 	// Return total length of data
-	return PACKET_HEADER_LENGTH + packet->payload_length + 1; // +1 for end byte
+	return PACKET_HEADER_LENGTH + packet->payload_length;
 }
 
 // Process commands in serial input
@@ -315,8 +345,7 @@ void queuePackets(uint8_t buffers[][PACKET_SIZE_MAX], const uint8_t* lengths, ui
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-
-// Make TEC and payload from packets
+// Make command from packets and execute it
 int8_t processCommand(const Packet* packets, uint8_t packets_total)
 {
 	// Initialize state
@@ -426,4 +455,20 @@ int8_t processCommand(const Packet* packets, uint8_t packets_total)
 	}
 
 	return true; // command processed
+}
+
+void sendACK(uint8_t TEC)
+{
+	Packet ack_packet = packet;
+	ack_packet.state = PACKET_ERR_NONE;
+	ack_packet.station = 0; // TODO: set correct station
+	ack_packet.command = TEC;
+	ack_packet.ID_total = 1;
+	ack_packet.ID = 1;
+	ack_packet.MAC = makeMAC(0, SECRET_KEY); // TODO: set correct timestamp
+	ack_packet.time_unix = 0; // TODO: set correct timestamp
+	ack_packet.payload_length = 0;
+
+	// Send ACK packet
+	startTransmission((uint8_t*)&ack_packet, sizeof(ack_packet));
 }

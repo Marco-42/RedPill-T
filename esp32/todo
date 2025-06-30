@@ -1,3 +1,6 @@
 Next:
-- unify packet structures
-- check serial read character addition  
+- unify packet structures DONE
+- check serial read character addition DONE
+- update packet to new structure DONE
+- implement ACK/NACK
+- distinguish bewteen TEC and TRC

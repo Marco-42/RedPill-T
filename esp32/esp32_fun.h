@@ -93,19 +93,22 @@ void printPacket(const uint8_t* packet, uint8_t length);
 // Packet size configuration
 #define PACKET_SIZE_MAX 128 // [bytes] max size of packets
 #define PACKET_CMD_MAX 4 // [packets] max number of packets in single command
-#define PACKET_HEADER_LENGTH 9 // [bytes] length of the header in the packet
-#define PACKET_PAYLOAD_MAX (PACKET_SIZE_MAX - PACKET_HEADER_LENGTH - 1 - NPAR) // [bytes] max size of payload in the packet
+#define PACKET_HEADER_LENGTH 14 // [bytes] length of the header in the packet
+#define PACKET_PAYLOAD_MAX 98 // [bytes] max size of payload in the packet
+
+// MAC configuration
+#define SECRET_KEY 0xA1B2C3D4 // secret key for MAC generation
 
 // RS encoding configuration
-#define RS_OFF_BYTE_1 0xFA
-#define RS_OFF_BYTE_2 0xCE
-#define RS_ON_BYTE_1 0xBE
-#define RS_ON_BYTE_2 0xEF
+#define BYTE_RS_OFF 0x55
+#define BYTE_RS_ON 0xAA
+#define BYTE_RESERVED 0xEE
 
 // Error codes
 #define PACKET_ERR_NONE 0 // no error in packet
 #define PACKET_ERR_RS -1 // error in RS encoding bytes
-#define PACKET_ERR_END -2 // error in end byte
+#define PACKET_ERR_LENGTH -2 // error in packet length
+#define PACKET_ERR_MAC -3 // error in MAC
 
 #define CMD_ERR_NONE 0 // no error in command
 #define CMD_ERR_PACKET -1 // error in packet state
@@ -113,14 +116,9 @@ void printPacket(const uint8_t* packet, uint8_t length);
 #define CMD_ERR_ID -3 // error in packet ID (double or out of range)
 #define CMD_ERR_MISSING -4 // missing packet in command
 
-// Fixed bytes
-#define BYTE_END 0xFF // end byte of the packet
-
 // TEC codes
 #define TEC_OBC_REBOOT 0x00 // reboot OBC command
 #define TEC_TLM_BEACON 0x02 // send telemetry beacon
-
-// TEC lengths
 
 // TRC codes
 #define TRC_BEACON 0x00 // telemetry beacon reply
@@ -149,11 +147,12 @@ void startTransmission(uint8_t *tx_packet, uint8_t packet_size);
 struct Packet
 {
 	int8_t state;
-	bool rs_encode = false; // flag to indicate if RS encoding is used
+	bool ecc = false; // flag to indicate if RS ECC is used
 	uint8_t station;
 	uint8_t command;
 	uint8_t ID_total;
 	uint8_t ID;
+	uint32_t MAC;
 	uint32_t time_unix;
 	uint8_t payload_length;
 	uint8_t payload[PACKET_PAYLOAD_MAX];
@@ -161,6 +160,9 @@ struct Packet
 
 // Convert received raw data to packet struct
 Packet dataToPacket(const uint8_t* data, uint8_t length);
+
+// MAC function to generate a message authentication code
+uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
 
 // Convert packet struct to raw data
 uint8_t packetToData(const Packet* packet, uint8_t* data);
