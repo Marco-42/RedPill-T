@@ -24,7 +24,6 @@ void COMMS_stateMachine(void *parameter)
 	// Initialize Reed-Solomon error correction
 	initialize_ecc();
 	bool rs_enabled = true; // flag to check if Reed-Solomon is enabled
-	bool rs_should_encode; // flag to check if Reed-Solomon encoding should be done
 
 	Serial.println("ok");
 	
@@ -80,7 +79,7 @@ void COMMS_stateMachine(void *parameter)
 
 						// Check if a packet has been received
 						// IDLE_TIMEOUT is the time to wait for a packet to be received before checking if there are packets to be sent
-						else if (!ulTaskNotifyTake(pdTRUE, IDLE_TIMEOUT) == 0) // if a packet is received before timeout
+						else if (ulTaskNotifyTake(pdFALSE, IDLE_TIMEOUT) != 0) // if a packet is received before timeout
 						{
 							// Switch to RX state
 							COMMS_state = COMMS_RX;
@@ -104,14 +103,23 @@ void COMMS_stateMachine(void *parameter)
 				
 				// Initialize command variables
 				uint8_t command_packets_processed = 0;
-				Packet command_packets[PACKET_CMD_MAX]; // array to store received packets in command
+				Packet command_packets[CMD_PACKETS_MAX]; // array to store received packets in command
+
+				uint8_t rx_packet_size;
+				uint8_t rx_packet[PACKET_SIZE_MAX];
+				int8_t rx_state = RADIOLIB_ERR_NONE; // variable to store reception state
 
 				do
 				{
+					Serial.println("Packet received, processing ...");
 					// Read packet
-					uint8_t rx_packet_size = radio.getPacketLength();
-					uint8_t rx_packet[PACKET_SIZE_MAX];
-					int8_t rx_state = radio.readData(rx_packet, rx_packet_size);
+					rx_packet_size = radio.getPacketLength();
+					if (rx_packet_size == 0 || rx_packet_size > PACKET_SIZE_MAX)
+					{
+						Serial.println("Invalid packet size received");
+						continue;
+					}
+					rx_state = radio.readData(rx_packet, rx_packet_size);
 
 					// Reception successfull
 					if (rx_state == RADIOLIB_ERR_NONE)
@@ -121,7 +129,7 @@ void COMMS_stateMachine(void *parameter)
 
 						//TODO: decode Reed Salomon packet
 						//TODO: deinterleave packet
-						decode_data(rx_packet, rx_packet_size); // decode Reed-Solomon
+						// decode_data(rx_packet, rx_packet_size); // decode Reed-Solomon
 
 						// Parse packet
 						Packet incoming = dataToPacket(rx_packet, rx_packet_size);
@@ -145,21 +153,33 @@ void COMMS_stateMachine(void *parameter)
 					}
 
 					// Reception error
+					else
 					{
-						// TODO: handle error
+						Serial.printf("Packet reception error: %d\n", rx_state);
+					}
+					// TODO: handle error
+				}
+				while (ulTaskNotifyTake(pdFALSE, RX_TIMEOUT) != 0); // repeat if another packet is received before timeout (command is multipacket)
+
+				// Check if all packets are valid
+				uint8_t command_valid = checkPackets(command_packets, command_packets_processed);
+
+				if (command_valid == CMD_ERR_NONE)
+				{
+					// Send ACK for command
+					if (command_packets[0].command != TRC_ACK && command_packets[0].command != TRC_NACK) // do not send ACK for ACK or NACK command
+					{
+						sendACK(command_packets[0].command);
 					}
 
-
-				} while (!ulTaskNotifyTake(pdTRUE, RX_TIMEOUT) == 0); // repeat if another packet is received before timeout (command is multipacket)
-
-				// Check if all packets have been received
-				uint8_t command_valid = processCommand(command_packets, command_packets_processed);
-
-				//
-				if (command_valid != CMD_ERR_NONE)
+					// Execute command
+					executeCommand(command_packets, command_packets_processed);
+				}
+				else
 				{
 					// TODO: send NACK
 				}
+
 
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing command
@@ -181,27 +201,8 @@ void COMMS_stateMachine(void *parameter)
 					uint8_t tx_packet[PACKET_SIZE_MAX];
 					uint8_t tx_packet_size = packetToData(&tx_packet_struct, tx_packet);
 
-					// Transform packet to data based on command
-					switch (tx_packet_struct.command)
-					{
-						case TRC_BEACON:
-						{
-							rs_should_encode = false;
-							break;
-						}
-						
-						default:
-						{
-							rs_should_encode = true;
-							// TODO: interleave
-							// TODO: encode Reed Salomon packet
-							// Serial.println("Sending data packet...");
-							break;
-						}
-					}
-
 					// If Reed-Solomon encoding is enabled, encode the packet
-					if (rs_enabled && rs_should_encode)
+					if (rs_enabled && tx_packet_struct.ecc)
 					{
 						// Encode Reed-Solomon codeword to tx_packet
 						uint8_t tx_packet_encoded[PACKET_SIZE_MAX];
@@ -241,7 +242,6 @@ void COMMS_stateMachine(void *parameter)
 			case COMMS_SERIAL:
 			{
 				Serial.println("COMMS_SERIAL: enter packets -> 'go' to send, 'end' to discard");
-
 
 				handleSerialInput();
 

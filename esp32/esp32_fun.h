@@ -16,6 +16,10 @@ extern "C"
 	#include "rscode-1.3/ecc.h"
 }
 
+// Time library for time management
+#include <time.h>
+#include <sys/time.h>
+
 // ---------------------------------
 // LORA CONFIGURATION
 // ---------------------------------
@@ -67,7 +71,7 @@ extern QueueHandle_t RTOS_queue_TX; // queue for TX packets
 
 // States timing
 #define IDLE_TIMEOUT 500 // [ms] idle timeout to wait before checking if a packet needs to be sent
-#define RX_TIMEOUT 3000 // [ms] rx timeout to wait before going back to idle state
+#define RX_TIMEOUT 1000 // [ms] rx timeout to wait before going back to idle state
 
 // Main COMMS loop
 void COMMS_stateMachine(void *parameter);
@@ -90,11 +94,14 @@ void printPacket(const uint8_t* packet, uint8_t length);
 // RADIO FUNCTIONS
 // ---------------------------------
 
-// Packet size configuration
+// Packet configuration
 #define PACKET_SIZE_MAX 128 // [bytes] max size of packets
-#define PACKET_CMD_MAX 4 // [packets] max number of packets in single command
 #define PACKET_HEADER_LENGTH 13 // [bytes] length of the header in the packet
 #define PACKET_PAYLOAD_MAX 98 // [bytes] max size of payload in the packet
+
+// Command configuration
+#define CMD_PACKETS_MAX 2 // [packets] max number of packets in a command
+#define CMD_SIZE_MAX (PACKET_SIZE_MAX * CMD_PACKETS_MAX) // [bytes] max size of a command
 
 // MAC configuration
 #define SECRET_KEY 0xA1B2C3D4 // secret key for MAC generation
@@ -119,7 +126,8 @@ void printPacket(const uint8_t* packet, uint8_t length);
 // TEC codes
 #define TEC_OBC_REBOOT 0x01 // reboot OBC command
 #define TEC_EXIT_STATE 0x02 // exit state command
-#define TEC_TLM_BEACON 0x03 // send telemetry beacon
+#define TEC_VAR_CHANGE 0x03 // variable change command
+#define TEC_SET_TIME 0x04 // set time command
 #define TEC_EPS_REBOOT 0x08 // reboot EPS command
 #define TEC_ADCS_REBOOT 0x10 // reboot ADCS command
 #define TEC_ADCS_TLE 0x11 // send TLE to ADCS command
@@ -151,6 +159,9 @@ void printRadioStatus(int8_t state, bool blocking);
 // ---------------------------------
 // HELPER FUNCTIONS
 // ---------------------------------
+
+// Initialize system time to a specific UNIX timestamp, or default to Jan 1, 2025 if 0
+void setUNIX(uint32_t unixTime = 0);
 
 // Get current UNIX time
 uint32_t getUNIX();
@@ -184,6 +195,8 @@ struct Packet
 	uint32_t time_unix;
 	uint8_t payload_length;
 	uint8_t payload[PACKET_PAYLOAD_MAX];
+
+	void init();
 };
 
 // Convert received raw data to packet struct
@@ -200,8 +213,11 @@ void handleSerialInput();
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-// Make command from packets and execute it
-int8_t processCommand(const Packet* packets, uint8_t packets_total);
+// Check if packets form a valid command
+int8_t checkPackets(const Packet* packets, uint8_t packets_total);
+
+// Assemble and execute command from valid packets
+bool executeCommand(const Packet* packets, uint8_t packets_total);
 
 // Send ACK packet to confirm last command received
 void sendACK(uint8_t TEC);

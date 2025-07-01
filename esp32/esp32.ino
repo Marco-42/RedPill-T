@@ -36,7 +36,7 @@ void setup()
 	printStartupMessage("SETUP");
 
 	// Initialize system
-	//......
+	setUNIX(); // set system time to default UNIX timestamp
 		
 	Serial.println(" ok");
 

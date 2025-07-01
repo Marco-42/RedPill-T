@@ -43,27 +43,53 @@ void printRadioStatus(int8_t state, bool blocking)
 }
 
 // Print received packet on serial
-// void printPacket(const uint8_t* packet, uint8_t length)
-// {
-// 	Serial.print("DATA: ");
-// 	for (uint8_t i = 0; i < length; i++)
-// 	{
-// 		Serial.print((char)packet[i]);
-// 		Serial.print(" ");
-// 	}
-// 	Serial.println();
-// }
+void printPacket(const uint8_t* packet, uint8_t length)
+{
+	Serial.print("DATA: ");
+	for (uint8_t i = 0; i < length; ++i)
+	{
+		Serial.printf("%02X ", packet[i]);
+	}
+	Serial.println();
+}
 
 
 // ---------------------------------
 // HELPER FUNCTIONS
 // ---------------------------------
 
+// Initialize system time to a specific UNIX timestamp, or default to Jan 1, 2025 if 0
+void setUNIX(uint32_t unixTime)
+{
+    time_t t;
+
+    if (unixTime == 0)
+    {
+        // Default to Jan 1, 2025 at 00:00:00
+        struct tm tm_time = {};
+        tm_time.tm_year = 2025 - 1900;
+        tm_time.tm_mon = 0;
+        tm_time.tm_mday = 1;
+        tm_time.tm_hour = 0;
+        tm_time.tm_min = 0;
+        tm_time.tm_sec = 0;
+
+        t = mktime(&tm_time);
+    }
+    else
+    {
+        t = static_cast<time_t>(unixTime);
+    }
+
+    struct timeval now = { .tv_sec = t, .tv_usec = 0 };
+    settimeofday(&now, nullptr);
+}
+
 // Get current UNIX time
 uint32_t getUNIX()
 {
-	// TODO: fix this with time variable
-	return millis() / 1000; // convert milliseconds to seconds
+	time_t now = time(nullptr);
+    return static_cast<uint32_t>(now);
 }
 
 // MAC function to generate a message authentication code
@@ -134,7 +160,7 @@ void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 
 
 // Initialize packet with default values
-Packet::Packet()
+void Packet::init()
 {
 	state = PACKET_ERR_NONE; // no error
 	ecc = false; // RS encoding off by default
@@ -145,6 +171,7 @@ Packet::Packet()
 	time_unix = getUNIX(); // default UNIX time
 	MAC = makeMAC(time_unix, SECRET_KEY); // default MAC
 	payload_length = 0; // no payload by default
+
 	memset(payload, 0, PACKET_PAYLOAD_MAX); // clear payload
 }
 
@@ -194,6 +221,7 @@ Packet dataToPacket(const uint8_t* data, uint8_t length)
 	uint32_t expected_MAC = makeMAC(packet.time_unix, SECRET_KEY); // SECRET_KEY is a predefined constant
 	if (packet.MAC != expected_MAC)
 	{
+		Serial.printf("MAC error: expected %08X, got %08X\n", expected_MAC, packet.MAC);
 		packet.state = PACKET_ERR_MAC; // MAC error
 		return packet;
 	}
@@ -260,8 +288,8 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 // Process commands in serial input TODO: maybe this should not be part of comms state machine
 void handleSerialInput()
 {
-	uint8_t packet_buffers[PACKET_CMD_MAX][PACKET_SIZE_MAX];
-	uint8_t packet_lengths[PACKET_CMD_MAX];
+	uint8_t packet_buffers[CMD_PACKETS_MAX][PACKET_SIZE_MAX];
+	uint8_t packet_lengths[CMD_PACKETS_MAX];
 	uint8_t packet_count = 0;
 
 	uint8_t temp_buffer[PACKET_SIZE_MAX];
@@ -307,13 +335,14 @@ void handleSerialInput()
 					Serial.println("Cancelled. Packets discarded.");
 					return;
 				}
-				else if (temp_length > 0 && packet_count < PACKET_CMD_MAX)
+				else if (temp_length > 0 && packet_count < CMD_PACKETS_MAX)
 				{
 					memcpy(packet_buffers[packet_count], temp_buffer, temp_length);
 					packet_lengths[packet_count] = temp_length;
 					packet_count++;
 					Serial.printf("Stored packet %d (%d bytes): ", packet_count, temp_length);
-					for (uint8_t i = 0; i < temp_length; ++i) {
+					for (uint8_t i = 0; i < temp_length; ++i)
+					{
 						Serial.printf("%02X ", temp_buffer[i]);
 					}
 					Serial.println();
@@ -344,123 +373,161 @@ void handleSerialInput()
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-// Make command from packets and execute it
-int8_t processCommand(const Packet* packets, uint8_t packets_total)
+// Check if packets form a valid command
+int8_t checkPackets(const Packet* packets, uint8_t packets_total)
 {
-	// Initialize state
-	uint8_t command_state = CMD_ERR_NONE;
+	// if (packets_total == 0) {
+	// 	Serial.println("checkPackets: No packets received.");
+	// 	return CMD_ERR_PACKET;
+	// }
 
-	// Extract variables from first packet
+	uint8_t command_state = CMD_ERR_NONE;
 	uint8_t station = packets[0].station;
 	uint8_t TEC = packets[0].command;
 	uint8_t ID_total = packets[0].ID_total;
 
-	// Packets variables
-	uint8_t packets_ID[ID_total]; // array to store IDs of packets in command
-	
-	// Check all packets in command for errors
+	bool packet_received_flags[CMD_PACKETS_MAX + 1] = { false };
+	uint8_t total_payload_length = 0;
+
 	for (uint8_t i = 0; i < packets_total; i++)
 	{
-		packets_ID[i] = packets[i].ID;
-		
-		// Check if packet has error
+		uint8_t id = packets[i].ID;
+
+		// Check state
 		if (packets[i].state != PACKET_ERR_NONE)
 		{
-			Serial.println("Packet " + String(i + 1) + " has error: " + String(packets[i].state));
-			command_state = CMD_ERR_PACKET; // mark command as invalid
+			Serial.printf("Packet %d has error: %d\n", i + 1, packets[i].state);
+			command_state = CMD_ERR_PACKET;
 		}
 
-		// Check if packet header matches
-		// TODO: if first packet is wrong, all packets are wrong (can be optimized)
+		// Header consistency
 		if (packets[i].station != station || packets[i].ID_total != ID_total || packets[i].command != TEC)
 		{
-			Serial.println("Packet " + String(i + 1) + " has different header!");
-			command_state = CMD_ERR_HEADER; // mark command as invalid
+			Serial.printf("Packet %d header mismatch.\n", i + 1);
+			command_state = CMD_ERR_HEADER;
 		}
 
-		// Check if packet ID is in range
-		if (packets[i].ID > ID_total)
+		// ID validity
+		if (id == 0 || id > ID_total)
 		{
-			Serial.println("Packet " + String(i + 1) + " has invalid ID: " + String(packets[i].ID));
-			command_state = CMD_ERR_ID; // mark command as invalid
+			Serial.printf("Packet %d has invalid ID: %d\n", i + 1, id);
+			command_state = CMD_ERR_ID;
 		}
+
+		// Check for duplicates
+		if (packet_received_flags[id])
+		{
+			Serial.printf("Duplicate packet ID: %d\n", id);
+			command_state = CMD_ERR_ID;
+		}
+		packet_received_flags[id] = true;
+
+		total_payload_length += packets[i].payload_length;
 	}
 
-	// Check for missing or double packets
-	for (uint8_t expected_id = 1; expected_id <= packets_total; expected_id++)
+	// Check for missing packets
+	for (uint8_t id = 1; id <= ID_total; id++)
 	{
-		uint8_t count = 0;
-		for (uint8_t i = 0; i < packets_total; i++)
-		{
-			if (packets_ID[i] == expected_id)
-			{
-				count++;
-			}
-		}
-		if (count == 0)
-		{
-			Serial.println("Missing packet with ID: " + String(expected_id));
-			command_state = CMD_ERR_MISSING; // mark command as invalid 
+		if (!packet_received_flags[id]) {
+			Serial.printf("Missing packet with ID: %d\n", id);
+			command_state = CMD_ERR_MISSING;
 			break;
 		}
-		else if (count > 1)
-		{
-			Serial.println("Duplicate packets found with ID: " + String(expected_id));
-			command_state = CMD_ERR_ID; // mark command as invalid
-		}
 	}
 
-	// Check if command is valid
-	if (command_state != CMD_ERR_NONE)
-	{
-		Serial.println("Command is invalid!");
-		return command_state; // command is invalid
-	}
-	
-	// Now all packets are validated, we can start parsing command
+	// TEC-specific validation
+	// switch (TEC)
+	// {
+	// 	case TEC_SET_TIME:
+	// 		if (total_payload_length != 4) {
+	// 			Serial.printf("SET_TIME requires 4-byte payload, got %d\n", total_payload_length);
+	// 			command_state = CMD_ERR_LENGTH;
+	// 		}
+	// 		break;
+	// 	// Add future TEC-specific checks here
+	// 	default:
+	// 		break;
+	// }
 
-	// Calculate total payload length
+	if (command_state != CMD_ERR_NONE) {
+		Serial.println("verifyCommand: Command is invalid.");
+	}
+	return command_state;
+}
+
+// Assemble and execute command from valid packets
+bool executeCommand(const Packet* packets, uint8_t packets_total)
+{
+	if (packets_total == 0) return false;
+
+	uint8_t TEC = packets[0].command;
+
+	// Merge payloads
 	uint8_t command_length = 0;
-	for (uint8_t i = 0; i < packets_total; i++) {
-		command_length += packets[i].payload_length;
-	}
-
-	// Combine payloads from all packets
-	uint8_t command[command_length];
-	uint8_t command_processed = 0;
 	for (uint8_t i = 0; i < packets_total; i++)
 	{
-		for (uint8_t j = 0; j < packets[i].payload_length; j++)
-		{
-			command[command_processed] = packets[i].payload[j];
-			command_processed++;
-		}
+		command_length += packets[i].payload_length;
 	}
-	
-	// Execute command
-	switch(TEC)
+	uint8_t command[command_length];
+	uint8_t offset = 0;
+	for (uint8_t i = 0; i < packets_total; i++)
 	{
-		case TEC_OBC_REBOOT:
-			// TODO execute command
-			Serial.println("TEC: OBC_REBOOT!");
-			break;
-		case TEC_TLM_BEACON:
-			// TODO process data
-			Serial.println("TEC: TLM_BEACON!");
-			break;
-		default:
-			Serial.println("Unknown TEC!");
-			return false; // invalid TEC
+		memcpy(command + offset, packets[i].payload, packets[i].payload_length);
+		offset += packets[i].payload_length;
 	}
 
-	return true; // command processed
+	// Execute (assumes payloads are correct!)
+	switch (TEC)
+	{
+		case TEC_OBC_REBOOT:
+			Serial.println("TEC: OBC_REBOOT");
+			ESP.restart();
+			break;
+
+		case TEC_EXIT_STATE:
+			Serial.println("TEC: EXIT_STATE");
+			break;
+
+		case TEC_VAR_CHANGE:
+			Serial.println("TEC: VAR_CHANGE");
+			break;
+
+		case TEC_SET_TIME:
+		{
+			Serial.println("TEC: SET_TIME");
+			uint32_t time_new = ((uint32_t)command[0] << 24) | ((uint32_t)command[1] << 16) | ((uint32_t)command[2] << 8) | (uint32_t)command[3];
+			setUNIX(time_new);
+			Serial.printf("Time set to: %u\n", time_new);
+			break;
+		}
+
+		case TEC_EPS_REBOOT:
+			Serial.println("TEC: EPS_REBOOT");
+			break;
+
+		case TEC_ADCS_REBOOT:
+			Serial.println("TEC: ADCS_REBOOT");
+			break;
+
+		case TEC_ADCS_TLE:
+			Serial.println("TEC: ADCS_TLE");
+			break;
+
+		default:
+			Serial.println("Unknown TEC!");
+			return false;
+	}
+
+	return true;
 }
+
 
 // Send ACK packet to confirm last command received
 void sendACK(uint8_t TEC)
 {
 	// Create ACK packet
 	Packet ack_packet;
+	ack_packet.init(); // initialize packet with default values
 
 	ack_packet.command = TRC_ACK; // set command to ACK
 	ack_packet.payload_length = 1; // payload is executed TEC
