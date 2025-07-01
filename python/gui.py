@@ -5,10 +5,11 @@ import serial.tools.list_ports
 from datetime import datetime
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QColor, QPalette, QTextCursor
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, Qt
 import hashlib
 import hmac
 
+import traceback
 
 # ========== HELPER FUNCTIONS ==========
 
@@ -86,6 +87,16 @@ def build_payload(type_index, task_name, input_widgets):
 
     return payload
 
+# Simple MAC function
+def simple_mac(timestamp, key):
+    x = (timestamp ^ key) & 0xFFFFFFFF
+    x = ((x >> 16) ^ x) * 0x45d9f3b
+    x = x & 0xFFFFFFFF
+    x = ((x >> 16) ^ x) * 0x45d9f3b
+    x = x & 0xFFFFFFFF
+    x = (x >> 16) ^ x
+    return x & 0xFFFFFFFF
+
 # Build the full packet with header, payload, and ECC(for transmission)
 def build_packet(gs_text, type_index, task_name, packet_id, total_packets, payload_bytes, ecc_enabled):
     # === Byte 1: Station ID ===
@@ -111,28 +122,18 @@ def build_packet(gs_text, type_index, task_name, packet_id, total_packets, paylo
 
     # === Byte 5: Payload length ===
     payload_length = len(payload_bytes)
-    if payload_length > 116:
-        raise ValueError("Payload too long (max 116 bytes)")
+    if payload_length > 98:
+        raise ValueError("Payload too long (max 98 bytes)")
     byte_payload_length = payload_length
 
-    # === Byte 6: Reserved ===
-    byte_reserved = 0xFF
-
-    # === Byte 7-10: MAC (custom formula) ===
+    # === Byte 6-9: MAC ===
     unix_time = int(datetime.now().timestamp())
     secret_key = 0xA1B2C3D4  # Replace with your actual 32-bit secret key
-
-    def simple_mac(timestamp, key):
-        x = timestamp ^ key
-        x = ((x >> 16) ^ x) * 0x45d9f3b
-        x = ((x >> 16) ^ x) * 0x45d9f3b
-        x = (x >> 16) ^ x
-        return x & 0xFFFFFFFF
 
     mac = simple_mac(unix_time, secret_key)
     bytes_mac = mac.to_bytes(4, byteorder='big')
 
-    # === Byte 11-14: UNIX timestamp ===
+    # === Byte 10-13: UNIX timestamp ===
     bytes_time = unix_time.to_bytes(4, byteorder='big')
 
     # === Final packet ===
@@ -141,62 +142,65 @@ def build_packet(gs_text, type_index, task_name, packet_id, total_packets, paylo
         byte_ecc,
         byte_TEC,
         byte_packet,
-        byte_payload_length,
-        byte_reserved
+        byte_payload_length
     ])
 
     return header + bytes_mac + bytes_time + payload_bytes
 
-
 # Decode a packet from bytes(for reception) TODO: update
 def decode_packet(packet_bytes):
-    if len(packet_bytes) < 10:
-        raise ValueError("Received packet too short.")
+    if len(packet_bytes) < 13:
+        raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < 13")
 
-    # ECC prefix
-    ecc_prefix = packet_bytes[0:2]
-    if ecc_prefix == b'\xBE\xEF':
+    # Byte 1: Station ID (raw int)
+    station_id = packet_bytes[0]
+
+    # Byte 2: ECC Flag (bool)
+    byte_ecc = packet_bytes[1]
+    if byte_ecc == 0xAA:
         ecc_enabled = True
-    elif ecc_prefix == b'\xFA\xCE':
+    elif byte_ecc == 0x55:
         ecc_enabled = False
     else:
-        raise ValueError(f"Invalid ECC prefix: {ecc_prefix.hex().upper()}")
+        raise ValueError(f"Invalid ECC flag: 0x{byte_ecc:02X}")
 
-    # Header bytes
-    gs_byte = packet_bytes[2]
-    type_task_byte = packet_bytes[3]
-    packet_info_byte = packet_bytes[4]
+    # Byte 3: TRC (raw int)
+    TRC = packet_bytes[2]
 
-    # Timestamp
-    timestamp_bytes = packet_bytes[5:9]
-    timestamp = int.from_bytes(timestamp_bytes, byteorder='big')
+    # Byte 4: Total packets (bits 1-4), Packet ID (bits 5-8)
+    byte_packet = packet_bytes[3]
+    total_packets = (byte_packet >> 4) & 0x0F
+    packet_id = byte_packet & 0x0F
 
-    # Payload (everything between time and 0xFF)
-    payload = packet_bytes[9:-1]
-    end_byte = packet_bytes[-1]
+    # Byte 5: Payload length
+    payload_length = packet_bytes[4]
 
-    if end_byte != 0xFF:
-        raise ValueError("Invalid end byte (expected 0xFF)")
+    # Ensure entire packet is present
+    expected_len = 13 + payload_length
+    if len(packet_bytes) < expected_len:
+        raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
 
-    # Decode fields
-    gs_map = {0x01: "UniPD", 0x02: "Mobile"}
-    gs = gs_map.get(gs_byte, f"Unknown (0x{gs_byte:02X})")
+    # Bytes 6–9: MAC (int)
+    bytes_mac = packet_bytes[5:9]
+    mac = int.from_bytes(bytes_mac, byteorder='big')
 
-    type_index = (type_task_byte >> 6) & 0x03
-    task_code = type_task_byte & 0x3F
+    # Bytes 10–13: Timestamp (int)
+    bytes_time = packet_bytes[9:13]
+    timestamp = int.from_bytes(bytes_time, byteorder='big')
 
-    total_packets = (packet_info_byte >> 4) & 0x0F
-    packet_id = packet_info_byte & 0x0F
+    # Payload: list of ints
+    payload_bytes = list(packet_bytes[13:13 + payload_length])
 
     return {
+        "station_id": station_id,
         "ecc_enabled": ecc_enabled,
-        "ground_station": gs,
-        "type_index": type_index,
-        "task_code": task_code,
+        "TRC": TRC,
         "total_packets": total_packets,
         "packet_id": packet_id,
+        "payload_length": payload_length,
+        "mac": mac,
         "timestamp": timestamp,
-        "payload_bytes": payload,
+        "payload_bytes": payload_bytes  # always a list of ints
     }
 
 # Split payload into multiple packets if needed
@@ -218,9 +222,10 @@ class MainWindow(QWidget):
     # Centralized task definitions + codes
     TASKS = {
         0: {  # HK
-            "OBC reboot": 0,
-            "Exit state": 1,
-            "Variable change": 2,
+            "OBC reboot": 1,
+            "Exit state": 2,
+            "Variable change": 3,
+            "Set clock": 4,
             "EPS reboot": 8,
             "ADCS reboot": 16,
             "TLE update": 17
@@ -256,6 +261,9 @@ class MainWindow(QWidget):
             ("Address:", QSpinBox, 0, 0, 254, "0-254"),
             ("Value:", QSpinBox, 0, 0, 254, "0-254")
         ],
+        (0, "Set clock"): [
+            ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ],
         (0, "EPS reboot"): [
             ("No configuration available, execution is immediate", QLabel, None, None, None, None)
         ],
@@ -271,45 +279,6 @@ class MainWindow(QWidget):
         # line 1: 25544U 98067A   24174.42871528  .00005597  00000+0  10490-3 0  9990
         # line2: 25544  51.6425 121.0145 0005864  64.1487  54.4007 15.49923611452417
     }
-
-    # ========== GROUND STATION PASSWORD CHECKING ==========
-    
-    # Check the password for the selected ground station
-    def check_gs_password(self, index):
-        # It dosn't make sense to check password if the GS is not selected
-        if index == self.last_gs_index:
-            return
-
-        selected_gs = self.gs_selector.itemText(index)
-
-        # Codification of passwords with hashing
-        def hash_password(password: str) -> str:
-            return hashlib.sha256(password.encode()).hexdigest()
-    
-        EXPECTED_HASHES = {
-        "UniPD": "428a78083a063c44052773604b01378ed403d29fa913fa7ba48a9ef46a19d931",
-        "Mobile": "e691608526fb575a015ebdd21c4d4676c6660ec9ed200a1fc301acf2cac7c18f"
-        }
-
-        password = "Oracolo42"
-        print(hashlib.sha256(password.encode()).hexdigest())
-        password, ok = QInputDialog.getText(
-            self,
-            "Insert Password",
-            f"Insert Password for: '{selected_gs}':",
-            QLineEdit.Password
-        )
-
-        user_hash = hash_password(password)
-        expected_hash = EXPECTED_HASHES.get(selected_gs, "")
-
-        if not ok or user_hash != expected_hash:
-            QMessageBox.warning(self, "Access denied", "Wrong password!")
-            self.gs_selector.blockSignals(True)
-            self.gs_selector.setCurrentIndex(self.last_gs_index)
-            self.gs_selector.blockSignals(False)
-        else:
-            self.last_gs_index = index
 
     # Windows graphical user interface class
     def __init__(self):
@@ -380,9 +349,9 @@ class MainWindow(QWidget):
         self.execute_next_button.setEnabled(False)
 
         # === Right Panel Components ===
-        self.status_label = QLabel("Disconnected")
-        self.status_label.setAutoFillBackground(True)
-        self.set_status_light(False)
+        self.serial_status_label = QLabel("Disconnected")
+        self.serial_status_label.setAutoFillBackground(True)
+        self.set_serial_status(False)
 
         self.port_selector = QComboBox()
         self.refresh_ports()
@@ -404,6 +373,12 @@ class MainWindow(QWidget):
         self.serial_console.setReadOnly(True)
         self.clear_serial_button = QPushButton("Clear")
         self.clear_serial_button.clicked.connect(self.serial_console.clear)
+
+        # Last Command Status label
+        self.last_command_status = QLabel("NO COMMS")
+        self.last_command_status.setAlignment(Qt.AlignCenter)
+        self.last_command_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
+
 
         # === Layouts ===
         main_layout = QHBoxLayout()
@@ -456,7 +431,7 @@ class MainWindow(QWidget):
         serial_group = QGroupBox("Serial Communication")
         serial_layout = QVBoxLayout()
 
-        serial_layout.addWidget(self.status_label)
+        serial_layout.addWidget(self.serial_status_label)
 
         form_layout = QFormLayout()
         form_layout.addRow("Select COM Port:", self.port_selector)
@@ -484,10 +459,17 @@ class MainWindow(QWidget):
         traffic_group.setLayout(traffic_layout)
         self.new_line_pending = True  # Flag to insert timestamp only at line start
 
+        # Group box for Last Command Status
+        last_command_group = QGroupBox("Last Command Status")
+        last_command_layout = QVBoxLayout()
+        last_command_layout.addWidget(self.last_command_status)
+        last_command_group.setLayout(last_command_layout)
+
         right_col = QVBoxLayout()
         right_col.addWidget(serial_group)
         right_col.addWidget(status_group)
         right_col.addWidget(traffic_group)
+        right_col.addWidget(last_command_group)
 
         main_layout.addLayout(left_col, 1)
         main_layout.addLayout(right_col, 1)
@@ -495,9 +477,54 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
         # Timer for serial read
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.read_serial)
+        self.serial_timer = QTimer()
+        self.serial_timer.timeout.connect(self.read_serial)
+
+        # Timer for command timeout
+        self.timeout_timer = QTimer()
+        self.timeout_timer.timeout.connect(self.check_command_timeout)
+
+
+    # ========== AUTHENTICATION ==========
     
+    # Check the password for the selected ground station
+    def check_gs_password(self, index):
+        # It dosn't make sense to check password if the GS is not selected
+        if index == self.last_gs_index:
+            return
+
+        selected_gs = self.gs_selector.itemText(index)
+
+        # Codification of passwords with hashing
+        def hash_password(password: str) -> str:
+            return hashlib.sha256(password.encode()).hexdigest()
+    
+        EXPECTED_HASHES = {
+        "UniPD": "428a78083a063c44052773604b01378ed403d29fa913fa7ba48a9ef46a19d931",
+        "Mobile": "e691608526fb575a015ebdd21c4d4676c6660ec9ed200a1fc301acf2cac7c18f"
+        }
+
+        password = "Oracolo42"
+        print(hashlib.sha256(password.encode()).hexdigest())
+        password, ok = QInputDialog.getText(
+            self,
+            "Insert Password",
+            f"Insert Password for: '{selected_gs}':",
+            QLineEdit.Password
+        )
+
+        user_hash = hash_password(password)
+        expected_hash = EXPECTED_HASHES.get(selected_gs, "")
+
+        if not ok or user_hash != expected_hash:
+            QMessageBox.warning(self, "Access denied", "Wrong password!")
+            self.gs_selector.blockSignals(True)
+            self.gs_selector.setCurrentIndex(self.last_gs_index)
+            self.gs_selector.blockSignals(False)
+        else:
+            self.last_gs_index = index
+
+
     # ========== SERIAL COMMUNICATION ==========
 
     # Connect to the selected serial port
@@ -505,35 +532,26 @@ class MainWindow(QWidget):
         port = self.port_selector.currentText()
         try:
             self.serial_conn = serial.Serial(port, 9600, timeout=0.1)
-            self.set_status_light(True)
+            self.set_serial_status(True)
             self.connect_button.setText("Disconnect")
             self.execute_next_button.setEnabled(True)
             self.execute_next_button.setStyleSheet("background-color: #ccffcc;")  # green
             self.log_status(f"[INFO] Connected to {port}")
-            self.timer.start(100)
+            self.serial_timer.start(100)
         except Exception as e:
             self.log_status(f"[ERROR] Could not connect: {e}")
-            self.set_status_light(False)
+            self.set_serial_status(False)
 
     # Disconnect from the serial port
     def disconnect_serial(self):
         if self.serial_conn:
-            self.timer.stop()
+            self.serial_timer.stop()
             self.serial_conn.close()
-            self.set_status_light(False)
+            self.set_serial_status(False)
             self.connect_button.setText("Connect")
             self.execute_next_button.setEnabled(False)
             self.execute_next_button.setStyleSheet("")
             self.log_status("[INFO] Disconnected")
-
-    # Set the status light color and text based on connection status
-    def set_status_light(self, connected):
-        palette = self.status_label.palette()
-        color = QColor('green') if connected else QColor('red')
-        palette.setColor(QPalette.Window, color)
-        palette.setColor(QPalette.WindowText, QColor('white'))
-        self.status_label.setPalette(palette)
-        self.status_label.setText("Connected" if connected else "Disconnected")
 
     # Refresh the list of available serial ports
     def refresh_ports(self):
@@ -542,7 +560,7 @@ class MainWindow(QWidget):
         for port in ports:
             self.port_selector.addItem(port.device)
 
-
+    # Toggle serial connection state based on current status
     def toggle_connection(self):
         if self.serial_conn and self.serial_conn.is_open:
             self.disconnect_serial()
@@ -554,35 +572,83 @@ class MainWindow(QWidget):
         if self.serial_conn:
             try:
                 while self.serial_conn.in_waiting:
-                    char = self.serial_conn.read(1).decode(errors='ignore')
+                    # Read a full line from serial and decode it
+                    line = self.serial_conn.readline().decode(errors='ignore').strip()
 
-                    if self.new_line_pending:
-                        timestamp = datetime.now().strftime("[%H:%M:%S]")
-                        self.serial_console.moveCursor(QTextCursor.End)
-                        self.serial_console.insertPlainText(f"{timestamp} [RX]: ")
-                        self.new_line_pending = False
+                    if not line:
+                        continue  # skip empty lines
 
-                    if char == '\r':
-                        continue  # Ignore carriage return
-                    elif char == '\n':
-                        self.serial_console.insertPlainText("\n")
-                        self.new_line_pending = True
+                    if line.startswith("Received:"):
+                        # Put raw received line into serial_console
+                        self.log_serial(f"[RX]: {line}")
+
+                        hex_str = line[len("Received:"):].strip()
+                        hex_parts = hex_str.split()
+
+                        try:
+                            packet_bytes = bytes(int(h, 16) for h in hex_parts)
+                            decoded_packet = decode_packet(packet_bytes)
+
+                            # Show decoded info for debug in status_console
+                            self.log_status(f"[INFO] Packet decoded: {decoded_packet}")
+
+                            # Pass to handler for ACK/NACK or other processing
+                            self.handle_reception(decoded_packet)
+
+                        except Exception as e:
+                            self.log_status(f"[ERROR] Packet not decoded: {e}")
+                            error_type = type(e).__name__
+                            error_msg = str(e)
+                            tb = traceback.format_exc()
+                            self.log_status(f"[ERROR] Packet not decoded: {error_type}: {error_msg}\n{tb}")
+
                     else:
-                        self.serial_console.insertPlainText(char)
-
-                    self.serial_console.moveCursor(QTextCursor.End)
+                        # Normal lines go to serial_console (raw serial data)
+                        self.log_serial(f"[RX]: {line}")
 
             except Exception as e:
                 self.log_status(f"[ERROR] Reading failed: {e}")
                 self.disconnect_serial()
 
+    # Send message to status console with timestamp
     def log_status(self, message):
         timestamp = datetime.now().strftime("[%H:%M:%S]")
         self.status_console.append(f"{timestamp} {message}")
         
+    # Send message to serial console with timestamp
+    def log_serial(self, message):
+        timestamp = datetime.now().strftime("[%H:%M:%S]")
+        self.serial_console.append(f"{timestamp} {message}")
+
+
+    # ========== STATUS VISUALIZATION ==========
+
+    # Set the status light color and text based on connection status
+    def set_serial_status(self, connected):
+        palette = self.serial_status_label.palette()
+        color = QColor('green') if connected else QColor('red')
+        palette.setColor(QPalette.Window, color)
+        palette.setColor(QPalette.WindowText, QColor('white'))
+        self.serial_status_label.setPalette(palette)
+        self.serial_status_label.setText("Connected" if connected else "Disconnected")
+
+    # Set the last command status label with appropriate styles
+    def set_last_command_status(self, status):
+        status = status.upper()
+        self.last_command_status.setText(status)
+        if status == "NO COMMS":
+            self.last_command_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
+        elif status.startswith("WAITING"):
+            self.last_command_status.setStyleSheet("background-color: orange; color: black; font-weight: bold; padding: 5px;")
+        elif status == "ACK":
+            self.last_command_status.setStyleSheet("background-color: green; color: white; font-weight: bold; padding: 5px;")
+        else:
+            self.last_command_status.setStyleSheet("background-color: red; color: white; font-weight: bold; padding: 5px;")
+
     
     # ========== DYNAMIC PACKET SETUP ==========
 
+    # Update the task selector based on the selected type index
     def update_task_selector(self, index):
         self.task_selector.blockSignals(True)
         self.task_selector.clear()
@@ -594,6 +660,7 @@ class MainWindow(QWidget):
         self.task_selector.blockSignals(False)
         self.update_packet_content_form()
 
+    # Update the packet content form based on selected type and task
     def update_packet_content_form(self):
     # Clear and remove all widgets from layout and memory
         while self.packet_setup_layout.count():
@@ -645,49 +712,17 @@ class MainWindow(QWidget):
                 if default_value is not None:
                     if isinstance(widget, QPlainTextEdit):
                         widget.setPlainText(str(default_value))
-                        widget.setMaximumHeight(100)
+                        widget.setMaximumHeight(200)
                     else:
                         widget.setText(str(default_value))
 
                 self.created_widgets[(type_index, task_name, label_text)] = widget
                 self.packet_setup_layout.addRow(label_text, widget)
 
+
     # ========== PACKET GENERATION ==========
 
-    
-    # def generate_hex(self, payload, packet_id=1, total_packets=1):
-    #     # === HEADER BYTE 1: Ground station ===
-    #     gs_text = self.gs_selector.currentText()
-    #     gs_byte = {
-    #         "UniPD": 0x01,
-    #         "Mobile": 0x02
-    #     }.get(gs_text)
-
-    #     if gs_byte is None:
-    #         self.log_status(f"[ERROR] Invalid GS selected: {gs_text}")
-    #         return None
-
-    #     # === HEADER BYTE 2: Type + Task ===
-    #     type_code = self.type_selector.currentIndex()
-    #     task_text = self.task_selector.currentText()
-    #     task_code = self.TASKS.get(type_code, {}).get(task_text, 0)
-    #     second_byte = ((type_code & 0x03) << 6) | (task_code & 0x3F)
-
-    #     # === HEADER BYTE 3: Packet ID Info ===
-    #     third_byte = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
-
-    #     # === TIME BYTES ===
-    #     unix_time = int(datetime.now().timestamp())
-    #     time_bytes = unix_time.to_bytes(4, byteorder='big')
-
-    #     # === PAYLOAD + END ===
-    #     payload_bytes = payload.encode()
-    #     end_byte = b'\xFF'
-
-    #     # === Assemble All ===
-    #     packet = bytes([gs_byte, second_byte, third_byte]) + time_bytes + payload_bytes + end_byte
-    #     return ' '.join(f"{b:02X}" for b in packet)
-
+    # Add the current packet to the command queue
     def add_to_queue(self):
         type_index = self.type_selector.currentIndex()
         # Extract only the text between brackets [] for type_label
@@ -772,9 +807,9 @@ class MainWindow(QWidget):
         self.update_queue_display()
         self.log_status(f"[INFO] Added CMD {cmd_id} with {len(packets)} packet(s) to queue.")
 
-
     # ========== COMMAND QUEUE MANAGEMENT ==========
 
+    # Update the queue display in the table widget
     def update_queue_display(self):
         self.queue_table.setRowCount(len(self.command_queue))
         for row, (cmd_id, packet_id, command_str, hex_str) in enumerate(self.command_queue):
@@ -783,6 +818,7 @@ class MainWindow(QWidget):
             self.queue_table.setItem(row, 2, QTableWidgetItem(str(packet_id)))
             self.queue_table.setItem(row, 3, QTableWidgetItem(hex_str))
 
+    # Abort the last command in the queue
     def abort_last_command(self):
         if not self.command_queue:
             self.log_status("[INFO] No commands to abort.")
@@ -795,6 +831,7 @@ class MainWindow(QWidget):
         self.update_queue_display()
         self.log_status(f"[INFO] Aborted CMD {last_cmd_id} {last_command_name} with {num_removed} packet.")
 
+    # Abort the next command in the queue
     def abort_next_command(self):
         if not self.command_queue:
             self.log_status("[INFO] No commands to abort.")
@@ -807,6 +844,7 @@ class MainWindow(QWidget):
         self.update_queue_display()
         self.log_status(f"[INFO] Aborted CMD {next_cmd_id} {next_command_name} with {num_removed} packet.")
 
+    # Execute the next command in the queue
     def execute_next_command(self):
         if not self.command_queue:
             self.log_status("[INFO] No commands in queue.")
@@ -833,12 +871,12 @@ class MainWindow(QWidget):
                 self.serial_conn.write(b"go\n")
                 
                 # Log command execution and display message on serial console
-                timestamp = datetime.now().strftime("[%H:%M:%S]")
-                # self.serial_console.append(f"{timestamp} [TX]: CMD {next_cmd_id} P{packet_id} -> {command_str}")
-                self.serial_console.append(f"{timestamp} [TX]: {command_str}\n")
+                self.log_serial(f"[TX]: CMD {next_cmd_id} P{packet_id} -> {command_str}")
 
                 self.log_status(f"[INFO] Executed CMD {next_cmd_id} with {len(packets_to_send)} packet.")
 
+                # Save task code from 3rd byte (index 2) of hex_bytes for ACK comparison
+                self.last_sent_TEC = hex_bytes[2]
 
             except Exception as e:
                 self.log_status(f"[ERROR] Failed to send CMD {next_cmd_id} P{packet_id}: {e}")
@@ -846,6 +884,46 @@ class MainWindow(QWidget):
         # Remove sent packets from queue
         self.command_queue = [entry for entry in self.command_queue if entry[0] != next_cmd_id]
         self.update_queue_display()
+
+        # Update last command status
+        self.set_last_command_status(f"WAITING: 0 s")
+        self.last_command_sent_time = datetime.now()
+        self.timeout_timer.start(1000)  # check every second
+
+
+    # ========== PACKET RECEPTION HANDLING ==========
+    
+    # Handle reception of a decoded packet
+    def handle_reception(self, decoded_packet):
+
+        self.timeout_timer.stop()  # Stop timeout check
+
+        TRC = decoded_packet["TRC"]
+        payload = decoded_packet["payload_bytes"]
+
+        # self.log_status(f"[DEBUG] TRC: 0x{TRC:02X}, payload: {payload}, last_sent_TEC: {self.last_sent_TEC}")
+
+        if TRC == 0x31 and payload == [self.last_sent_TEC]:
+            self.set_last_command_status("ACK")
+
+            elapsed = (datetime.now() - self.last_command_sent_time).total_seconds()
+            self.log_status(f"[INFO] ACK received after {elapsed:.2f} s")
+        elif TRC == 0x31 and payload != [self.last_sent_TEC]:
+            self.set_last_command_status("ACK INVALID")
+        elif TRC == 0x32:
+            self.set_last_command_status("NACK")
+        else:
+            self.set_last_command_status("UNKNOWN ERROR")
+
+    def check_command_timeout(self):
+        elapsed = (datetime.now() - self.last_command_sent_time).total_seconds()
+        if elapsed > 10:
+            self.timeout_timer.stop()
+            self.set_last_command_status("NO REPLY")
+            self.log_status(f"[WARN] Timeout: No reply received after 10 seconds")
+        else:
+            self.set_last_command_status(f"WAITING: {round(elapsed)} s")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
