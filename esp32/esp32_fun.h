@@ -10,7 +10,7 @@
 #include <RadioLib.h>
 
 // Reed-Salomon library for error correction
-#define NPAR 6 // number of parity bytes for Reed-Salomon encoding
+// #define NPAR 2 // number of parity bytes for Reed-Salomon encoding must be defined in library
 extern "C"
 {
 	#include "rscode-1.3/ecc.h"
@@ -86,8 +86,8 @@ void printStartupMessage(const char*);
 // Print radio status on serial
 void printRadioStatus(int8_t state, bool blocking = false);
 
-// Print received packet on serial
-void printPacket(const uint8_t* packet, uint8_t length);
+// Print received packet on serial with optional prefix
+void printPacket(const char* prefix, const uint8_t* packet, uint8_t length);
 
 
 // ---------------------------------
@@ -101,21 +101,24 @@ void printPacket(const uint8_t* packet, uint8_t length);
 
 // Command configuration
 #define CMD_PACKETS_MAX 2 // [packets] max number of packets in a command
-#define CMD_SIZE_MAX (PACKET_SIZE_MAX * CMD_PACKETS_MAX) // [bytes] max size of a command
+constexpr uint8_t CMD_SIZE_MAX = (PACKET_SIZE_MAX * CMD_PACKETS_MAX); // [bytes] max size of a command
 
 // MAC configuration
 #define SECRET_KEY 0xA1B2C3D4 // secret key for MAC generation
 
 // RS encoding configuration
+#define RS_BLOCK_SIZE 16 // [bytes] size of RS block
+constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of data block (data + parity)
 #define BYTE_RS_OFF 0x55
 #define BYTE_RS_ON 0xAA
-// #define BYTE_RESERVED 0xEE
+#define BYTE_RS_PADDING 0x00 
 
 // Error codes
 #define PACKET_ERR_NONE 0 // no error in packet
 #define PACKET_ERR_RS -1 // error in RS encoding bytes
 #define PACKET_ERR_LENGTH -2 // error in packet length
-#define PACKET_ERR_MAC -3 // error in MAC
+#define PACKET_ERR_ID -3 // error in packet ID (out of range)
+#define PACKET_ERR_MAC -4 // error in MAC
 
 #define CMD_ERR_NONE 0 // no error in command
 #define CMD_ERR_PACKET -1 // error in packet state
@@ -197,17 +200,27 @@ struct Packet
 	uint8_t payload[PACKET_PAYLOAD_MAX];
 
 	void init();
+	void setPayload(const uint8_t* data, uint8_t length);
+
 };
 
 // Convert received raw data to packet struct
-Packet dataToPacket(const uint8_t* data, uint8_t length);
+void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet);
 
-// Convert packet struct to raw data
+// Convert packet struct to raw data, return length
 uint8_t packetToData(const Packet* packet, uint8_t* data);
 
 // Process commands in serial input
 void handleSerialInput();
 
+// Encode data using RS ECC and interleave the output
+void encodeECC(uint8_t* data, uint8_t& data_len);
+
+// Recover true data, deinterleaving and decoding if RS ECC is enabled
+bool decodeECC(uint8_t* data, uint8_t& data_len);
+
+// Validate packet
+int8_t validatePacket(const Packet* packet);
 
 // ---------------------------------
 // COMMAND FUNCTIONS
@@ -219,8 +232,10 @@ int8_t checkPackets(const Packet* packets, uint8_t packets_total);
 // Assemble and execute command from valid packets
 bool executeCommand(const Packet* packets, uint8_t packets_total);
 
-// Send ACK packet to confirm last command received
+// Send ACK packet to report valid command received
 void sendACK(uint8_t TEC);
 
+// Send NACK packet to report invalid command received
+void sendNACK(uint8_t TEC);
 
 #endif

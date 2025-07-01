@@ -47,7 +47,7 @@ void COMMS_stateMachine(void *parameter)
 			// Check if there is packet waiting in the queue, in case it switch to COMMS_TX
 			case COMMS_IDLE:
 			{
-				Serial.println("COMMS_IDLE: Waiting for packets ...");
+				Serial.print("COMMS_IDLE: Waiting for events ... ");
 
 				bool first_run = true; // flag to check if this is the first run of the loop
 
@@ -58,6 +58,11 @@ void COMMS_stateMachine(void *parameter)
 					{
 						// Switch to TX state
 						COMMS_state = COMMS_TX;
+
+						if (first_run)
+						{
+							Serial.println("");
+						}
 					}
 
 					// Check if there is serial data to be transmitted
@@ -65,6 +70,11 @@ void COMMS_stateMachine(void *parameter)
 					{
 						// Switch to serial state
 						COMMS_state = COMMS_SERIAL;
+
+						if (first_run)
+						{
+							Serial.println("");
+						}
 					}
 					
 					// Handle reception
@@ -99,57 +109,48 @@ void COMMS_stateMachine(void *parameter)
 			// PACKET RECEPTION
 			case COMMS_RX:
 			{
-				Serial.println("COMMS_RX: starting packet reception ...");
+				Serial.println("COMMS_RX: Starting packet reception ... ");
 				
 				// Initialize command variables
-				uint8_t command_packets_processed = 0;
-				Packet command_packets[CMD_PACKETS_MAX]; // array to store received packets in command
+				uint8_t cmd_packets_processed = 0;
+				Packet cmd_packets[CMD_PACKETS_MAX]; // array to store received packets in command
+				int8_t cmd_state;
 
-				uint8_t rx_packet_size;
-				uint8_t rx_packet[PACKET_SIZE_MAX];
+				uint8_t rx_data_size;
+				uint8_t rx_data[PACKET_SIZE_MAX];
 				int8_t rx_state = RADIOLIB_ERR_NONE; // variable to store reception state
+				bool ecc = false; // flag to check if ECC is enabled
 
 				do
 				{
-					Serial.println("Packet received, processing ...");
 					// Read packet
-					rx_packet_size = radio.getPacketLength();
-					if (rx_packet_size == 0 || rx_packet_size > PACKET_SIZE_MAX)
-					{
-						Serial.println("Invalid packet size received");
-						continue;
-					}
-					rx_state = radio.readData(rx_packet, rx_packet_size);
+					rx_data_size = radio.getPacketLength();
+					rx_state = radio.readData(rx_data, rx_data_size);
 
 					// Reception successfull
 					if (rx_state == RADIOLIB_ERR_NONE)
 					{
 						// Print received packet
-						printPacket(rx_packet, rx_packet_size);
+						printPacket("Received:", rx_data, rx_data_size);
+
+						// Remove ECC bytes if present
+						ecc = decodeECC(rx_data, rx_data_size);
+
+						// Print clean packet
+						if (ecc)
+						{
+							printPacket("Received:", rx_data, rx_data_size);
+						}
 
 						//TODO: decode Reed Salomon packet
 						//TODO: deinterleave packet
-						// decode_data(rx_packet, rx_packet_size); // decode Reed-Solomon
+						// decode_data(rx_data, rx_data_size); // decode Reed-Solomon
 
-						// Parse packet
-						Packet incoming = dataToPacket(rx_packet, rx_packet_size);
+						// Decode packet into struct and store into command array
+						dataToPacket(rx_data, rx_data_size, &cmd_packets[cmd_packets_processed++]);
 
-						// Store packet in command array
-						command_packets[command_packets_processed] = incoming; // store packet in command array
-						command_packets_processed += 1; // increment number of packets processed
+						rs_enabled = cmd_packets[cmd_packets_processed - 1].ecc; // check if RS ECC is enabled in the packet
 
-						// Next code has been deprecated as check is done in processCommand
-						// // Successfully decoded packet
-						// if (incoming.state == PACKET_ERR_NONE)
-						// {
-							
-						// }
-
-						// // Packet can not be decoded
-						// else
-						// {
-						// 	//	TODO: handle error
-						// }
 					}
 
 					// Reception error
@@ -162,22 +163,23 @@ void COMMS_stateMachine(void *parameter)
 				while (ulTaskNotifyTake(pdFALSE, RX_TIMEOUT) != 0); // repeat if another packet is received before timeout (command is multipacket)
 
 				// Check if all packets are valid
-				uint8_t command_valid = checkPackets(command_packets, command_packets_processed);
+				cmd_state = checkPackets(cmd_packets, cmd_packets_processed);
 
-				if (command_valid == CMD_ERR_NONE)
+				if (cmd_state == CMD_ERR_NONE)
 				{
-					// Send ACK for command
-					if (command_packets[0].command != TRC_ACK && command_packets[0].command != TRC_NACK) // do not send ACK for ACK or NACK command
+					// Send ACK packet to confirm valid command received
+					if (cmd_packets[0].command != TRC_ACK && cmd_packets[0].command != TRC_NACK) // do not send ACK for ACK or NACK command
 					{
-						sendACK(command_packets[0].command);
+						sendACK(cmd_packets[0].command);
 					}
-
+					
 					// Execute command
-					executeCommand(command_packets, command_packets_processed);
+					executeCommand(cmd_packets, cmd_packets_processed);
 				}
 				else
 				{
-					// TODO: send NACK
+					// Send NACK packet to confirm invalid command received
+					sendNACK(cmd_packets[0].command);
 				}
 
 
@@ -189,7 +191,7 @@ void COMMS_stateMachine(void *parameter)
 			// PACKET TRANSMITION
 			case COMMS_TX:
 			{
-				Serial.println("COMMS_TX: starting packet transmission ...");
+				Serial.println("COMMS_TX: Starting packet transmission ... ");
 
 				do
 				{
@@ -204,23 +206,38 @@ void COMMS_stateMachine(void *parameter)
 					// If Reed-Solomon encoding is enabled, encode the packet
 					if (rs_enabled && tx_packet_struct.ecc)
 					{
-						// Encode Reed-Solomon codeword to tx_packet
-						uint8_t tx_packet_encoded[PACKET_SIZE_MAX];
-						encode_data(tx_packet, tx_packet_size, tx_packet_encoded);
-						Serial.printf("Before RS encoding:");
+						// Encode data using Reed-Solomon ECC
+						Serial.printf("Before RS encoding: ");
 						for (uint8_t i = 0; i < tx_packet_size; ++i) {
 							Serial.printf("%02X ", tx_packet[i]);
 						}
 						Serial.println();
 
-						// Copy encoded data to tx_packet
-						tx_packet_size += NPAR; // increase size by number of parity bytes
-						memcpy(tx_packet, tx_packet_encoded, tx_packet_size);
-						Serial.printf("After RS encoding:");
+						encodeECC(tx_packet, tx_packet_size);
+
+						 Serial.printf("After RS encoding: ");
 						for (uint8_t i = 0; i < tx_packet_size; ++i) {
 							Serial.printf("%02X ", tx_packet[i]);
 						}
 						Serial.println();
+
+						// // Encode Reed-Solomon codeword to tx_packet
+						// uint8_t tx_packet_encoded[PACKET_SIZE_MAX];
+						// encode_data(tx_packet, tx_packet_size, tx_packet_encoded);
+						// Serial.printf("Before RS encoding: ");
+						// for (uint8_t i = 0; i < tx_packet_size; ++i) {
+						// 	Serial.printf("%02X ", tx_packet[i]);
+						// }
+						// Serial.println();
+
+						// // Copy encoded data to tx_packet
+						// tx_packet_size += NPAR; // increase size by number of parity bytes
+						// memcpy(tx_packet, tx_packet_encoded, tx_packet_size);
+						// Serial.printf("After RS encoding: ");
+						// for (uint8_t i = 0; i < tx_packet_size; ++i) {
+						// 	Serial.printf("%02X ", tx_packet[i]);
+						// }
+						// Serial.println();
 					}
 					
 					// Start transmission
@@ -228,9 +245,6 @@ void COMMS_stateMachine(void *parameter)
 
 					// Wait for transmission to end
 					ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-					// Report transmission status
-					printRadioStatus(state);
 
 				} while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0); // repeat if there are multiple packets to be sent
 				

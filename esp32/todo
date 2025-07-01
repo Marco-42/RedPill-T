@@ -2,5 +2,9 @@ Next:
 - unify packet structures DONE
 - check serial read character addition DONE
 - update packet to new structure DONE
-- implement ACK/NACK
+- implement ACK DONE
+- implement ECC DONE
+
+
+- implement NACK
 - distinguish bewteen TEC and TRC
