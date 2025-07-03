@@ -410,45 +410,63 @@ void handleSerialInput()
 	}
 }
 
-// Return true data, deinterleaving and decoding if RS ECC is enabled
+// Check if RS ECC is enabled in the packet
+bool isDataECCEnabled(const uint8_t* data, uint8_t length)
+{
+	// Check if RS ECC is enabled in the packet
+	if ((length % RS_BLOCK_SIZE == 0) && (data[1] != BYTE_RS_OFF))
+	{
+		// If the data length is a multiple of RS_BLOCK_SIZE and RS ECC is not disabled, we can infer ECC is enabled
+		return true;
+	}
+	return false;
+}
+
+// Decode data by deinterleaving and correcting errors
 bool decodeECC(uint8_t* data, uint8_t& data_len)
 {
-	// Check if ECC decoding is needed: input length multiple of RS_BLOCK_SIZE and ECC is not disabled
-	if ((data_len % RS_BLOCK_SIZE == 0) && (data[1] != BYTE_RS_OFF)) 
+	uint8_t num_blocks = data_len / RS_BLOCK_SIZE;
+
+	// Temporary storage for deinterleaved codewords
+	uint8_t codewords[num_blocks][RS_BLOCK_SIZE];
+
+	// Deinterleave: undo column-wise interleaving
+	for (uint8_t col = 0; col < RS_BLOCK_SIZE; ++col)
 	{
-		uint8_t num_blocks = data_len / RS_BLOCK_SIZE;
-
-		// Temporary storage for deinterleaved codewords
-		uint8_t codewords[num_blocks][RS_BLOCK_SIZE];
-
-		// Deinterleave: undo column-wise interleaving
-		for (uint8_t col = 0; col < RS_BLOCK_SIZE; ++col) {
-			for (uint8_t row = 0; row < num_blocks; ++row) {
-				codewords[row][col] = data[col * num_blocks + row];
-			}
+		for (uint8_t row = 0; row < num_blocks; ++row)
+		{
+			codewords[row][col] = data[col * num_blocks + row];
 		}
-
-		// Decode each codeword and write back only the data portion (without parity) in-place into data buffer
-		uint8_t write_pos = 0;
-		for (uint8_t i = 0; i < num_blocks; ++i) {
-			uint8_t decoded[RS_BLOCK_SIZE] = {0};
-
-			// decode_data takes encoded codeword and outputs decoded codeword (data + parity)
-			decode_data(codewords[i], RS_BLOCK_SIZE);
-
-			// Copy only the data bytes (without parity) back to the original data buffer
-			memcpy(data + write_pos, codewords[i], DATA_BLOCK_SIZE);
-			write_pos += DATA_BLOCK_SIZE;
-		}
-
-		// Update data_len to new decoded length (without parity)
-		data_len = num_blocks * DATA_BLOCK_SIZE;
-
-		return true; // RS ECC decoding successful
 	}
 
-	// No ECC decoding: leave data and length as is
-	return false; // Not RS encoded
+	// Decode each codeword and write back only the data portion (without parity) in-place into data buffer
+	uint8_t write_pos = 0;
+	bool all_ok = true; // Flag to track if all blocks were decoded successfully
+	for (uint8_t i = 0; i < num_blocks; ++i)
+	{
+		uint8_t decoded[RS_BLOCK_SIZE] = {0};
+
+		// decode_data takes encoded codeword and outputs decoded codeword (data + parity)
+		decode_data(codewords[i], RS_BLOCK_SIZE);
+
+		if (check_syndrome() != 0)
+		{
+			int8_t result = correct_errors_erasures(codewords[i], RS_BLOCK_SIZE, 0, nullptr);
+			if (result != 0)
+			{
+				Serial.printf("RS decode failed on block %d\n", i);
+				all_ok = false;
+			}
+		}
+		// Copy only the data bytes (without parity) back to the original data buffer
+		memcpy(data + write_pos, codewords[i], DATA_BLOCK_SIZE);
+		write_pos += DATA_BLOCK_SIZE;
+	}
+
+	// Update data_len to new decoded length (without parity)
+	data_len = num_blocks * DATA_BLOCK_SIZE;
+
+	return all_ok; // Return true if all blocks were decoded successfully
 }
 
 // Encode data using RS ECC and interleave the output

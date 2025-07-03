@@ -88,14 +88,14 @@ void COMMS_stateMachine(void *parameter)
 						}
 
 						// Check if a packet has been received
-						// IDLE_TIMEOUT is the time to wait for a packet to be received before checking if there are packets to be sent
-						else if (ulTaskNotifyTake(pdFALSE, IDLE_TIMEOUT) != 0) // if a packet is received before timeout
+						// IDLE_TIMEOUT is the time to wait for a packet to be received before checking if there are other things to process
+						if (ulTaskNotifyTake(pdFALSE, IDLE_TIMEOUT) != 0) // if a packet is received before timeout
 						{
 							// Switch to RX state
 							COMMS_state = COMMS_RX;
 						}
 
-						// No packet received before timeout, no packet to send
+						// No packet received before timeout, no packet to send, no command to execute
 						else
 						{
 							// Do nothing, repeat loop	
@@ -116,49 +116,49 @@ void COMMS_stateMachine(void *parameter)
 				Packet cmd_packets[CMD_PACKETS_MAX]; // array to store received packets in command
 				int8_t cmd_state;
 
-				uint8_t rx_data_size;
-				uint8_t rx_data[PACKET_SIZE_MAX];
-				int8_t rx_state = RADIOLIB_ERR_NONE; // variable to store reception state
-				bool ecc = false; // flag to check if ECC is enabled
-
 				do
 				{
 					// Read packet
-					rx_data_size = radio.getPacketLength();
-					rx_state = radio.readData(rx_data, rx_data_size);
+					uint8_t rx_data[PACKET_SIZE_MAX];
+					uint8_t rx_data_size = radio.getPacketLength();
+					int8_t rx_state = radio.readData(rx_data, rx_data_size);
+
+					bool ecc = isDataECCEnabled(rx_data, rx_data_size);
+					bool decode_error = false;
 
 					// Reception successfull
 					if (rx_state == RADIOLIB_ERR_NONE)
 					{
-						// Print received packet
-						printPacket("Received:", rx_data, rx_data_size);
-
-						// Remove ECC bytes if present
-						ecc = decodeECC(rx_data, rx_data_size);
-
-						// Print clean packet
+						// Decode ECC data if enabled
 						if (ecc)
 						{
-							printPacket("Received:", rx_data, rx_data_size);
+							printPacket("Encoded: ", rx_data, rx_data_size);
+							decode_error = decodeECC(rx_data, rx_data_size);
 						}
-
-						//TODO: decode Reed Salomon packet
-						//TODO: deinterleave packet
-						// decode_data(rx_data, rx_data_size); // decode Reed-Solomon
-
-						// Decode packet into struct and store into command array
-						dataToPacket(rx_data, rx_data_size, &cmd_packets[cmd_packets_processed++]);
-
-						rs_enabled = cmd_packets[cmd_packets_processed - 1].ecc; // check if RS ECC is enabled in the packet
-
 					}
-
 					// Reception error
 					else
 					{
-						Serial.printf("Packet reception error: %d\n", rx_state);
+						// Always try to recover the packet, content can not be trusted otherwise
+						printPacket("Encoded: ", rx_data, rx_data_size);
+						decode_error = decodeECC(rx_data, rx_data_size);
 					}
-					// TODO: handle error
+					printPacket("Decoded: ", rx_data, rx_data_size);
+
+					// Store packet if no decode error
+					if (!decode_error)
+					{
+						// Validate and decode packet into struct and store into command array
+						dataToPacket(rx_data, rx_data_size, &cmd_packets[cmd_packets_processed++]);
+
+						// rs_enabled = cmd_packets[cmd_packets_processed - 1].ecc; // check if RS ECC is enabled in the packet
+					}
+					else
+					{
+						// If packet can not be decoded, set state to error
+						cmd_packets[cmd_packets_processed++].state = PACKET_ERR_RS; // RS decoding error
+					}
+
 				}
 				while (ulTaskNotifyTake(pdFALSE, RX_TIMEOUT) != 0); // repeat if another packet is received before timeout (command is multipacket)
 
@@ -207,37 +207,9 @@ void COMMS_stateMachine(void *parameter)
 					if (rs_enabled && tx_packet_struct.ecc)
 					{
 						// Encode data using Reed-Solomon ECC
-						Serial.printf("Before RS encoding: ");
-						for (uint8_t i = 0; i < tx_packet_size; ++i) {
-							Serial.printf("%02X ", tx_packet[i]);
-						}
-						Serial.println();
+						printPacket("Decoded: ", tx_packet, tx_packet_size);
 
 						encodeECC(tx_packet, tx_packet_size);
-
-						 Serial.printf("After RS encoding: ");
-						for (uint8_t i = 0; i < tx_packet_size; ++i) {
-							Serial.printf("%02X ", tx_packet[i]);
-						}
-						Serial.println();
-
-						// // Encode Reed-Solomon codeword to tx_packet
-						// uint8_t tx_packet_encoded[PACKET_SIZE_MAX];
-						// encode_data(tx_packet, tx_packet_size, tx_packet_encoded);
-						// Serial.printf("Before RS encoding: ");
-						// for (uint8_t i = 0; i < tx_packet_size; ++i) {
-						// 	Serial.printf("%02X ", tx_packet[i]);
-						// }
-						// Serial.println();
-
-						// // Copy encoded data to tx_packet
-						// tx_packet_size += NPAR; // increase size by number of parity bytes
-						// memcpy(tx_packet, tx_packet_encoded, tx_packet_size);
-						// Serial.printf("After RS encoding: ");
-						// for (uint8_t i = 0; i < tx_packet_size; ++i) {
-						// 	Serial.printf("%02X ", tx_packet[i]);
-						// }
-						// Serial.println();
 					}
 					
 					// Start transmission

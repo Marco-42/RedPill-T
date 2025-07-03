@@ -219,6 +219,9 @@ void encodeECC(uint8_t* data, uint8_t& data_len);
 // Recover true data, deinterleaving and decoding if RS ECC is enabled
 bool decodeECC(uint8_t* data, uint8_t& data_len);
 
+// Check if RS ECC is enabled in the packet
+bool isDataECCEnabled(const uint8_t* data, uint8_t length);
+
 // Validate packet
 int8_t validatePacket(const Packet* packet);
 

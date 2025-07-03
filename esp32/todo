@@ -1,9 +1,9 @@
 Next:
-- unify packet structures DONE
-- check serial read character addition DONE
-- update packet to new structure DONE
-- implement ACK DONE
-- implement ECC DONE
+- unify packet structures ✅
+- check serial read character addition ✅
+- update packet to new structure ✅
+- implement ACK ✅
+- implement ECC ✅
 
 
 - implement NACK
