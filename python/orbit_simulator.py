@@ -182,13 +182,13 @@ class SatelliteSimApp(QMainWindow):
         # Selettore di proiezione
         control_layout.addWidget(QLabel("Map Projection:"))
 
-        self.btn_platecarree = QPushButton("PlateCarree")
-        self.btn_orthographic = QPushButton("Orthographic")
+        self.btn_platecarree = QPushButton("Global MAP")
+        self.btn_orthographic = QPushButton("Local MAP")
         self.current_projection = "PlateCarree"
 
         simulation_type = "orbit"  # Default simulation type 
-        self.btn_platecarree.clicked.connect(lambda: self.set_projection("PlateCarree", simulation_type))
-        self.btn_orthographic.clicked.connect(lambda: self.set_projection("Orthographic", simulation_type))
+        self.btn_platecarree.clicked.connect(lambda: self.set_projection("Global MAP", simulation_type))
+        self.btn_orthographic.clicked.connect(lambda: self.set_projection("Local MAP", simulation_type))
 
         control_layout.addWidget(self.btn_platecarree)
         control_layout.addWidget(self.btn_orthographic)
@@ -423,7 +423,7 @@ class SatelliteSimApp(QMainWindow):
         if(simulation_type == "only_sat"):
             ax.plot(lons[0], lats[0], marker='o', color='darkred', markersize=10, transform=ccrs.PlateCarree(), label='Start')
         elif(simulation_type == "only_gs"):
-            ax.plot(gs_lons, gs_lats, marker='o', color='blue', markersize=10, transform=ccrs.Geodetic(), label='Ground Station')
+            ax.plot(lon, lat, marker='o', color='blue', markersize=10, transform=ccrs.Geodetic(), label='Ground Station')
         elif(simulation_type == "orbit"):
             ax.plot(lons, lats, '-', color='orange', linewidth=1.2, transform=ccrs.PlateCarree())
             ax.plot(lons[0], lats[0], marker='o', color='darkred', markersize=10, transform=ccrs.PlateCarree(), label='Start')
