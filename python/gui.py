@@ -11,6 +11,35 @@ import hmac
 
 import traceback
 
+# ========== CONSTANTS AND CONFIGURATION ==========
+# Packet configuration
+PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
+PACKET_PAYLOAD_MAX = 98  # maximum payload length in bytes
+
+# MAC configuration
+SECRET_KEY = 0xA1B2C3D4
+
+# RS encoding configuration
+BYTE_RS_OFF = 0x55
+BYTE_RS_ON = 0xAA
+
+# Error codes
+PACKET_ERR_NONE = 0
+PACKET_ERR_RS = -1
+PACKET_ERR_DECODE = -2
+PACKET_ERR_LENGTH = -3
+PACKET_ERR_MAC = -4
+PACKET_ERR_CMD_FULL = -5
+
+PACKET_ERR_DESCRIPTION = {
+    PACKET_ERR_NONE: "Unexpected behavior: no error code provided.",
+    PACKET_ERR_RS: "Reed-Solomon decoding failed.",
+    PACKET_ERR_DECODE: "Packet decode error.",
+    PACKET_ERR_LENGTH: "Invalid packet length.",
+    PACKET_ERR_MAC: "MAC verification failed.",
+    PACKET_ERR_CMD_FULL: "Command buffer full."
+}
+
 # ========== HELPER FUNCTIONS ==========
 
 # Build the payload based on type index and task name
@@ -98,8 +127,8 @@ def simple_mac(timestamp, key):
     return x & 0xFFFFFFFF
 
 # Build the full packet with header, payload, and ECC(for transmission)
-def build_packet(gs_text, TEC_type, TEC_name, packet_id, total_packets, payload_bytes, ecc_enabled):
-    # === Byte 1: Station ID ===
+def build_packet(gs_text, TEC_type, TEC_name, payload_bytes, ecc_enabled):
+    # === Byte 0: Station ID ===
     if gs_text == "UniPD":
         byte_station = 0x01
     elif gs_text == "Mobile":
@@ -107,34 +136,25 @@ def build_packet(gs_text, TEC_type, TEC_name, packet_id, total_packets, payload_
     else:
         raise ValueError(f"Invalid Ground Station: {gs_text}")
 
-    # === Byte 2: ECC Flag ===
-    byte_ecc = 0xAA if ecc_enabled else 0x55
+    # === Byte 1: ECC Flag ===
+    byte_ecc = BYTE_RS_ON if ecc_enabled else BYTE_RS_OFF
 
-    # === Byte 3: TEC Type (bits 1-2), Task Code (bits 3-8) ===
-    byte_command = MainWindow.TECs.get(TEC_type, {}).get(TEC_name, 0) # directly return TEC code
-    # tec_type = (TEC_type & 0b11) << 6  # bits 1-2 → bits 7-6
-    # task_code = MainWindow.TECs.get(TEC_type, {}).get(TEC_name, 0) & 0b00111111  # bits 3–8
-    # byte_command = tec_type | task_code
+    # === Byte 2: TEC Type (bits 1-2), Task Code (bits 3-8) ===
+    byte_command = MainWindow.TECs.get(TEC_type, {}).get(TEC_name, 0)  # directly return TEC code
 
-    # === Byte 4: Total packets (bits 1-4), Packet ID (bits 5-8) ===
-    if total_packets > 15 or packet_id > 15:
-        raise ValueError("total_packets and packet_id must be in 0-15")
-    byte_packet = ((total_packets & 0x0F) << 4) | (packet_id & 0x0F)
-
-    # === Byte 5: Payload length ===
+    # === Byte 3: Payload length ===
     payload_length = len(payload_bytes)
-    if payload_length > 98:
-        raise ValueError("Payload too long (max 98 bytes)")
+    if payload_length > PACKET_PAYLOAD_MAX:
+        raise ValueError(f"Payload too long (max {PACKET_PAYLOAD_MAX} bytes)")
     byte_payload_length = payload_length
 
-    # === Byte 6-9: MAC ===
+    # === Byte 4-7: MAC ===
     unix_time = int(datetime.now().timestamp())
-    secret_key = 0xA1B2C3D4  # Replace with your actual 32-bit secret key
 
-    mac = simple_mac(unix_time, secret_key)
+    mac = simple_mac(unix_time, SECRET_KEY)
     bytes_mac = mac.to_bytes(4, byteorder='big')
 
-    # === Byte 10-13: UNIX timestamp ===
+    # === Byte 8-11: UNIX timestamp ===
     bytes_time = unix_time.to_bytes(4, byteorder='big')
 
     # === Final packet ===
@@ -142,7 +162,6 @@ def build_packet(gs_text, TEC_type, TEC_name, packet_id, total_packets, payload_
         byte_station,
         byte_ecc,
         byte_command,
-        byte_packet,
         byte_payload_length
     ])
 
@@ -150,72 +169,56 @@ def build_packet(gs_text, TEC_type, TEC_name, packet_id, total_packets, payload_
 
 # Decode a packet from bytes(for reception) TODO: update
 def decode_packet(packet_bytes):
-    if len(packet_bytes) < 13:
-        raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < 13")
+    if len(packet_bytes) < PACKET_HEADER_LENGTH:
+        raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < {PACKET_HEADER_LENGTH}")
 
-    # Byte 1: Station ID (raw int)
+    # Byte 0: Station ID (raw int)
     station_id = packet_bytes[0]
 
-    # Byte 2: ECC Flag (bool)
+    # Byte 1: ECC Flag (bool)
     byte_ecc = packet_bytes[1]
-    if byte_ecc == 0xAA:
+    if byte_ecc == BYTE_RS_ON:
         ecc_enabled = True
-    elif byte_ecc == 0x55:
+    elif byte_ecc == BYTE_RS_OFF:
         ecc_enabled = False
     else:
         raise ValueError(f"Invalid ECC flag: 0x{byte_ecc:02X}")
 
-    # Byte 3: TRC (raw int)
+    # Byte 2: TRC (raw int)
     TRC = packet_bytes[2]
 
-    # Byte 4: Total packets (bits 1-4), Packet ID (bits 5-8)
-    byte_packet = packet_bytes[3]
-    total_packets = (byte_packet >> 4) & 0x0F
-    packet_id = byte_packet & 0x0F
-
-    # Byte 5: Payload length
-    payload_length = packet_bytes[4]
+    # Byte 3: Payload length
+    payload_length = packet_bytes[3]
 
     # Ensure entire packet is present
-    expected_len = 13 + payload_length
+    expected_len = PACKET_HEADER_LENGTH + payload_length
     if len(packet_bytes) < expected_len:
         raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
 
-    # Bytes 6–9: MAC (int)
-    bytes_mac = packet_bytes[5:9]
+    # Bytes 4–7: MAC (int)
+    bytes_mac = packet_bytes[4:7]
     mac = int.from_bytes(bytes_mac, byteorder='big')
 
-    # Bytes 10–13: Timestamp (int)
-    bytes_time = packet_bytes[9:13]
+    # Bytes 8–11: Timestamp (int)
+    bytes_time = packet_bytes[8:11]
     timestamp = int.from_bytes(bytes_time, byteorder='big')
 
     # Payload: list of ints
-    payload_bytes = list(packet_bytes[13:13 + payload_length])
+    if payload_length > 0:
+        payload_bytes = list(packet_bytes[12:12 + payload_length])
+    else:
+        payload_bytes = []
 
     return {
         "station_id": station_id,
         "ecc_enabled": ecc_enabled,
         "TRC": TRC,
-        "total_packets": total_packets,
-        "packet_id": packet_id,
         "payload_length": payload_length,
         "mac": mac,
         "timestamp": timestamp,
         "payload_bytes": payload_bytes  # always a list of ints
     }
 
-# Split payload into multiple packets if needed
-def split_payload_if_needed(TEC_label, payload):
-    # Define commands that require payload splitting and their max chunk size
-    MULTI_PACKET_TASKS = {
-        # "TLE update": 10
-    }
-
-    max_len = MULTI_PACKET_TASKS.get((TEC_label))
-    if max_len:
-        return [payload[i:i + max_len] for i in range(0, len(payload), max_len)]
-    else:
-        return [payload]
 
 # ========== MAIN WINDOW CLASS ==========
 
@@ -340,33 +343,39 @@ class MainWindow(QWidget):
         self.add_to_queue_button.clicked.connect(self.add_to_queue)
 
         self.queue_table = QTableWidget()
-        self.queue_table.setColumnCount(4)
-        self.queue_table.setHorizontalHeaderLabels(["CMD", "Command", "Packet", "HEX"])
+        self.queue_table.setColumnCount(3)
+        self.queue_table.setHorizontalHeaderLabels(["ID", "Command", "HEX"])
         self.queue_table.horizontalHeader().setStretchLastSection(True)
         self.queue_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.queue_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)  # CMD
-        self.queue_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Packet
-        # self.queue_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Delay
+        self.queue_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
 
         # Abort command buttons
         self.abort_last_button = QPushButton("Abort Last")
         self.abort_last_button.clicked.connect(self.abort_last_command)
-        self.abort_last_button.setStyleSheet("background-color: #ffcccc;")
+        # self.abort_last_button.setStyleSheet("background-color: rgba(255, 0, 0, 128);")
 
         self.abort_next_button = QPushButton("Abort Next")
         self.abort_next_button.clicked.connect(self.abort_next_command)
-        self.abort_next_button.setStyleSheet("background-color: #ffcccc;")
+        # self.abort_next_button.setStyleSheet("background-color: rgba(255, 0, 0, 128);")
 
         # Execute next command button
         self.execute_next_button = QPushButton("Execute Next")
         self.execute_next_button.clicked.connect(self.execute_next_command)
         self.execute_next_button.setEnabled(False)
+        
+        # Last command status
+        self.last_command_status = QLabel("NO COMMS")
+        self.last_command_status.setAlignment(Qt.AlignCenter)
+        self.last_command_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
+
+        # Last command description
+        self.last_command_error = QLabel("")
 
         # === Right Panel Components ===
         self.serial_status_label = QLabel("DISCONNECTED")
         self.serial_status_label.setAlignment(Qt.AlignCenter)
-        self.serial_status_label.setAutoFillBackground(True)
+        self.serial_status_label.setStyleSheet("font-weight: bold; padding: 5px;")
         self.set_serial_status(False)
 
         self.port_selector = QComboBox()
@@ -389,11 +398,6 @@ class MainWindow(QWidget):
         self.serial_console.setReadOnly(True)
         self.clear_serial_button = QPushButton("Clear")
         self.clear_serial_button.clicked.connect(self.serial_console.clear)
-
-        # Last Command Status label
-        self.last_command_status = QLabel("NO COMMS")
-        self.last_command_status.setAlignment(Qt.AlignCenter)
-        self.last_command_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
 
 
         # === Layouts ===
@@ -443,14 +447,14 @@ class MainWindow(QWidget):
 
         # Create table for last command (same columns as queue)
         self.last_command_table = QTableWidget()
-        self.last_command_table.setColumnCount(4)
-        self.last_command_table.setHorizontalHeaderLabels(["CMD", "Command", "Packet", "HEX"])
+        self.last_command_table.setColumnCount(3)
+        self.last_command_table.setHorizontalHeaderLabels(["ID", "Command", "HEX"])
         self.last_command_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.last_command_table.horizontalHeader().setStretchLastSection(True)
         self.last_command_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.last_command_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
 
         last_command_layout.addWidget(self.last_command_status)
+        last_command_layout.addWidget(self.last_command_error)
         last_command_layout.addWidget(self.last_command_table)
         last_command_group.setLayout(last_command_layout)
 
@@ -512,7 +516,7 @@ class MainWindow(QWidget):
         self.timeout_timer.timeout.connect(self.check_command_timeout)
 
         # Sent commands history
-        self.sent_commands = []  # To store tuples: (cmd_id, packet_id, tec_str, hex_str, status)
+        self.sent_commands = []  # To store tuples: (cmd_id, tec_str, hex_str, status)
 
 
 
@@ -566,7 +570,7 @@ class MainWindow(QWidget):
             self.set_serial_status(True)
             self.connect_button.setText("Disconnect")
             self.execute_next_button.setEnabled(True)
-            self.execute_next_button.setStyleSheet("background-color: #ccffcc;")  # green
+            # self.execute_next_button.setStyleSheet("background-color: rgba(0, 255, 0, 128);")
             self.log_status(f"[INFO] Connected to {port}")
             self.serial_timer.start(100)
         except Exception as e:
@@ -656,12 +660,13 @@ class MainWindow(QWidget):
 
     # Set the status light color and text based on connection status
     def set_serial_status(self, connected):
-        palette = self.serial_status_label.palette()
-        color = QColor('green') if connected else QColor('red')
-        palette.setColor(QPalette.Window, color)
-        palette.setColor(QPalette.WindowText, QColor('white'))
-        self.serial_status_label.setPalette(palette)
+        bg_color = QColor('green') if connected else QColor('red')
+        text_color = QColor('white')  # Always white for contrast in this case
+
         self.serial_status_label.setText("CONNECTED" if connected else "DISCONNECTED")
+        self.serial_status_label.setStyleSheet(
+            f"background-color: {bg_color.name()}; color: {text_color.name()}; font-weight: bold; padding: 5px;"
+        )
 
     # Set the last command status label with appropriate styles and updates sent command queue
     def set_last_command_status(self, status):
@@ -672,7 +677,7 @@ class MainWindow(QWidget):
         if self.sent_commands:
             # Update status of the most recent command (the last appended)
             last = self.sent_commands[-1]
-            self.sent_commands[-1] = (last[0], last[1], last[2], last[3], display_status)
+            self.sent_commands[-1] = (last[0], last[1], last[2], display_status)
 
         # Update the label style
         bg_color, text_color = self.get_color_for_status(display_status)
@@ -681,14 +686,15 @@ class MainWindow(QWidget):
         )
 
         # Now repaint the whole last_command_table, row by row, preserving each row's color based on stored status
-        for row_idx, (_, _, _, _, row_status) in enumerate(reversed(self.sent_commands)):
+        for row_idx, (_, _, _, row_status) in enumerate(reversed(self.sent_commands)):
             bg, fg = self.get_color_for_status(row_status)
+            bg_transparent = QColor(bg)
+            bg_transparent.setAlpha(64)
             for col in range(self.last_command_table.columnCount()):
                 item = self.last_command_table.item(row_idx, col)
                 if item:
-                    item.setBackground(bg)
-                    item.setForeground(fg)
-
+                    item.setBackground(bg_transparent)
+                    # item.setForeground(fg)
 
     # Get the color for the status of the last command
     def get_color_for_status(self, status):
@@ -840,36 +846,27 @@ class MainWindow(QWidget):
 
         cmd_id = 1 if not self.command_queue else self.command_queue[-1][0] + 1
 
+        # Only one packet will be sent; no splitting needed
+        TEC_str = f"{type_label} {TEC_label}"
+
         try:
-            packets = split_payload_if_needed(TEC_label, payload)
+            ecc_enabled = self.ecc_enable_radio.isChecked()
+            packet_bytes = build_packet(
+            self.gs_selector.currentText(),
+            TEC_type,
+            TEC_label,
+            payload,
+            ecc_enabled
+            )
+            hex_repr = ' '.join(f"{b:02X}" for b in packet_bytes)
         except Exception as e:
-            self.log_status(f"[ERROR] Payload splitting failed: {e}")
+            self.log_status(f"[ERROR] Packet build failed: {e}")
             return
 
-        for i, packet_payload in enumerate(packets):
-            packet_id = i + 1
-            TEC_str = f"{type_label} {TEC_label}"
-
-            try:
-                ecc_enabled = self.ecc_enable_radio.isChecked()
-                packet_bytes = build_packet(
-                    self.gs_selector.currentText(),
-                    TEC_type,
-                    TEC_label,
-                    packet_id,
-                    len(packets),
-                    packet_payload,
-                    ecc_enabled
-                )
-                hex_repr = ' '.join(f"{b:02X}" for b in packet_bytes)
-            except Exception as e:
-                self.log_status(f"[ERROR] Packet build failed: {e}")
-                return
-
-            self.command_queue.append((cmd_id, packet_id, TEC_str, hex_repr))
+        self.command_queue.append((cmd_id, TEC_str, hex_repr))
 
         self.update_queue_display()
-        self.log_status(f"[INFO] Added CMD {cmd_id} with {len(packets)} packet(s) to queue.")
+        self.log_status(f"[INFO] Added CMD {cmd_id} to queue.")
 
 
     # ========== COMMAND QUEUE MANAGEMENT ==========
@@ -877,11 +874,10 @@ class MainWindow(QWidget):
     # Update the queue display in the table widget
     def update_queue_display(self):
         self.queue_table.setRowCount(len(self.command_queue))
-        for row, (cmd_id, packet_id, TEC_str, hex_str) in enumerate(self.command_queue):
+        for row, (cmd_id, TEC_str, hex_str) in enumerate(self.command_queue):
             self.queue_table.setItem(row, 0, QTableWidgetItem(str(cmd_id)))
             self.queue_table.setItem(row, 1, QTableWidgetItem(TEC_str))
-            self.queue_table.setItem(row, 2, QTableWidgetItem(str(packet_id)))
-            self.queue_table.setItem(row, 3, QTableWidgetItem(hex_str))
+            self.queue_table.setItem(row, 2, QTableWidgetItem(hex_str))
 
     # Abort the last command in the queue
     def abort_last_command(self):
@@ -891,10 +887,9 @@ class MainWindow(QWidget):
 
         last_cmd_id = self.command_queue[-1][0]
         last_command_name = self.command_queue[-1][2]
-        num_removed = sum(1 for entry in self.command_queue if entry[0] == last_cmd_id)
         self.command_queue = [entry for entry in self.command_queue if entry[0] != last_cmd_id]
         self.update_queue_display()
-        self.log_status(f"[INFO] Aborted CMD {last_cmd_id} {last_command_name} with {num_removed} packet.")
+        self.log_status(f"[INFO] Aborted CMD {last_cmd_id} {last_command_name} packet.")
 
     # Abort the next command in the queue
     def abort_next_command(self):
@@ -903,11 +898,10 @@ class MainWindow(QWidget):
             return
 
         next_cmd_id = self.command_queue[0][0]
-        next_command_name = self.command_queue[0][2]
-        num_removed = sum(1 for entry in self.command_queue if entry[0] == next_cmd_id)
+        next_cmd_name = self.command_queue[0][2]
         self.command_queue = [entry for entry in self.command_queue if entry[0] != next_cmd_id]
         self.update_queue_display()
-        self.log_status(f"[INFO] Aborted CMD {next_cmd_id} {next_command_name} with {num_removed} packet.")
+        self.log_status(f"[INFO] Aborted CMD {next_cmd_id} {next_cmd_name} packet.")
 
     # Execute the next command in the queue
     def execute_next_command(self):
@@ -919,77 +913,50 @@ class MainWindow(QWidget):
             self.log_status("[ERROR] Not connected.")
             return
 
-        # Get the CMD ID of the next group
-        next_cmd_id = self.command_queue[0][0]
+        # Get the CMD details of the next group
+        cmd_id = self.command_queue[0][0]
+        cmd_name = self.command_queue[0][1]
+        cmd_hex = self.command_queue[0][2]
 
-        # Extract all packets belonging to this CMD
-        packets_to_send = [entry for entry in self.command_queue if entry[0] == next_cmd_id]
+        try:
+            # Convert HEX back to bytes and send it
+            hex_bytes = bytes.fromhex(cmd_hex)
+            self.serial_conn.write(hex_bytes + b'\n')
 
-        for entry in packets_to_send:
-            _, packet_id, TEC_str, hex_str = entry
-            try:
-                # Convert HEX back to bytes and send it
-                hex_bytes = bytes.fromhex(hex_str)
-                self.serial_conn.write(hex_bytes + b'\n')
+            # Add "go" string to execute TX
+            self.serial_conn.write(b"go\n")
+            
+            # Log command execution and display message on serial console
+            self.log_serial(f"[TX]: CMD {cmd_id} -> {cmd_name}")
 
-                # Add "go" string to execute TX
-                self.serial_conn.write(b"go\n")
-                
-                # Log command execution and display message on serial console
-                self.log_serial(f"[TX]: CMD {next_cmd_id} P{packet_id} -> {TEC_str}")
+            self.log_status(f"[INFO] Executed CMD {cmd_id} {cmd_name}.")
 
-                self.log_status(f"[INFO] Executed CMD {next_cmd_id} with {len(packets_to_send)} packet.")
+            # Save task code from 3rd byte (index 2) of hex_bytes for ACK comparison
+            self.last_sent_command = hex_bytes[2]
 
-                # Save task code from 3rd byte (index 2) of hex_bytes for ACK comparison
-                self.last_sent_command = hex_bytes[2]
+        except Exception as e:
+            self.log_status(f"[ERROR] Failed to send CMD {cmd_id} {cmd_name}: {e}")
 
-            except Exception as e:
-                self.log_status(f"[ERROR] Failed to send CMD {next_cmd_id} P{packet_id}: {e}")
-
-        # Log sent command(s) to history with "WAITING" status
-        for entry in packets_to_send:
-            cmd_id, packet_id, tec_str, hex_str = entry
-            self.sent_commands.append((cmd_id, packet_id, tec_str, hex_str, "WAITING"))
-
-        # Add command on top of last command display
-        current_rows = self.last_command_table.rowCount()
-        total_commands = len(self.sent_commands)
+        # Log sent command to history with "WAITING" status
+        self.sent_commands.append((cmd_id, cmd_name, cmd_hex, "WAITING"))
         
-        for _ in range(total_commands - current_rows):
-            self.last_command_table.insertRow(0)
+        # Insert a new row at the top
+        self.last_command_table.insertRow(0)
 
-        for idx, (cmd_id, packet_id, tec_str, hex_str, status) in enumerate(reversed(self.sent_commands)):
-            self.last_command_table.setItem(idx, 0, QTableWidgetItem(str(cmd_id)))
-            self.last_command_table.setItem(idx, 1, QTableWidgetItem(tec_str))
-            self.last_command_table.setItem(idx, 2, QTableWidgetItem(str(packet_id)))
-            self.last_command_table.setItem(idx, 3, QTableWidgetItem(hex_str))
+        # Fill cells
+        self.last_command_table.setItem(0, 0, QTableWidgetItem(str(cmd_id)))
+        self.last_command_table.setItem(0, 1, QTableWidgetItem(cmd_name))
+        self.last_command_table.setItem(0, 2, QTableWidgetItem(cmd_hex))
 
-            # color, text_color = self.get_color_for_status(status)
-            # for col in range(4):
-            #     item = self.last_command_table.item(idx, col)
-            #     if item:
-            #         item.setBackground(color)
-            #         item.setForeground(text_color)
-
-        # Remove sent packets from queue
-        self.command_queue = [entry for entry in self.command_queue if entry[0] != next_cmd_id]
+        # Remove sent packet from queue
+        self.command_queue.pop(0)
         self.update_queue_display()
 
         # Update last command status
+        self.last_command_error.setText("")
         self.set_last_command_status(f"WAITING: 0 s")
         self.last_command_sent_time = datetime.now()
         self.timeout_timer.start(1000)  # check every second
-
-    # Update the last command display table with the latest packets
-    # def update_last_command_display(self):
-    #     self.last_command_table.setRowCount(0)
-
-    #     for cmd_id, packet_id, tec_str, hex_str in enumerate(self.sent_commands):
-    #         self.last_command_table.insertRow(0)
-    #         self.last_command_table.setItem(0, 0, QTableWidgetItem(str(cmd_id)))
-    #         self.last_command_table.setItem(0, 1, QTableWidgetItem(tec_str))
-    #         self.last_command_table.setItem(0, 2, QTableWidgetItem(str(packet_id)))
-    #         self.last_command_table.setItem(0, 3, QTableWidgetItem(hex_str))
 
 
     # ========== PACKET RECEPTION HANDLING ==========
@@ -1019,26 +986,26 @@ class MainWindow(QWidget):
             status = "NACK"
             self.set_last_command_status(status)
 
+            if len(payload) == 2:
+                cmd_code = payload[0]
+                error_code = int.from_bytes([payload[1]], byteorder='big', signed=True)
+
+                error_msg = PACKET_ERR_DESCRIPTION.get(error_code, f"Unknown error code: {error_code}")
+                
+                label_item = self.last_command_table.item(0, 1)  # Column 1: Command label
+                command_label = label_item.text() if label_item else f"0x{cmd_code:02X}"
+
+                self.last_command_error.setText(f"Command {command_label} was not executed. ERROR: {error_msg}")
+                self.log_status(f"[WARN] NACK received. Error: {error_msg}")
+            else:
+                self.last_command_error.setText("Malformed NACK payload.")
+                self.log_status("[ERROR] Malformed NACK payload.")
+
         else:
             status = "UNKNOWN ERROR"
             self.set_last_command_status(status)
 
-        # # Update status of most recent "WAITING" command
-        # for i in range(len(self.sent_commands) - 1, -1, -1):
-        #     if self.sent_commands[i][4] == "WAITING":
-        #         old = self.sent_commands[i]
-        #         self.sent_commands[i] = (old[0], old[1], old[2], old[3], status)
-
-        #         # Update table row color based on new status
-        #         color = self.get_status_color(status)
-        #         for col in range(self.queue_table.columnCount()):
-        #             item = self.queue_table.item(i, col)
-        #             if item:
-        #                 item.setBackground(color)
-        #         break
-
-        # self.update_last_command_display()
-
+    # Check if the last command sent has timed out
     def check_command_timeout(self):
         elapsed = (datetime.now() - self.last_command_sent_time).total_seconds()
         if elapsed > 10:
