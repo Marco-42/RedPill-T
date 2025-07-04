@@ -298,7 +298,6 @@ class MainWindow(QWidget):
         # line2: 25544  51.6425 121.0145 0005864  64.1487  54.4007 15.49923611452417
     }
 
-    # Windows graphical user interface class
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ESP32 Serial GUI")
@@ -309,20 +308,17 @@ class MainWindow(QWidget):
         # === Left Panel Components ===
         self.gs_selector = QComboBox()
         self.gs_selector.addItems(["None", "UniPD", "Mobile"])
-        self.last_gs_index = 0  # default is first item (UniPD)
+        self.last_gs_index = 0
         self.gs_selector.currentIndexChanged.connect(self.check_gs_password)
 
-        # ECC Radio Buttons
         self.ecc_enable_radio = QRadioButton("Enabled")
         self.ecc_disable_radio = QRadioButton("Disabled")
-        self.ecc_disable_radio.setChecked(True)  # Default selection
+        self.ecc_disable_radio.setChecked(True)
 
-        # Group the radio buttons
         self.ecc_radio_group = QButtonGroup()
         self.ecc_radio_group.addButton(self.ecc_enable_radio)
         self.ecc_radio_group.addButton(self.ecc_disable_radio)
 
-        # Layout for ECC radio buttons
         self.ecc_radio_layout = QHBoxLayout()
         self.ecc_radio_layout.addWidget(self.ecc_enable_radio)
         self.ecc_radio_layout.addWidget(self.ecc_disable_radio)
@@ -347,29 +343,23 @@ class MainWindow(QWidget):
         self.queue_table.setHorizontalHeaderLabels(["ID", "Command", "HEX"])
         self.queue_table.horizontalHeader().setStretchLastSection(True)
         self.queue_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.queue_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)  # ID
+        self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.queue_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
-        # Abort command buttons
         self.abort_last_button = QPushButton("Abort Last")
         self.abort_last_button.clicked.connect(self.abort_last_command)
-        # self.abort_last_button.setStyleSheet("background-color: rgba(255, 0, 0, 128);")
 
         self.abort_next_button = QPushButton("Abort Next")
         self.abort_next_button.clicked.connect(self.abort_next_command)
-        # self.abort_next_button.setStyleSheet("background-color: rgba(255, 0, 0, 128);")
 
-        # Execute next command button
         self.execute_next_button = QPushButton("Execute Next")
         self.execute_next_button.clicked.connect(self.execute_next_command)
         self.execute_next_button.setEnabled(False)
-        
-        # Last command status
+
         self.last_command_status = QLabel("NO COMMS")
         self.last_command_status.setAlignment(Qt.AlignCenter)
         self.last_command_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
 
-        # Last command description
         self.last_command_error = QLabel("")
 
         # === Right Panel Components ===
@@ -387,26 +377,107 @@ class MainWindow(QWidget):
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.toggle_connection)
 
-        # Status console for events
+        # Serial Communication group box (for port, connect, status)
+        serial_comm_group = QGroupBox("Serial Communication")
+        serial_comm_layout = QVBoxLayout()
+        serial_comm_layout.addWidget(self.serial_status_label)
+
+        serial_comm_form = QFormLayout()
+        serial_comm_form.addRow("Select COM Port:", self.port_selector)
+        serial_comm_layout.addLayout(serial_comm_form)
+
+        serial_comm_buttons = QHBoxLayout()
+        serial_comm_buttons.addWidget(self.refresh_button)
+        serial_comm_buttons.addWidget(self.connect_button)
+        serial_comm_layout.addLayout(serial_comm_buttons)
+
+        serial_comm_group.setLayout(serial_comm_layout)
+
+        # Serial Port Traffic group box (text area + clear button)
+        serial_console_group = QGroupBox("Serial Port Traffic")
+        serial_console_layout = QVBoxLayout()
+
+        self.serial_console = QTextEdit()
+        self.serial_console.setReadOnly(True)
+
+        self.clear_serial_button = QPushButton("Clear")
+        self.clear_serial_button.clicked.connect(self.serial_console.clear)
+
+        serial_console_layout.addWidget(self.serial_console)
+        serial_console_layout.addWidget(self.clear_serial_button)
+        serial_console_group.setLayout(serial_console_layout)
+
+        # Received Messages tab
+        received_tab = QWidget()
+        received_tab_layout = QVBoxLayout()
+
+        # RX MANAGER title
+        rx_title_label = QLabel("TRC DECODER")
+        rx_title_label.setAlignment(Qt.AlignCenter)
+        rx_title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        received_tab_layout.addWidget(rx_title_label)
+
+        # TRC Content group
+        trc_content_group = QGroupBox("TRC Content")
+        trc_content_layout = QVBoxLayout()
+        self.trc_content_display = QTextEdit()
+        self.trc_content_display.setReadOnly(True)
+        trc_content_layout.addWidget(self.trc_content_display)
+        trc_content_group.setLayout(trc_content_layout)
+        received_tab_layout.addWidget(trc_content_group)
+
+        # Received TRCs group
+        received_trc_group = QGroupBox("Received TRCs")
+        received_trc_layout = QVBoxLayout()
+        self.received_trc_table = QTableWidget()
+        self.received_trc_table.setColumnCount(3)
+        self.received_trc_table.setHorizontalHeaderLabels(["ID", "Decoded Summary", "RAW HEX"])
+        self.received_trc_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.received_trc_table.horizontalHeader().setStretchLastSection(True)
+        self.received_trc_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+
+        # Connect selection change signal to handler
+        self.received_trc_table.itemSelectionChanged.connect(self.display_selected_trc_content)
+
+        received_trc_layout.addWidget(self.received_trc_table)
+        received_trc_group.setLayout(received_trc_layout)
+        received_tab_layout.addWidget(received_trc_group)
+
+        received_tab.setLayout(received_tab_layout)
+
+        # Tabs widget
+        self.tabs = QTabWidget()
+        # Add a container widget for the Serial Console tab that stacks both groups vertically
+        serial_tab = QWidget()
+        serial_tab_layout = QVBoxLayout()
+        serial_tab_layout.addWidget(serial_comm_group)
+        serial_tab_layout.addWidget(serial_console_group)
+        serial_tab.setLayout(serial_tab_layout)
+
+        self.tabs.addTab(serial_tab, "Serial Console")
+        self.tabs.addTab(received_tab, "Received Messages")
+
+        # Status Messages group box (always visible at top)
+        status_group = QGroupBox("Status Messages")
+        status_layout = QVBoxLayout()
         self.status_console = QTextEdit()
         self.status_console.setReadOnly(True)
         self.clear_status_button = QPushButton("Clear")
         self.clear_status_button.clicked.connect(self.status_console.clear)
-
-        # Serial console for traffic
-        self.serial_console = QTextEdit()
-        self.serial_console.setReadOnly(True)
-        self.clear_serial_button = QPushButton("Clear")
-        self.clear_serial_button.clicked.connect(self.serial_console.clear)
-
+        status_layout.addWidget(self.status_console)
+        status_layout.addWidget(self.clear_status_button)
+        status_group.setLayout(status_layout)
+        status_group.setMaximumHeight(300)
 
         # === Layouts ===
         main_layout = QHBoxLayout()
 
-        # === LEFT PANEL ===
         left_col = QVBoxLayout()
 
-        # TEC Setup group
+        tx_label = QLabel("TEC ENCODER")
+        tx_label.setAlignment(Qt.AlignCenter)
+        tx_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+
         packet_group = QGroupBox("TEC Setup")
         packet_layout = QFormLayout()
         packet_layout.addRow("Ground Station:", self.gs_selector)
@@ -414,110 +485,62 @@ class MainWindow(QWidget):
         packet_layout.addRow("Type:", self.type_selector)
         packet_layout.addRow("Task:", self.task_selector)
         packet_group.setLayout(packet_layout)
-        packet_group.adjustSize()
-        packet_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
 
-        # TEC Content group
         packet_setup_group = QGroupBox("TEC Content")
         self.packet_setup_layout = QFormLayout()
         packet_setup_group.setLayout(self.packet_setup_layout)
-        self.update_task_selector(0)  # Initialize with options for the first type
+        self.update_task_selector(0)
         self.update_packet_content_form()
-        packet_setup_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
 
+        queued_group = QGroupBox("Queued TECs")
+        queued_layout = QVBoxLayout()
+        queued_layout.addWidget(self.queue_table)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.abort_next_button)
+        btn_row.addWidget(self.abort_last_button)
+        queued_layout.addLayout(btn_row)
+        queued_layout.addWidget(self.execute_next_button)
+        queued_group.setLayout(queued_layout)
 
-        # Queued TECs group
-        queued_commands_group = QGroupBox("Queued TECs")
-        queued_commands_layout = QVBoxLayout()
-        queued_commands_layout.addWidget(self.queue_table)
-
-        # Add buttons inside this group box
-        button_row = QHBoxLayout()
-        button_row.addWidget(self.abort_next_button)
-        button_row.addWidget(self.abort_last_button)
-        queued_commands_layout.addLayout(button_row)
-        queued_commands_layout.addWidget(self.execute_next_button)
-        queued_commands_group.setLayout(queued_commands_layout)
-        # queued_commands_group.setMaximumHeight(500)
-        self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        
-        # Group box for Last Command Status
-        last_command_group = QGroupBox("Last TEC Status")
-        last_command_layout = QVBoxLayout()
-
-        # Create table for last command (same columns as queue)
+        last_group = QGroupBox("Last TEC Status")
+        last_layout = QVBoxLayout()
         self.last_command_table = QTableWidget()
         self.last_command_table.setColumnCount(3)
         self.last_command_table.setHorizontalHeaderLabels(["ID", "Command", "HEX"])
         self.last_command_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.last_command_table.horizontalHeader().setStretchLastSection(True)
         self.last_command_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        last_layout.addWidget(self.last_command_status)
+        last_layout.addWidget(self.last_command_error)
+        last_layout.addWidget(self.last_command_table)
+        last_group.setLayout(last_layout)
+        # last_group.setMaximumHeight(400)
 
-        last_command_layout.addWidget(self.last_command_status)
-        last_command_layout.addWidget(self.last_command_error)
-        last_command_layout.addWidget(self.last_command_table)
-        last_command_group.setLayout(last_command_layout)
-
-        # Add groups and buttons
-        left_col.addWidget(packet_group, 0)
-        left_col.addWidget(packet_setup_group, 0)
-        left_col.addWidget(self.add_to_queue_button, 0)
-        left_col.addWidget(queued_commands_group, 1)
-        left_col.addWidget(last_command_group)
-
-        # === RIGHT PANEL ===
-        serial_group = QGroupBox("Serial Communication")
-        serial_layout = QVBoxLayout()
-
-        serial_layout.addWidget(self.serial_status_label)
-
-        form_layout = QFormLayout()
-        form_layout.addRow("Select COM Port:", self.port_selector)
-        serial_layout.addLayout(form_layout)
-
-        button_row = QHBoxLayout()
-        button_row.addWidget(self.refresh_button)
-        button_row.addWidget(self.connect_button)
-        serial_layout.addLayout(button_row)
-
-        serial_group.setLayout(serial_layout)
-
-        status_group = QGroupBox("Status Messages")
-        status_layout = QVBoxLayout()
-        status_layout.addWidget(self.status_console)
-        # status_layout.addWidget(self.clear_status_button, alignment=Qt.AlignRight)
-        status_layout.addWidget(self.clear_status_button)
-        status_group.setLayout(status_layout)
-
-        traffic_group = QGroupBox("Serial Port Traffic")
-        traffic_layout = QVBoxLayout()
-        traffic_layout.addWidget(self.serial_console)
-        # traffic_layout.addWidget(self.clear_serial_button, alignment=Qt.AlignRight)
-        traffic_layout.addWidget(self.clear_serial_button)
-        traffic_group.setLayout(traffic_layout)
-        self.new_line_pending = True  # Flag to insert timestamp only at line start
+        left_col.addWidget(tx_label)
+        left_col.addWidget(packet_group)
+        left_col.addWidget(packet_setup_group)
+        left_col.addWidget(self.add_to_queue_button)
+        left_col.addWidget(queued_group)
+        left_col.addWidget(last_group)
 
         right_col = QVBoxLayout()
-        right_col.addWidget(serial_group)
         right_col.addWidget(status_group)
-        right_col.addWidget(traffic_group)
+        right_col.addWidget(self.tabs)
 
         main_layout.addLayout(left_col, 1)
         main_layout.addLayout(right_col, 1)
 
         self.setLayout(main_layout)
 
-        # Timer for serial read
+        # Timers
         self.serial_timer = QTimer()
         self.serial_timer.timeout.connect(self.read_serial)
 
-        # Timer for command timeout
         self.timeout_timer = QTimer()
         self.timeout_timer.timeout.connect(self.check_command_timeout)
 
-        # Sent commands history
-        self.sent_commands = []  # To store tuples: (cmd_id, tec_str, hex_str, status)
-
+        self.sent_commands = []
+        self.new_line_pending = True
 
 
     # ========== AUTHENTICATION ==========
@@ -716,6 +739,7 @@ class MainWindow(QWidget):
 
         return bg_color, text_color
     
+
     # ========== DYNAMIC PACKET SETUP ==========
 
     # Update the task selector based on the selected type index
@@ -968,11 +992,9 @@ class MainWindow(QWidget):
 
         TRC = decoded_packet["TRC"]
         payload = decoded_packet["payload_bytes"]
-        elapsed = (datetime.now() - self.last_command_sent_time).total_seconds()
-
-        # self.log_status(f"[DEBUG] TRC: 0x{TRC:02X}, payload: {payload}, last_sent_command: {self.last_sent_command}")
         
-        # Determine status string
+        # Update ACK/NACK status of the last command
+        elapsed = (datetime.now() - self.last_command_sent_time).total_seconds()
         if TRC == 0x31 and payload == [self.last_sent_command]:
             status = f"ACK in {elapsed:.2f} s"
             self.set_last_command_status(status)
@@ -1005,6 +1027,16 @@ class MainWindow(QWidget):
             status = "UNKNOWN ERROR"
             self.set_last_command_status(status)
 
+        # Add to Received TRCs table
+        decoded_summary = status  # You can adjust this to show more details
+        raw_hex = " ".join(f"{byte:02X}" for byte in [TRC] + payload)
+        row_position = self.received_trc_table.rowCount()
+        self.received_trc_table.insertRow(row_position)
+        self.received_trc_table.setItem(row_position, 0, QTableWidgetItem(f"{TRC:02X}"))
+        self.received_trc_table.setItem(row_position, 1, QTableWidgetItem(decoded_summary))
+        self.received_trc_table.setItem(row_position, 2, QTableWidgetItem(raw_hex))
+
+
     # Check if the last command sent has timed out
     def check_command_timeout(self):
         elapsed = (datetime.now() - self.last_command_sent_time).total_seconds()
@@ -1015,6 +1047,21 @@ class MainWindow(QWidget):
         else:
             self.set_last_command_status(f"WAITING: {round(elapsed)} s")
 
+
+    # ========== PACKET VISUALIZATION ==========
+
+    def display_selected_trc_content(self):
+        selected_items = self.received_trc_table.selectedItems()
+        if not selected_items or len(selected_items) < 3:
+            self.trc_content_display.setPlainText("")
+            return
+
+        trc_id = selected_items[0].text()
+        summary = selected_items[1].text()
+        raw_hex = selected_items[2].text()
+
+        content = f"TRC ID: {trc_id}\nSummary: {summary}\nRaw HEX:\n{raw_hex}"
+        self.trc_content_display.setPlainText(content)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
