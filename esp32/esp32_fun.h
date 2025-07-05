@@ -50,10 +50,7 @@ extern SX1278 radio;
 // Define RTOS handles
 extern TaskHandle_t RTOS_handle_COMMS_StateMachine;
 extern QueueHandle_t RTOS_queue_TX; // queue for TX packets
-
-
-// TX queue configuration
-#define TX_QUEUE_SIZE 5 // [packets] size of tx queue
+extern QueueHandle_t RTOS_queue_cmd; // queue for command packets
 
 
 // ---------------------------------
@@ -95,13 +92,16 @@ void printPacket(const char* prefix, const uint8_t* packet, uint8_t length);
 // ---------------------------------
 
 // Packet configuration
+#define TX_QUEUE_SIZE 6 // [packets] size of tx queue
 #define PACKET_SIZE_MAX 128 // [bytes] max size of packets
-#define PACKET_HEADER_LENGTH 13 // [bytes] length of the header in the packet
+#define PACKET_HEADER_LENGTH 12 // [bytes] length of the header in the packet
 #define PACKET_PAYLOAD_MAX 98 // [bytes] max size of payload in the packet
 
 // Command configuration
-#define CMD_PACKETS_MAX 2 // [packets] max number of packets in a command
-constexpr uint8_t CMD_SIZE_MAX = (PACKET_SIZE_MAX * CMD_PACKETS_MAX); // [bytes] max size of a command
+#define CMD_QUEUE_SIZE 2 // [packets] size of cmd queue
+// #define CMD_PACKETS_MAX 2 // [packets] max number of packets in a command
+// constexpr uint8_t CMD_SIZE_MAX = (PACKET_SIZE_MAX * CMD_PACKETS_MAX); // [bytes] max size of a command
+
 
 // MAC configuration
 #define SECRET_KEY 0xA1B2C3D4 // secret key for MAC generation
@@ -116,15 +116,16 @@ constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of dat
 // Error codes
 #define PACKET_ERR_NONE 0 // no error in packet
 #define PACKET_ERR_RS -1 // error in RS encoding bytes
-#define PACKET_ERR_LENGTH -2 // error in packet length
-#define PACKET_ERR_ID -3 // error in packet ID (out of range)
+#define PACKET_ERR_DECODE -2 // error in packet state
+#define PACKET_ERR_LENGTH -3 // error in packet length
 #define PACKET_ERR_MAC -4 // error in MAC
+#define PACKET_ERR_CMD_FULL -5 // error in command queue full
 
-#define CMD_ERR_NONE 0 // no error in command
-#define CMD_ERR_PACKET -1 // error in packet state
-#define CMD_ERR_HEADER -2 // error in packet header
-#define CMD_ERR_ID -3 // error in packet ID (double or out of range)
-#define CMD_ERR_MISSING -4 // missing packet in command
+// #define CMD_ERR_NONE 0 // no error in command
+// #define CMD_ERR_PACKET -1 // error in packet state
+// #define CMD_ERR_HEADER -2 // error in packet header
+// #define CMD_ERR_ID -3 // error in packet ID (double or out of range)
+// #define CMD_ERR_MISSING -4 // missing packet in command
 
 // TEC codes
 #define TEC_OBC_REBOOT 0x01 // reboot OBC command
@@ -158,6 +159,9 @@ void printStartupMessage(const char* device);
 // Print radio status on serial
 void printRadioStatus(int8_t state, bool blocking);
 
+// Print received packet on serial with optional prefix
+void printPacket(const char* prefix, const uint8_t* packet, uint8_t length);
+
 
 // ---------------------------------
 // HELPER FUNCTIONS
@@ -172,9 +176,30 @@ uint32_t getUNIX();
 // MAC function to generate a message authentication code
 uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
 
+// Process commands in serial input
+void handleSerialInput();
+
+
 // ---------------------------------
 // RADIO FUNCTIONS
 // ---------------------------------
+
+// Struct to hold packet information
+struct Packet
+{
+	int8_t state;
+	bool ecc; // flag to indicate if RS ECC is used
+	uint8_t station;
+	uint8_t command;
+	uint32_t MAC;
+	uint32_t time_unix;
+	uint8_t payload_length;
+	uint8_t payload[PACKET_PAYLOAD_MAX];
+
+	void init();
+	void setPayload(const uint8_t* data, uint8_t length);
+	void seal(); // seal packet by calculating MAC and setting time
+};
 
 // Notify COMMS task of a radio event (called when packet sent or received)
 void packetEvent(void);
@@ -185,45 +210,26 @@ void startReception(void);
 // Start LoRa transmission
 void startTransmission(uint8_t *tx_packet, uint8_t packet_size);
 
-// Struct to hold packet information
-struct Packet
-{
-	int8_t state;
-	bool ecc; // flag to indicate if RS ECC is used
-	uint8_t station;
-	uint8_t command;
-	uint8_t ID_total;
-	uint8_t ID;
-	uint32_t MAC;
-	uint32_t time_unix;
-	uint8_t payload_length;
-	uint8_t payload[PACKET_PAYLOAD_MAX];
-
-	void init();
-	void setPayload(const uint8_t* data, uint8_t length);
-
-};
-
 // Convert received raw data to packet struct
 void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet);
 
 // Convert packet struct to raw data, return length
 uint8_t packetToData(const Packet* packet, uint8_t* data);
 
-// Process commands in serial input
-void handleSerialInput();
+
+// ---------------------------------
+// ECC FUNCTIONS
+// ---------------------------------
+
+// Check if RS ECC is enabled in the packet
+bool isDataECCEnabled(const uint8_t* data, uint8_t length);
 
 // Encode data using RS ECC and interleave the output
 void encodeECC(uint8_t* data, uint8_t& data_len);
 
 // Recover true data, deinterleaving and decoding if RS ECC is enabled
-bool decodeECC(uint8_t* data, uint8_t& data_len);
+int8_t decodeECC(uint8_t* data, uint8_t& data_len);
 
-// Check if RS ECC is enabled in the packet
-bool isDataECCEnabled(const uint8_t* data, uint8_t length);
-
-// Validate packet
-int8_t validatePacket(const Packet* packet);
 
 // ---------------------------------
 // COMMAND FUNCTIONS
@@ -235,10 +241,13 @@ int8_t checkPackets(const Packet* packets, uint8_t packets_total);
 // Assemble and execute command from valid packets
 bool executeCommand(const Packet* packets, uint8_t packets_total);
 
+// Check if packet is a TEC to be executed
+bool isPacketTEC(const Packet* packet);
+
 // Send ACK packet to report valid command received
-void sendACK(uint8_t TEC);
+void sendACK(bool ecc, uint8_t TEC);
 
 // Send NACK packet to report invalid command received
-void sendNACK(uint8_t TEC);
+void sendNACK(bool ecc, uint8_t TEC, int8_t error);
 
 #endif

@@ -106,6 +106,92 @@ uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key)
     return x;
 }
 
+// Process commands in serial input TODO: maybe this should not be part of comms state machine
+void handleSerialInput()
+{
+	uint8_t packet_buffers[CMD_QUEUE_SIZE][PACKET_SIZE_MAX];
+	uint8_t packet_lengths[CMD_QUEUE_SIZE];
+	uint8_t packet_count = 0;
+
+	uint8_t temp_buffer[PACKET_SIZE_MAX];
+	uint8_t temp_length = 0;
+
+	while (true)
+	{
+		vTaskDelay(100);  // Throttle
+
+		while (Serial.available())
+		{
+			uint8_t c = Serial.read();
+
+			if (c == '\n' || c == '\r')
+			{
+				// Check for "go" or "end" commands by comparing raw buffer
+				if ((temp_length == 2 &&
+					 (temp_buffer[0] == 'g' || temp_buffer[0] == 'G') &&
+					 (temp_buffer[1] == 'o' || temp_buffer[1] == 'O')))
+				{
+					Serial.printf("Processing %d packet(s)...\n", packet_count);
+					
+					for (uint8_t i = 0; i < packet_count; ++i)
+					{
+						Packet packet;
+						dataToPacket(packet_buffers[i], packet_lengths[i], &packet);
+						if (packet.state == PACKET_ERR_NONE)
+						{
+							xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
+							// Serial.printf("Packet %d sent.\n", i);
+						}
+						else
+						{
+							Serial.printf("Packet %d invalid. Skipped. Error: %d\n", i, packet.state);
+						}
+					}
+					return;
+				}
+				else if ((temp_length == 3 &&
+						  (temp_buffer[0] == 'e' || temp_buffer[0] == 'E') &&
+						  (temp_buffer[1] == 'n' || temp_buffer[1] == 'N') &&
+						  (temp_buffer[2] == 'd' || temp_buffer[2] == 'D')))
+				{
+					Serial.println("Cancelled. Packets discarded.");
+					return;
+				}
+				else if (temp_length > 0 && packet_count < CMD_QUEUE_SIZE)
+				{
+					memcpy(packet_buffers[packet_count], temp_buffer, temp_length);
+					packet_lengths[packet_count] = temp_length;
+					packet_count++;
+					Serial.printf("Stored packet %d (%d bytes): ", packet_count, temp_length);
+					for (uint8_t i = 0; i < temp_length; ++i)
+					{
+						Serial.printf("%02X ", temp_buffer[i]);
+					}
+					Serial.println();
+				}
+				else
+				{
+					Serial.println("Error or packet limit reached. Skipping.");
+				}
+
+				temp_length = 0; // reset for next line
+			}
+			else
+			{
+				if (temp_length < PACKET_SIZE_MAX)
+				{
+					temp_buffer[temp_length++] = c;
+				}
+				else
+				{
+					Serial.println("Packet too long. Ignoring rest.");
+				}
+			}
+		}
+	}
+}
+
+
 // ---------------------------------
 // RADIO FUNCTIONS
 // ---------------------------------
@@ -172,15 +258,14 @@ void Packet::init()
 	ecc = false; // RS encoding off by default
 	station = MISSION_ID; // default station ID
 	command = 0; // default command
-	ID_total = 1; // total number of IDs in command
-	ID = 1; // ID of this packet
-	time_unix = getUNIX(); // default UNIX time
-	MAC = makeMAC(time_unix, SECRET_KEY); // default MAC
+	time_unix = 0; // default UNIX time
+	MAC = 0; // default MAC
 	payload_length = 0; // no payload by default
 
 	memset(payload, 0, PACKET_PAYLOAD_MAX); // clear payload
 }
 
+// Set packet payload data and length
 void Packet::setPayload(const uint8_t* data, uint8_t length)
 {
 	if (length > PACKET_PAYLOAD_MAX)
@@ -190,6 +275,13 @@ void Packet::setPayload(const uint8_t* data, uint8_t length)
 
 	memcpy(payload, data, length);
 	payload_length = length;
+}
+
+// Seal packet by calculating MAC and setting time
+void Packet::seal()
+{
+	time_unix = getUNIX();
+	MAC = makeMAC(time_unix, SECRET_KEY);
 }
 
 // Convert received data to packet with validation
@@ -223,28 +315,26 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 	// Byte 2: command (TEC type + Task value)
 	packet->command = data[2];
 
-	// Byte 3: ID_total and ID
-	packet->ID_total = (data[3] >> 4) & 0x0F;
-	packet->ID = data[3] & 0x0F;
+	// Byte 3: Payload length
+	packet->payload_length = data[3];
 
-	if (packet->ID == 0 || packet->ID > packet->ID_total)
+	// Remove padding bytes
+	if (length > PACKET_HEADER_LENGTH + packet->payload_length)
 	{
-		packet->state = PACKET_ERR_ID; // Invalid ID
-		return;
-	}
-
-	// Byte 4: Payload length
-	packet->payload_length = data[4];
-
-	//TODO: move this check to decodeECC
-	if (length != PACKET_HEADER_LENGTH + packet->payload_length)
-	{
-		uint8_t expected_length = PACKET_HEADER_LENGTH + packet->payload_length;
-
 		// Remove all trailing padding bytes
-		while (length > PACKET_HEADER_LENGTH + packet->payload_length && data[length - 1] == BYTE_RS_PADDING)
+		while (length > PACKET_HEADER_LENGTH + packet->payload_length)
 		{
-			length--;
+			if (data[length - 1] == BYTE_RS_PADDING) // Check if last byte is padding
+			{
+				// Remove padding byte
+				length--;
+			}
+			else
+			{
+				// A padding byte was expected but not found
+				packet->state = PACKET_ERR_LENGTH; // Invalid packet length
+				return;
+			}
 		}
 	}
 
@@ -254,25 +344,25 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 		return;
 	}
 
-	// Byte 9–12: UNIX time
-	packet->time_unix = ((uint32_t)data[9] << 24) | ((uint32_t)data[10] << 16) | ((uint32_t)data[11] << 8) | (uint32_t)data[12];
+	// Byte 8–11: UNIX time
+	packet->time_unix = ((uint32_t)data[8] << 24) | ((uint32_t)data[9] << 16) | ((uint32_t)data[10] << 8) | (uint32_t)data[11];
 
-	// Byte 5–8: MAC
-	packet->MAC = ((uint32_t)data[5] << 24) | ((uint32_t)data[6] << 16) | ((uint32_t)data[7] << 8) | (uint32_t)data[8];
+	// Byte 4–7: MAC
+	packet->MAC = ((uint32_t)data[4] << 24) | ((uint32_t)data[5] << 16) | ((uint32_t)data[6] << 8) | (uint32_t)data[7];
 
 	uint32_t expected_MAC = makeMAC(packet->time_unix, SECRET_KEY); // SECRET_KEY is a predefined constant
 	if (packet->MAC != expected_MAC)
 	{
-		// Serial.printf("MAC error: expected %08X, got %08X\n", expected_MAC, packet->MAC);
 		packet->state = PACKET_ERR_MAC; // MAC error
 		return;
 	}
 
 	// Parse payload
-	for (uint8_t i = 0; i < packet->payload_length; i++)
-	{
-		packet->payload[i] = data[PACKET_HEADER_LENGTH + i];
-	}
+	packet->setPayload(data + PACKET_HEADER_LENGTH, packet->payload_length);
+	// for (uint8_t i = 0; i < packet->payload_length; i++)
+	// {
+	// 	packet->payload[i] = data[PACKET_HEADER_LENGTH + i];
+	// }
 
 	// Packet successfully decoded
 	packet->state = PACKET_ERR_NONE;
@@ -297,23 +387,20 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 	// Byte 2: command
 	data[2] = packet->command;
 
-	// Byte 3: ID_total and ID
-	data[3] = ((packet->ID_total & 0x0F) << 4) | (packet->ID & 0x0F); // first 4 bits ID_total, last 4 bits ID
+	// Byte 3: payload length
+	data[3] = packet->payload_length;
 
-	// Byte 4: payload length
-	data[4] = packet->payload_length;
+	// Byte 4–7: MAC
+	data[4] = (packet->MAC >> 24) & 0xFF;
+	data[5] = (packet->MAC >> 16) & 0xFF;
+	data[6] = (packet->MAC >> 8) & 0xFF;
+	data[7] = packet->MAC & 0xFF;
 
-	// Byte 5–8: MAC
-	data[5] = (packet->MAC >> 24) & 0xFF;
-	data[6] = (packet->MAC >> 16) & 0xFF;
-	data[7] = (packet->MAC >> 8) & 0xFF;
-	data[8] = packet->MAC & 0xFF;
-
-	// Byte 9–12: UNIX time
-	data[9] = (packet->time_unix >> 24) & 0xFF;
-	data[10] = (packet->time_unix >> 16) & 0xFF;
-	data[11] = (packet->time_unix >> 8) & 0xFF;
-	data[12] = packet->time_unix & 0xFF;
+	// Byte 8–11: UNIX time
+	data[8] = (packet->time_unix >> 24) & 0xFF;
+	data[9] = (packet->time_unix >> 16) & 0xFF;
+	data[10] = (packet->time_unix >> 8) & 0xFF;
+	data[11] = packet->time_unix & 0xFF;
 
 	// Payload bytes
 	for (uint8_t i = 0; i < packet->payload_length; i++)
@@ -325,90 +412,10 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 	return PACKET_HEADER_LENGTH + packet->payload_length;
 }
 
-// Process commands in serial input TODO: maybe this should not be part of comms state machine
-void handleSerialInput()
-{
-	uint8_t packet_buffers[CMD_PACKETS_MAX][PACKET_SIZE_MAX];
-	uint8_t packet_lengths[CMD_PACKETS_MAX];
-	uint8_t packet_count = 0;
 
-	uint8_t temp_buffer[PACKET_SIZE_MAX];
-	uint8_t temp_length = 0;
-
-	while (true)
-	{
-		vTaskDelay(100);  // Throttle
-
-		while (Serial.available())
-		{
-			uint8_t c = Serial.read();
-
-			if (c == '\n' || c == '\r')
-			{
-				// Check for "go" or "end" commands by comparing raw buffer
-				if ((temp_length == 2 &&
-					 (temp_buffer[0] == 'g' || temp_buffer[0] == 'G') &&
-					 (temp_buffer[1] == 'o' || temp_buffer[1] == 'O')))
-				{
-					Serial.printf("Processing %d packet(s)...\n", packet_count);
-					
-					for (uint8_t i = 0; i < packet_count; ++i)
-					{
-						Packet packet;
-						dataToPacket(packet_buffers[i], packet_lengths[i], &packet);
-						if (packet.state == PACKET_ERR_NONE)
-						{
-							xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
-							// Serial.printf("Packet %d sent.\n", i);
-						}
-						else
-						{
-							Serial.printf("Packet %d invalid. Skipped. Error: %d\n", i, packet.state);
-						}
-					}
-					return;
-				}
-				else if ((temp_length == 3 &&
-						  (temp_buffer[0] == 'e' || temp_buffer[0] == 'E') &&
-						  (temp_buffer[1] == 'n' || temp_buffer[1] == 'N') &&
-						  (temp_buffer[2] == 'd' || temp_buffer[2] == 'D')))
-				{
-					Serial.println("Cancelled. Packets discarded.");
-					return;
-				}
-				else if (temp_length > 0 && packet_count < CMD_PACKETS_MAX)
-				{
-					memcpy(packet_buffers[packet_count], temp_buffer, temp_length);
-					packet_lengths[packet_count] = temp_length;
-					packet_count++;
-					Serial.printf("Stored packet %d (%d bytes): ", packet_count, temp_length);
-					for (uint8_t i = 0; i < temp_length; ++i)
-					{
-						Serial.printf("%02X ", temp_buffer[i]);
-					}
-					Serial.println();
-				}
-				else
-				{
-					Serial.println("Error or packet limit reached. Skipping.");
-				}
-
-				temp_length = 0; // reset for next line
-			}
-			else
-			{
-				if (temp_length < PACKET_SIZE_MAX)
-				{
-					temp_buffer[temp_length++] = c;
-				}
-				else
-				{
-					Serial.println("Packet too long. Ignoring rest.");
-				}
-			}
-		}
-	}
-}
+// ---------------------------------
+// ECC FUNCTIONS
+// ---------------------------------
 
 // Check if RS ECC is enabled in the packet
 bool isDataECCEnabled(const uint8_t* data, uint8_t length)
@@ -420,53 +427,6 @@ bool isDataECCEnabled(const uint8_t* data, uint8_t length)
 		return true;
 	}
 	return false;
-}
-
-// Decode data by deinterleaving and correcting errors
-bool decodeECC(uint8_t* data, uint8_t& data_len)
-{
-	uint8_t num_blocks = data_len / RS_BLOCK_SIZE;
-
-	// Temporary storage for deinterleaved codewords
-	uint8_t codewords[num_blocks][RS_BLOCK_SIZE];
-
-	// Deinterleave: undo column-wise interleaving
-	for (uint8_t col = 0; col < RS_BLOCK_SIZE; ++col)
-	{
-		for (uint8_t row = 0; row < num_blocks; ++row)
-		{
-			codewords[row][col] = data[col * num_blocks + row];
-		}
-	}
-
-	// Decode each codeword and write back only the data portion (without parity) in-place into data buffer
-	uint8_t write_pos = 0;
-	bool all_ok = true; // Flag to track if all blocks were decoded successfully
-	for (uint8_t i = 0; i < num_blocks; ++i)
-	{
-		uint8_t decoded[RS_BLOCK_SIZE] = {0};
-
-		// decode_data takes encoded codeword and outputs decoded codeword (data + parity)
-		decode_data(codewords[i], RS_BLOCK_SIZE);
-
-		if (check_syndrome() != 0)
-		{
-			int8_t result = correct_errors_erasures(codewords[i], RS_BLOCK_SIZE, 0, nullptr);
-			if (result != 0)
-			{
-				Serial.printf("RS decode failed on block %d\n", i);
-				all_ok = false;
-			}
-		}
-		// Copy only the data bytes (without parity) back to the original data buffer
-		memcpy(data + write_pos, codewords[i], DATA_BLOCK_SIZE);
-		write_pos += DATA_BLOCK_SIZE;
-	}
-
-	// Update data_len to new decoded length (without parity)
-	data_len = num_blocks * DATA_BLOCK_SIZE;
-
-	return all_ok; // Return true if all blocks were decoded successfully
 }
 
 // Encode data using RS ECC and interleave the output
@@ -503,6 +463,53 @@ void encodeECC(uint8_t* data, uint8_t& data_len)
 	data_len = num_blocks * RS_BLOCK_SIZE;
 }
 
+// Decode data by deinterleaving and correcting errors
+int8_t decodeECC(uint8_t* data, uint8_t& data_len)
+{
+	int8_t error = PACKET_ERR_NONE;
+	uint8_t num_blocks = data_len / RS_BLOCK_SIZE;
+
+	// Temporary storage for deinterleaved codewords
+	uint8_t codewords[num_blocks][RS_BLOCK_SIZE];
+
+	// Deinterleave: undo column-wise interleaving
+	for (uint8_t col = 0; col < RS_BLOCK_SIZE; ++col)
+	{
+		for (uint8_t row = 0; row < num_blocks; ++row)
+		{
+			codewords[row][col] = data[col * num_blocks + row];
+		}
+	}
+
+	// Decode each codeword and write back only the data portion (without parity) in-place into data buffer
+	uint8_t write_pos = 0;
+	for (uint8_t i = 0; i < num_blocks; ++i)
+	{
+		uint8_t decoded[RS_BLOCK_SIZE] = {0};
+
+		// decode_data takes encoded codeword and outputs decoded codeword (data + parity)
+		decode_data(codewords[i], RS_BLOCK_SIZE);
+
+		if (check_syndrome() != 0)
+		{
+			int8_t result = correct_errors_erasures(codewords[i], RS_BLOCK_SIZE, 0, nullptr);
+			if (result != 0)
+			{
+				Serial.printf("RS decode failed on block %d\n", i);
+				error = PACKET_ERR_DECODE; // set error code for RS decode failure
+			}
+		}
+		// Copy only the data bytes (without parity) back to the original data buffer
+		memcpy(data + write_pos, codewords[i], DATA_BLOCK_SIZE);
+		write_pos += DATA_BLOCK_SIZE;
+	}
+
+	// Update data_len to new decoded length (without parity)
+	data_len = num_blocks * DATA_BLOCK_SIZE;
+
+	return error; // return error code
+}
+
 
 
 // Validate packet
@@ -536,87 +543,6 @@ void encodeECC(uint8_t* data, uint8_t& data_len)
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-// Check if packets form a valid command
-int8_t checkPackets(const Packet* packets, uint8_t packets_total)
-{
-	// if (packets_total == 0) {
-	// 	Serial.println("checkPackets: No packets received.");
-	// 	return CMD_ERR_PACKET;
-	// }
-
-	uint8_t command_state = CMD_ERR_NONE;
-	uint8_t station = packets[0].station;
-	uint8_t TEC = packets[0].command;
-	uint8_t ID_total = packets[0].ID_total;
-
-	bool packet_received_flags[CMD_PACKETS_MAX + 1] = { false };
-	uint8_t total_payload_length = 0;
-
-	for (uint8_t i = 0; i < packets_total; i++)
-	{
-		uint8_t id = packets[i].ID;
-
-		// Check state
-		if (packets[i].state != PACKET_ERR_NONE)
-		{
-			Serial.printf("Packet %d has error: %d\n", i + 1, packets[i].state);
-			command_state = CMD_ERR_PACKET;
-		}
-
-		// Header consistency
-		if (packets[i].station != station || packets[i].ID_total != ID_total || packets[i].command != TEC)
-		{
-			Serial.printf("Packet %d header mismatch.\n", i + 1);
-			command_state = CMD_ERR_HEADER;
-		}
-
-		// ID validity
-		if (id == 0 || id > ID_total)
-		{
-			Serial.printf("Packet %d has invalid ID: %d\n", i + 1, id);
-			command_state = CMD_ERR_ID;
-		}
-
-		// Check for duplicates
-		if (packet_received_flags[id])
-		{
-			Serial.printf("Duplicate packet ID: %d\n", id);
-			command_state = CMD_ERR_ID;
-		}
-		packet_received_flags[id] = true;
-
-		total_payload_length += packets[i].payload_length;
-	}
-
-	// Check for missing packets
-	for (uint8_t id = 1; id <= ID_total; id++)
-	{
-		if (!packet_received_flags[id]) {
-			Serial.printf("Missing packet with ID: %d\n", id);
-			command_state = CMD_ERR_MISSING;
-			break;
-		}
-	}
-
-	// TEC-specific validation
-	// switch (TEC)
-	// {
-	// 	case TEC_SET_TIME:
-	// 		if (total_payload_length != 4) {
-	// 			Serial.printf("SET_TIME requires 4-byte payload, got %d\n", total_payload_length);
-	// 			command_state = CMD_ERR_LENGTH;
-	// 		}
-	// 		break;
-	// 	// Add future TEC-specific checks here
-	// 	default:
-	// 		break;
-	// }
-
-	if (command_state != CMD_ERR_NONE) {
-		Serial.println("verifyCommand: Command is invalid.");
-	}
-	return command_state;
-}
 
 // Assemble and execute command from valid packets
 bool executeCommand(const Packet* packets, uint8_t packets_total)
@@ -693,30 +619,53 @@ bool executeCommand(const Packet* packets, uint8_t packets_total)
 	return true;
 }
 
+// Check if packet is a TEC to be executed
+bool isPacketTEC(const Packet* packet)
+{
+	switch (packet->command)
+	{
+		case TEC_OBC_REBOOT:
+		case TEC_EXIT_STATE:
+		case TEC_VAR_CHANGE:
+		case TEC_SET_TIME:
+		case TEC_EPS_REBOOT:
+		case TEC_ADCS_REBOOT:
+		case TEC_ADCS_TLE:
+			return true;
+	
+		default:
+			return false; // not a TEC
+	}
+}
 
 // Send ACK packet to report valid command received
-void sendACK(uint8_t TEC)
+void sendACK(bool ecc, uint8_t TEC)
 {
 	// Create ACK packet
 	Packet ack_packet;
 	ack_packet.init(); // initialize packet with default values
 
+	ack_packet.ecc = ecc; // set RS encoding flag
 	ack_packet.command = TRC_ACK; // set command to ACK
 	ack_packet.setPayload(&TEC, 1); // set payload to executed TEC
+	ack_packet.seal(); // seal packet with current time and MAC
 
 	// Send ACK packet to queue
 	xQueueSend(RTOS_queue_TX, &ack_packet, portMAX_DELAY);
 }
 
 // Send NACK packet to report invalid command received
-void sendNACK(uint8_t TEC)
+void sendNACK(bool ecc, uint8_t TEC, int8_t error)
 {
 	// Create NACK packet
 	Packet nack_packet;
 	nack_packet.init(); // initialize packet with default values
 
+	nack_packet.ecc = ecc; // set RS encoding flag
 	nack_packet.command = TRC_NACK; // set command to NACK
-	nack_packet.setPayload(&TEC, 1); // set payload to executed TEC
+	uint8_t payload[2] = {TEC, static_cast<uint8_t>(error)}; // payload contains TEC and error state
+	nack_packet.setPayload(payload, sizeof(payload)); // set payload to executed TEC
+	nack_packet.seal(); // seal packet with current time and MAC
 
 	// Send NACK packet to queue
 	xQueueSend(RTOS_queue_TX, &nack_packet, portMAX_DELAY);

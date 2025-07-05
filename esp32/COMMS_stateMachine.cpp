@@ -4,8 +4,9 @@
 // Define LoRa module
 SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
 
-// Define the queue handle
+// Define the queue handles
 QueueHandle_t RTOS_queue_TX;
+QueueHandle_t RTOS_queue_cmd;
 
 // General comunication state configuration 
 uint8_t COMMS_state = 0;
@@ -15,8 +16,9 @@ void COMMS_stateMachine(void *parameter)
 {	
 	printStartupMessage("COMMS");
 
-	// Create queue for TX packets
+	// Create queues
 	RTOS_queue_TX = xQueueCreate(TX_QUEUE_SIZE, sizeof(Packet));
+	RTOS_queue_cmd = xQueueCreate(CMD_QUEUE_SIZE, sizeof(Packet));
 
 	// Initial state
 	COMMS_state = COMMS_IDLE;
@@ -110,79 +112,68 @@ void COMMS_stateMachine(void *parameter)
 			case COMMS_RX:
 			{
 				Serial.println("COMMS_RX: Starting packet reception ... ");
+
+				// Read packet
+				uint8_t rx_data[PACKET_SIZE_MAX];
+				uint8_t rx_data_size = radio.getPacketLength();
+				int8_t rx_state = radio.readData(rx_data, rx_data_size);
+
+				bool ecc = isDataECCEnabled(rx_data, rx_data_size);
+				bool TEC = false; // flag to check if packet is a TEC
 				
-				// Initialize command variables
-				uint8_t cmd_packets_processed = 0;
-				Packet cmd_packets[CMD_PACKETS_MAX]; // array to store received packets in command
-				int8_t cmd_state;
+				Packet rx_packet; // create packet struct to store received data
+				rx_packet.init(); // initialize packet with default values
 
-				do
+				// Reception successfull
+				if (rx_state == RADIOLIB_ERR_NONE)
 				{
-					// Read packet
-					uint8_t rx_data[PACKET_SIZE_MAX];
-					uint8_t rx_data_size = radio.getPacketLength();
-					int8_t rx_state = radio.readData(rx_data, rx_data_size);
-
-					bool ecc = isDataECCEnabled(rx_data, rx_data_size);
-					bool decode_error = false;
-
-					// Reception successfull
-					if (rx_state == RADIOLIB_ERR_NONE)
+					// Decode ECC data if enabled
+					if (ecc)
 					{
-						// Decode ECC data if enabled
-						if (ecc)
-						{
-							printPacket("Encoded: ", rx_data, rx_data_size);
-							decode_error = decodeECC(rx_data, rx_data_size);
-						}
+						printPacket("Before decoding: ", rx_data, rx_data_size);
+						rx_packet.state = decodeECC(rx_data, rx_data_size);
 					}
-					// Reception error
-					else
-					{
-						// Always try to recover the packet, content can not be trusted otherwise
-						printPacket("Encoded: ", rx_data, rx_data_size);
-						decode_error = decodeECC(rx_data, rx_data_size);
-					}
-					printPacket("Decoded: ", rx_data, rx_data_size);
-
-					// Store packet if no decode error
-					if (!decode_error)
-					{
-						// Validate and decode packet into struct and store into command array
-						dataToPacket(rx_data, rx_data_size, &cmd_packets[cmd_packets_processed++]);
-
-						// rs_enabled = cmd_packets[cmd_packets_processed - 1].ecc; // check if RS ECC is enabled in the packet
-					}
-					else
-					{
-						// If packet can not be decoded, set state to error
-						cmd_packets[cmd_packets_processed++].state = PACKET_ERR_RS; // RS decoding error
-					}
-
 				}
-				while (ulTaskNotifyTake(pdFALSE, RX_TIMEOUT) != 0); // repeat if another packet is received before timeout (command is multipacket)
-
-				// Check if all packets are valid
-				cmd_state = checkPackets(cmd_packets, cmd_packets_processed);
-
-				if (cmd_state == CMD_ERR_NONE)
-				{
-					// Send ACK packet to confirm valid command received
-					if (cmd_packets[0].command != TRC_ACK && cmd_packets[0].command != TRC_NACK) // do not send ACK for ACK or NACK command
-					{
-						sendACK(cmd_packets[0].command);
-					}
-					
-					// Execute command
-					executeCommand(cmd_packets, cmd_packets_processed);
-				}
+				// Reception error
 				else
 				{
-					// Send NACK packet to confirm invalid command received
-					sendNACK(cmd_packets[0].command);
+					// Always try to recover the packet, content can not be trusted otherwise
+					printPacket("Before decoding: ", rx_data, rx_data_size);
+					rx_packet.state = decodeECC(rx_data, rx_data_size);
+				}
+				printPacket("Decoded: ", rx_data, rx_data_size);
+
+				// Store packet if no decode error
+				if (rx_packet.state == PACKET_ERR_NONE)
+				{
+					// Validate and decode packet into struct
+					dataToPacket(rx_data, rx_data_size, &rx_packet);
+
+					// Check if packet is a TEC and send it to command queue
+					TEC = isPacketTEC(&rx_packet); // check if packet is a tec
+					if (TEC)
+					{
+						if (xQueueSend(RTOS_queue_cmd, &rx_packet, 0) != pdPASS)
+						{
+							rx_packet.state = PACKET_ERR_CMD_FULL; // command queue is full, cannot process packet
+						}
+					}
 				}
 
-
+				// Report command status
+				if (TEC)
+				{
+					if (rx_packet.state == PACKET_ERR_NONE)
+					{
+						// Send ACK packet to confirm valid command executed
+						sendACK(rx_packet.command);
+					}
+					else
+					{
+						// Send NACK packet to confirm invalid command received
+						sendNACK(rx_packet.command, rx_packet.state);
+					}
+				}
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing command
 				break;
@@ -207,7 +198,7 @@ void COMMS_stateMachine(void *parameter)
 					if (rs_enabled && tx_packet_struct.ecc)
 					{
 						// Encode data using Reed-Solomon ECC
-						printPacket("Decoded: ", tx_packet, tx_packet_size);
+						printPacket("Before encoding: ", tx_packet, tx_packet_size);
 
 						encodeECC(tx_packet, tx_packet_size);
 					}
