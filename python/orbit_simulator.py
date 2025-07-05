@@ -1,12 +1,8 @@
-import struct
 import sys
-import serial
-import serial.tools.list_ports
 from datetime import datetime
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QColor, QPalette, QTextCursor
+from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import QTimer
-import hashlib
 import numpy as np
 from sgp4.api import Satrec, jday
 from datetime import datetime, timedelta
