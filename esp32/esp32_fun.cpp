@@ -106,6 +106,18 @@ uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key)
     return x;
 }
 
+// Write float as 4 byte big endian
+void writeFloatToBytes(float value, uint8_t* buffer)
+{
+	uint32_t value_int;
+	memcpy(&value_int, &value, sizeof(float));  // interpret float bits as uint32_t
+
+	buffer[0] = (value_int >> 24) & 0xFF;
+	buffer[1] = (value_int >> 16) & 0xFF;
+	buffer[2] = (value_int >> 8) & 0xFF;
+	buffer[3] = value_int & 0xFF;
+}
+
 // Process commands in serial input TODO: maybe this should not be part of comms state machine
 void handleSerialInput()
 {
@@ -139,7 +151,7 @@ void handleSerialInput()
 						dataToPacket(packet_buffers[i], packet_lengths[i], &packet);
 						if (packet.state == PACKET_ERR_NONE)
 						{
-							xQueueSend(RTOS_queue_TX, &packet, portMAX_DELAY);
+							xQueueSend(RTOS_queue_TX, &packet, 0);
 							// Serial.printf("Packet %d sent.\n", i);
 						}
 						else
@@ -252,16 +264,33 @@ void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 
 
 // Initialize packet with default values
-void Packet::init()
+void Packet::init(bool rs_enabled, uint8_t cmd)
 {
 	state = PACKET_ERR_NONE; // no error
-	ecc = false; // RS encoding off by default
 	station = MISSION_ID; // default station ID
-	command = 0; // default command
+	command = cmd; // set command type
+	
+	if (rs_enabled)
+	{
+		switch (command)
+		{
+			case TER_BEACON:
+				ecc = false; // disable RS encoding only for TER_BEACON
+				break;
+			default:
+				ecc = true; // enable RS encoding for all other commands
+				break;
+		}
+	}
+	else
+	{
+		ecc = false; // disable RS encoding by default
+	}
+
 	time_unix = 0; // default UNIX time
 	MAC = 0; // default MAC
-	payload_length = 0; // no payload by default
 
+	payload_length = 0; // no payload by default
 	memset(payload, 0, PACKET_PAYLOAD_MAX); // clear payload
 }
 
@@ -308,7 +337,7 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 	}
 	else
 	{
-		packet->state = PACKET_ERR_RS; // Invalid RS flag
+		packet->state = PACKET_ERR_RS; // invalid RS flag
 		return;
 	}
 
@@ -511,62 +540,20 @@ int8_t decodeECC(uint8_t* data, uint8_t& data_len)
 }
 
 
-
-// Validate packet
-// int8_t validatePacket(const Packet* packet)
-// {
-// 	if (packet == nullptr) return PACKET_ERR_NONE;
-
-// 	// Check if packet length is valid
-// 	if (length == 0 || length > PACKET_SIZE_MAX || length != PACKET_HEADER_LENGTH + packet->payload_length)
-// 	{
-// 		packet->state = PACKET_ERR_LENGTH;
-// 		return packet;
-// 	}
-
-
-// 	// Check header fields
-// 	if (packet->ID == 0 || packet->ID > packet->ID_total) return PACKET_ERR_ID;
-// 	if (packet->payload_length > PACKET_PAYLOAD_MAX) return PACKET_ERR_LENGTH;
-
-// 	// Check MAC
-// 	uint32_t expected_mac = makeMAC(packet->time_unix, SECRET_KEY);
-// 	if (packet->MAC != expected_mac) return PACKET_ERR_MAC;
-
-// 	return PACKET_ERR_NONE;
-// }
-
-
-
-
 // ---------------------------------
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-
-// Assemble and execute command from valid packets
-bool executeCommand(const Packet* packets, uint8_t packets_total)
+// Execute TEC from valid packets
+bool executeTEC(const Packet* cmd)
 {
-	if (packets_total == 0) return false;
-
-	uint8_t TEC = packets[0].command;
-
-	// Merge payloads
-	uint8_t command_length = 0;
-	for (uint8_t i = 0; i < packets_total; i++)
+	if (cmd == nullptr)
 	{
-		command_length += packets[i].payload_length;
-	}
-	uint8_t command[command_length];
-	uint8_t offset = 0;
-	for (uint8_t i = 0; i < packets_total; i++)
-	{
-		memcpy(command + offset, packets[i].payload, packets[i].payload_length);
-		offset += packets[i].payload_length;
+		return false;
 	}
 
 	// Execute (assumes payloads are correct!)
-	switch (TEC)
+	switch (cmd->command)
 	{
 		case TEC_OBC_REBOOT:
 			Serial.println("TEC: OBC_REBOOT");
@@ -584,7 +571,8 @@ bool executeCommand(const Packet* packets, uint8_t packets_total)
 		case TEC_SET_TIME:
 		{
 			Serial.println("TEC: SET_TIME");
-			uint32_t time_new = ((uint32_t)command[0] << 24) | ((uint32_t)command[1] << 16) | ((uint32_t)command[2] << 8) | (uint32_t)command[3];
+
+			uint32_t time_new = ((uint32_t)cmd->payload[0] << 24) | ((uint32_t)cmd->payload[1] << 16) | ((uint32_t)cmd->payload[2] << 8) | (uint32_t)cmd->payload[3];
 			setUNIX(time_new);
 			Serial.printf("Time set to: %u\n", time_new);
 			break;
@@ -602,13 +590,37 @@ bool executeCommand(const Packet* packets, uint8_t packets_total)
 			Serial.println("TEC: ADCS_TLE");
 			break;
 
+		case TEC_LORA_LINK:
+		{
+			Serial.println("TEC: LORA_LINK");
+
+			float RSSI = radio.getRSSI();
+			float SNR = radio.getSNR();
+			float freq_shift = radio.getFrequencyError();
+
+			uint8_t payload[12]; // 12 bytes for RSSI, SNR, and frequency shift
+			writeFloatToBytes(RSSI, payload); // first 4 bytes for RSSI
+			writeFloatToBytes(SNR, payload + 4); // next 4 bytes for SNR
+			writeFloatToBytes(freq_shift, payload + 8); // last 4 bytes for frequency shift
+
+			// Create packet with LoRa link status
+			Packet lora_packet;
+			lora_packet.init(rs_enabled, TER_LORA_LINK); // initialize packet
+			lora_packet.setPayload(payload, sizeof(payload)); // set payload to LoRa link status
+			lora_packet.seal(); // seal packet with current time and MAC
+
+			// Send packet to queue
+			xQueueSend(RTOS_queue_TX, &lora_packet, 0);
+			break;
+		}
+
 		// TODO: deprecate these commands when splitting code for PQ/GS
-		case TRC_ACK:
-			Serial.println("TRC: ACK");
+		case TER_ACK:
+			Serial.println("TER: ACK");
 			break;
 
-		case TRC_NACK:
-			Serial.println("TRC: NACK");
+		case TER_NACK:
+			Serial.println("TER: NACK");
 			break;
 
 		default:
@@ -631,10 +643,24 @@ bool isPacketTEC(const Packet* packet)
 		case TEC_EPS_REBOOT:
 		case TEC_ADCS_REBOOT:
 		case TEC_ADCS_TLE:
+		case TEC_LORA_LINK:
 			return true;
 	
 		default:
 			return false; // not a TEC
+	}
+}
+
+// Check if ACK is needed for the command
+bool isACKNeeded(const Packet* packet)
+{
+	switch (packet->command)
+	{
+		case TEC_LORA_LINK:
+			return false; // ACK not needed for these commands
+		
+		default:
+			return true; // ACK needed
 	}
 }
 
@@ -643,15 +669,13 @@ void sendACK(bool ecc, uint8_t TEC)
 {
 	// Create ACK packet
 	Packet ack_packet;
-	ack_packet.init(); // initialize packet with default values
+	ack_packet.init(ecc, TER_ACK); // initialize packet
 
-	ack_packet.ecc = ecc; // set RS encoding flag
-	ack_packet.command = TRC_ACK; // set command to ACK
 	ack_packet.setPayload(&TEC, 1); // set payload to executed TEC
 	ack_packet.seal(); // seal packet with current time and MAC
 
 	// Send ACK packet to queue
-	xQueueSend(RTOS_queue_TX, &ack_packet, portMAX_DELAY);
+	xQueueSend(RTOS_queue_TX, &ack_packet, 0);
 }
 
 // Send NACK packet to report invalid command received
@@ -659,14 +683,12 @@ void sendNACK(bool ecc, uint8_t TEC, int8_t error)
 {
 	// Create NACK packet
 	Packet nack_packet;
-	nack_packet.init(); // initialize packet with default values
+	nack_packet.init(ecc, TER_NACK); // initialize packet
 
-	nack_packet.ecc = ecc; // set RS encoding flag
-	nack_packet.command = TRC_NACK; // set command to NACK
 	uint8_t payload[2] = {TEC, static_cast<uint8_t>(error)}; // payload contains TEC and error state
 	nack_packet.setPayload(payload, sizeof(payload)); // set payload to executed TEC
 	nack_packet.seal(); // seal packet with current time and MAC
 
 	// Send NACK packet to queue
-	xQueueSend(RTOS_queue_TX, &nack_packet, portMAX_DELAY);
+	xQueueSend(RTOS_queue_TX, &nack_packet, 0);
 }

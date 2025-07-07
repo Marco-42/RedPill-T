@@ -11,6 +11,9 @@ QueueHandle_t RTOS_queue_cmd;
 // General comunication state configuration 
 uint8_t COMMS_state = 0;
 
+// Flag to check if Reed-Solomon ECC is enabled
+bool rs_enabled = false;
+
 // Main COMMS loop
 void COMMS_stateMachine(void *parameter)
 {	
@@ -25,7 +28,6 @@ void COMMS_stateMachine(void *parameter)
 
 	// Initialize Reed-Solomon error correction
 	initialize_ecc();
-	bool rs_enabled = true; // flag to check if Reed-Solomon is enabled
 
 	Serial.println("ok");
 	
@@ -49,61 +51,55 @@ void COMMS_stateMachine(void *parameter)
 			// Check if there is packet waiting in the queue, in case it switch to COMMS_TX
 			case COMMS_IDLE:
 			{
-				Serial.print("COMMS_IDLE: Waiting for events ... ");
+				Serial.println("COMMS_IDLE: Waiting for events ... ");
 
 				bool first_run = true; // flag to check if this is the first run of the loop
 
-				do
+				// Keep checking for events until state changes
+				while (COMMS_state == COMMS_IDLE)
 				{
 					// Check if there are packets waiting in queue to be transmitted
 					if (uxQueueMessagesWaiting(RTOS_queue_TX) > 0)
 					{
 						// Switch to TX state
 						COMMS_state = COMMS_TX;
-
-						if (first_run)
-						{
-							Serial.println("");
-						}
+						break;
 					}
 
+					// Check if there are commands waiting in queue to be processed
+					if (uxQueueMessagesWaiting(RTOS_queue_cmd) > 0)
+					{
+						// Switch to CMD state
+						COMMS_state = COMMS_CMD;
+						break;
+					}
 					// Check if there is serial data to be transmitted
-					else if (Serial.available() > 0)
+					if (Serial.available() > 0)
 					{
 						// Switch to serial state
 						COMMS_state = COMMS_SERIAL;
-
-						if (first_run)
-						{
-							Serial.println("");
-						}
+						break;
 					}
+
 					
-					// Handle reception
-					else
+					// Enable RX if first run
+					if (first_run)
 					{
-						// Enable RX if first run
-						if (first_run)
-						{
-							startReception();
-							first_run = false; // disable RX for next runs
-						}
-
-						// Check if a packet has been received
-						// IDLE_TIMEOUT is the time to wait for a packet to be received before checking if there are other things to process
-						if (ulTaskNotifyTake(pdFALSE, IDLE_TIMEOUT) != 0) // if a packet is received before timeout
-						{
-							// Switch to RX state
-							COMMS_state = COMMS_RX;
-						}
-
-						// No packet received before timeout, no packet to send, no command to execute
-						else
-						{
-							// Do nothing, repeat loop	
-						}
+						startReception();
+						first_run = false; // do not activate RX for next runs
 					}
-				} while (COMMS_state == COMMS_IDLE); // repeat until state changes
+
+					// Check if a packet has been received
+					// IDLE_TIMEOUT is the time to wait for a packet to be received before checking if there are other things to process
+					if (ulTaskNotifyTake(pdFALSE, IDLE_TIMEOUT) != 0) // if a packet is received before timeout
+					{
+						// Switch to RX state
+						COMMS_state = COMMS_RX;
+						break;
+					}
+
+					// Nothing to do, repeat checks
+				}
 		
 				break;
 			}
@@ -119,10 +115,10 @@ void COMMS_stateMachine(void *parameter)
 				int8_t rx_state = radio.readData(rx_data, rx_data_size);
 
 				bool ecc = isDataECCEnabled(rx_data, rx_data_size);
-				bool TEC = false; // flag to check if packet is a TEC
+				bool is_TEC = false; // flag to check if packet is a TEC
 				
 				Packet rx_packet; // create packet struct to store received data
-				rx_packet.init(); // initialize packet with default values
+				rx_packet.init(ecc, 0); // initialize packet with default values
 
 				// Reception successfull
 				if (rx_state == RADIOLIB_ERR_NONE)
@@ -138,6 +134,7 @@ void COMMS_stateMachine(void *parameter)
 				else
 				{
 					// Always try to recover the packet, content can not be trusted otherwise
+					ecc = true;
 					printPacket("Before decoding: ", rx_data, rx_data_size);
 					rx_packet.state = decodeECC(rx_data, rx_data_size);
 				}
@@ -150,8 +147,8 @@ void COMMS_stateMachine(void *parameter)
 					dataToPacket(rx_data, rx_data_size, &rx_packet);
 
 					// Check if packet is a TEC and send it to command queue
-					TEC = isPacketTEC(&rx_packet); // check if packet is a tec
-					if (TEC)
+					is_TEC = isPacketTEC(&rx_packet); // check if packet is a tec
+					if (is_TEC)
 					{
 						if (xQueueSend(RTOS_queue_cmd, &rx_packet, 0) != pdPASS)
 						{
@@ -160,18 +157,22 @@ void COMMS_stateMachine(void *parameter)
 					}
 				}
 
-				// Report command status
-				if (TEC)
+				// Serial.printf("COMMS_RX: Command %d has state %d, it is %s\n", rx_packet.command, rx_packet.state, is_TEC ? "TEC" : "non-TEC");
+				if (is_TEC)
 				{
+					rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
 					if (rx_packet.state == PACKET_ERR_NONE)
 					{
-						// Send ACK packet to confirm valid command executed
-						sendACK(rx_packet.command);
+						if (isACKNeeded(&rx_packet))
+						{
+							// Send ACK packet to confirm valid command executed
+							sendACK(rs_enabled, rx_packet.command);
+						}
 					}
 					else
 					{
 						// Send NACK packet to confirm invalid command received
-						sendNACK(rx_packet.command, rx_packet.state);
+						sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
 					}
 				}
 
@@ -184,7 +185,8 @@ void COMMS_stateMachine(void *parameter)
 			{
 				Serial.println("COMMS_TX: Starting packet transmission ... ");
 
-				do
+				// Keep processing packets until queue is empty
+				while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0)
 				{
 					// Get packet data from queue
 					Packet tx_packet_struct;
@@ -209,9 +211,29 @@ void COMMS_stateMachine(void *parameter)
 					// Wait for transmission to end
 					ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-				} while (uxQueueMessagesWaiting(RTOS_queue_TX) > 0); // repeat if there are multiple packets to be sent
+				}
 				
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing all packets
+				break;
+			}
+
+			// COMMAND PROCESSING
+			case COMMS_CMD:
+			{
+				Serial.println("COMMS_CMD: Processing command packets ... ");
+
+				// Keep processing command packets until queue is empty
+				while (uxQueueMessagesWaiting(RTOS_queue_cmd) > 0)
+				{
+					// Get command packet from queue
+					Packet cmd_packet;
+					xQueueReceive(RTOS_queue_cmd, &cmd_packet, portMAX_DELAY);
+
+					// Execute command
+					executeTEC(&cmd_packet);
+				}
+
+				COMMS_state = COMMS_IDLE; // go back to idle state after processing all commands
 				break;
 			}
 
@@ -225,7 +247,6 @@ void COMMS_stateMachine(void *parameter)
 				COMMS_state = COMMS_IDLE;
 				break;
 			}
-
 
 			default:
 			{

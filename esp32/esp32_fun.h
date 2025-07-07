@@ -59,12 +59,13 @@ extern QueueHandle_t RTOS_queue_cmd; // queue for command packets
 
 // States configuration
 #define COMMS_IDLE 0 // default idle state
-#define COMMS_TX 1 // tx state
+#define COMMS_TX 1 // tx state to encode and send packets
 #define COMMS_TX_ERROR 2 // tx error state
-#define COMMS_RX 3 // rx state
+#define COMMS_RX 3 // rx state to decode and process received packets
 #define COMMS_RX_ERROR 4 // rx error state
-#define COMMS_ERROR 5 // error state
-#define COMMS_SERIAL 6 // serial state to input packets manually (GS mode)
+#define COMMS_CMD 5 // command state to process received packets
+#define COMMS_ERROR 6 // error state
+#define COMMS_SERIAL 7 // serial state to input packets manually (GS mode)
 
 // States timing
 #define IDLE_TIMEOUT 500 // [ms] idle timeout to wait before checking if a packet needs to be sent
@@ -99,14 +100,12 @@ void printPacket(const char* prefix, const uint8_t* packet, uint8_t length);
 
 // Command configuration
 #define CMD_QUEUE_SIZE 2 // [packets] size of cmd queue
-// #define CMD_PACKETS_MAX 2 // [packets] max number of packets in a command
-// constexpr uint8_t CMD_SIZE_MAX = (PACKET_SIZE_MAX * CMD_PACKETS_MAX); // [bytes] max size of a command
-
 
 // MAC configuration
 #define SECRET_KEY 0xA1B2C3D4 // secret key for MAC generation
 
 // RS encoding configuration
+extern bool rs_enabled;
 #define RS_BLOCK_SIZE 16 // [bytes] size of RS block
 constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of data block (data + parity)
 #define BYTE_RS_OFF 0x55
@@ -135,18 +134,18 @@ constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of dat
 #define TEC_EPS_REBOOT 0x08 // reboot EPS command
 #define TEC_ADCS_REBOOT 0x10 // reboot ADCS command
 #define TEC_ADCS_TLE 0x11 // send TLE to ADCS command
+#define TEC_LORA_LINK 0x18 // send LoRa link status command
 
-// TRC codes
-#define TRC_BEACON 0x30 // telemetry beacon reply
-#define TRC_ACK 0x31 // ACK reply
-#define TRC_NACK 0x32 // NACK reply
+// TER codes
+#define TER_BEACON 0x30 // telemetry beacon reply
+#define TER_ACK 0x31 // ACK reply
+#define TER_NACK 0x32 // NACK reply
+#define TER_LORA_LINK 0x33 // LoRa link state reply
 
-// TRC lengths
-#define TRC_BEACON_LENGTH 8 // [bytes] length of the telemetry beacon reply
-#define TRC_ACK_LENGTH 8 // [bytes] length of the ACK reply
-#define TRC_NACK_LENGTH 8 // [bytes] length of the NACK reply
+// TER lengths
+// #define TER_BEACON_LENGTH 8 // [bytes] length of the telemetry beacon reply
 
-// TRC header
+// TER header
 #define MISSION_ID 0x01 // mission ID
 
 // ---------------------------------
@@ -176,6 +175,9 @@ uint32_t getUNIX();
 // MAC function to generate a message authentication code
 uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
 
+// Write float as 4 byte big endian
+void writeFloatToBytes(float value, uint8_t* buffer);
+
 // Process commands in serial input
 void handleSerialInput();
 
@@ -196,7 +198,7 @@ struct Packet
 	uint8_t payload_length;
 	uint8_t payload[PACKET_PAYLOAD_MAX];
 
-	void init();
+	void init(bool rs_enabled, uint8_t cmd);
 	void setPayload(const uint8_t* data, uint8_t length);
 	void seal(); // seal packet by calculating MAC and setting time
 };
@@ -235,14 +237,14 @@ int8_t decodeECC(uint8_t* data, uint8_t& data_len);
 // COMMAND FUNCTIONS
 // ---------------------------------
 
-// Check if packets form a valid command
-int8_t checkPackets(const Packet* packets, uint8_t packets_total);
-
-// Assemble and execute command from valid packets
-bool executeCommand(const Packet* packets, uint8_t packets_total);
+// Execute TEC from valid packets
+bool executeTEC(const Packet* cmd);
 
 // Check if packet is a TEC to be executed
 bool isPacketTEC(const Packet* packet);
+
+// Check if ACK is needed for the command
+bool isACKNeeded(const Packet* packet);
 
 // Send ACK packet to report valid command received
 void sendACK(bool ecc, uint8_t TEC);
