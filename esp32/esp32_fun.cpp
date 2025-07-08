@@ -97,13 +97,72 @@ uint32_t getUNIX()
 }
 
 // MAC function to generate a message authentication code
-uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key)
+// uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key)
+// {
+//     uint32_t x = timestamp ^ secret_key;
+//     x = ((x >> 16) ^ x) * 0x45d9f3b;
+//     x = ((x >> 16) ^ x) * 0x45d9f3b;
+//     x = (x >> 16) ^ x;
+//     return x;
+// }
+int8_t makeMAC(const Packet* packet, uint32_t* out_mac)
 {
-    uint32_t x = timestamp ^ secret_key;
-    x = ((x >> 16) ^ x) * 0x45d9f3b;
-    x = ((x >> 16) ^ x) * 0x45d9f3b;
-    x = (x >> 16) ^ x;
-    return x;
+    uint8_t buffer[PACKET_HEADER_LENGTH + PACKET_PAYLOAD_MAX]; // header + max payload
+    uint8_t full_output[32]; // full HMAC-SHA256 output
+    int ret = 0;
+
+    const mbedtls_md_info_t* md_info;
+    mbedtls_md_context_t ctx;
+    mbedtls_md_init(&ctx);
+
+    // === Construct header ===
+    buffer[0] = packet->station;
+    buffer[1] = packet->ecc ? BYTE_RS_ON : BYTE_RS_OFF;
+    buffer[2] = packet->command;
+    buffer[3] = packet->payload_length;
+
+    // === Timestamp: bytes 4–7 ===
+    buffer[4] = (packet->time_unix >> 24) & 0xFF;
+    buffer[5] = (packet->time_unix >> 16) & 0xFF;
+    buffer[6] = (packet->time_unix >> 8)  & 0xFF;
+    buffer[7] = (packet->time_unix)       & 0xFF;
+
+    // === MAC placeholder: bytes 8–11 ===
+    buffer[8]  = 0;
+    buffer[9]  = 0;
+    buffer[10] = 0;
+    buffer[11] = 0;
+
+    // === Copy payload ===
+    memcpy(buffer + PACKET_HEADER_LENGTH, packet->payload, packet->payload_length);
+
+    // === Compute HMAC-SHA256 ===
+    md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    if (!md_info) goto fail;
+
+    ret = mbedtls_md_setup(&ctx, md_info, 1); // HMAC enabled
+    if (ret != 0) goto fail;
+
+    ret = mbedtls_md_hmac_starts(&ctx, SECRET_KEY, sizeof(SECRET_KEY));
+    if (ret != 0) goto fail;
+
+    ret = mbedtls_md_hmac_update(&ctx, buffer, PACKET_HEADER_LENGTH + packet->payload_length);
+    if (ret != 0) goto fail;
+
+    ret = mbedtls_md_hmac_finish(&ctx, full_output);
+    if (ret != 0) goto fail;
+
+    *out_mac = ((uint32_t)full_output[0] << 24) |
+               ((uint32_t)full_output[1] << 16) |
+               ((uint32_t)full_output[2] << 8)  |
+               ((uint32_t)full_output[3]);
+
+    mbedtls_md_free(&ctx);
+    return PACKET_ERR_NONE;
+
+fail:
+    mbedtls_md_free(&ctx);
+    return PACKET_ERR_MAC;
 }
 
 // Write float as 4 byte big endian
@@ -295,23 +354,34 @@ void Packet::init(bool rs_enabled, uint8_t cmd)
 }
 
 // Set packet payload data and length
-void Packet::setPayload(const uint8_t* data, uint8_t length)
+int8_t Packet::setPayload(const uint8_t* data, uint8_t length)
 {
 	if (length > PACKET_PAYLOAD_MAX)
 	{
-		length = PACKET_PAYLOAD_MAX;  // Prevent overflow
+		return PACKET_ERR_LENGTH;
 	}
 
 	memcpy(payload, data, length);
 	payload_length = length;
+
+	return PACKET_ERR_NONE;
 }
 
 // Seal packet by calculating MAC and setting time
-void Packet::seal()
+int8_t Packet::seal()
 {
 	time_unix = getUNIX();
-	MAC = makeMAC(time_unix, SECRET_KEY);
+
+	uint32_t mac_calculated;
+	int8_t mac_state = makeMAC(this, &mac_calculated);
+
+	if (mac_state != PACKET_ERR_NONE)
+		return mac_state;
+
+	MAC = mac_calculated;
+	return PACKET_ERR_NONE;
 }
+
 
 // Convert received data to packet with validation
 void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
@@ -373,25 +443,30 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 		return;
 	}
 
-	// Byte 8–11: UNIX time
-	packet->time_unix = ((uint32_t)data[8] << 24) | ((uint32_t)data[9] << 16) | ((uint32_t)data[10] << 8) | (uint32_t)data[11];
+	// Byte 4–7: UNIX time
+	packet->time_unix = ((uint32_t)data[4] << 24) | ((uint32_t)data[5] << 16) | ((uint32_t)data[6] << 8) | (uint32_t)data[7];
 
-	// Byte 4–7: MAC
-	packet->MAC = ((uint32_t)data[4] << 24) | ((uint32_t)data[5] << 16) | ((uint32_t)data[6] << 8) | (uint32_t)data[7];
-
-	uint32_t expected_MAC = makeMAC(packet->time_unix, SECRET_KEY); // SECRET_KEY is a predefined constant
-	if (packet->MAC != expected_MAC)
-	{
-		packet->state = PACKET_ERR_MAC; // MAC error
-		return;
-	}
+	// Byte 8–11: MAC
+	packet->MAC = ((uint32_t)data[8] << 24) | ((uint32_t)data[9] << 16) | ((uint32_t)data[10] << 8) | (uint32_t)data[11];
 
 	// Parse payload
 	packet->setPayload(data + PACKET_HEADER_LENGTH, packet->payload_length);
-	// for (uint8_t i = 0; i < packet->payload_length; i++)
-	// {
-	// 	packet->payload[i] = data[PACKET_HEADER_LENGTH + i];
-	// }
+
+	// Check if MAC is valid
+	uint32_t mac_calculated;
+	int8_t mac_state = makeMAC(packet, &mac_calculated);
+
+	if (mac_state != PACKET_ERR_NONE)
+	{
+		packet->state = mac_state; // MAC error
+		return;
+	}
+	if (mac_calculated != packet->MAC)
+	{
+		packet->state = PACKET_ERR_MAC; // MAC mismatch
+		return;
+	}
+	// Serial.printf("Packet MAC: %08X, Calculated MAC: %08X\n", packet->MAC, mac_calculated);
 
 	// Packet successfully decoded
 	packet->state = PACKET_ERR_NONE;
@@ -419,17 +494,17 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 	// Byte 3: payload length
 	data[3] = packet->payload_length;
 
-	// Byte 4–7: MAC
-	data[4] = (packet->MAC >> 24) & 0xFF;
-	data[5] = (packet->MAC >> 16) & 0xFF;
-	data[6] = (packet->MAC >> 8) & 0xFF;
-	data[7] = packet->MAC & 0xFF;
+	// Byte 4–7: UNIX time
+	data[4] = (packet->time_unix >> 24) & 0xFF;
+	data[5] = (packet->time_unix >> 16) & 0xFF;
+	data[6] = (packet->time_unix >> 8) & 0xFF;
+	data[7] = packet->time_unix & 0xFF;
 
-	// Byte 8–11: UNIX time
-	data[8] = (packet->time_unix >> 24) & 0xFF;
-	data[9] = (packet->time_unix >> 16) & 0xFF;
-	data[10] = (packet->time_unix >> 8) & 0xFF;
-	data[11] = packet->time_unix & 0xFF;
+	// Byte 8–11: MAC
+	data[8] = (packet->MAC >> 24) & 0xFF;
+	data[9] = (packet->MAC >> 16) & 0xFF;
+	data[10] = (packet->MAC >> 8) & 0xFF;
+	data[11] = packet->MAC & 0xFF;
 
 	// Payload bytes
 	for (uint8_t i = 0; i < packet->payload_length; i++)
@@ -545,11 +620,11 @@ int8_t decodeECC(uint8_t* data, uint8_t& data_len)
 // ---------------------------------
 
 // Execute TEC from valid packets
-bool executeTEC(const Packet* cmd)
+int8_t executeTEC(const Packet* cmd)
 {
 	if (cmd == nullptr)
 	{
-		return false;
+		return PACKET_ERR_CMD_GENERIC;
 	}
 
 	// Execute (assumes payloads are correct!)
@@ -589,8 +664,84 @@ bool executeTEC(const Packet* cmd)
 		case TEC_ADCS_TLE:
 			Serial.println("TEC: ADCS_TLE");
 			break;
+		
+		case TEC_LORA_STATE:
+		{
+			Serial.println("TEC: LORA_STATE");
 
-		case TEC_LORA_LINK:
+			// Unpack LoRa state from payload
+			uint8_t tx_state_new = cmd->payload[0];
+			uint8_t val0 = (tx_state_new >> 0) & 0b11;
+			uint8_t val1 = (tx_state_new >> 2) & 0b11;
+			uint8_t val2 = (tx_state_new >> 4) & 0b11;
+			uint8_t val3 = (tx_state_new >> 6) & 0b11;
+			Serial.printf("LoRa TX State new: %d, values: %d, %d, %d\n", tx_state_new, val1, val2, val3);
+
+			if (val0 == val1 && val0 == val2 && val0 == val3)
+			{
+				// All values are the same, use common value
+				tx_state_new = val0;
+			}
+			else
+			{
+				return PACKET_ERR_CMD_PAYLOAD; // payload error if not all same
+			}
+
+			// Unpack duration from payload
+			uint32_t duration = ((uint32_t)cmd->payload[1] << 16) | ((uint32_t)cmd->payload[2] << 8) | (uint32_t)cmd->payload[3];
+
+			// Set LoRa TX state
+			tx_state = tx_state_new;
+			Serial.printf("LoRa TX State set to %d for %d s\n", tx_state, duration);
+
+			// Handle duration-based reset
+			if (duration > 0) {
+				// Duration is in seconds, convert to ticks
+				TickType_t ticks = pdMS_TO_TICKS(duration * 1000UL);
+
+				// Create timer if not already created
+				if (RTOS_tx_timer == NULL)
+				{
+					RTOS_tx_timer = xTimerCreate("LoRa State Timer",
+													ticks,
+													pdFALSE,  // one-shot
+													NULL,
+													vTxStateReset);
+				}
+
+				if (RTOS_tx_timer != NULL)
+				{
+					// Stop and change timer duration before restarting
+					xTimerStop(RTOS_tx_timer, 0);
+					xTimerChangePeriod(RTOS_tx_timer, ticks, 0);
+					xTimerStart(RTOS_tx_timer, 0);
+				}
+			}
+			else
+			{
+				// No timer needed; state is permanent
+				if (RTOS_tx_timer != NULL)
+				{
+					xTimerStop(RTOS_tx_timer, 0);
+				}
+			}
+			break;
+		}
+
+		case TEC_LORA_CONFIG:
+			Serial.println("TEC: LORA_CONFIG");
+
+			// // Create packet with LoRa configuration
+			// Packet lora_config_packet;
+			// lora_config_packet.init(rs_enabled, TER_LORA_LINK); // initialize packet
+			// lora_config_packet.setPayload(&tx_enabled, 1); // set payload to TX state
+			// lora_config_packet.seal(); // seal packet with current time and MAC
+
+			// // Send packet to queue
+			// xQueueSend(RTOS_queue_TX, &lora_config_packet, 0);
+			break;
+
+		case TEC_LORA_PING:
 		{
 			Serial.println("TEC: LORA_LINK");
 
@@ -625,10 +776,10 @@ bool executeTEC(const Packet* cmd)
 
 		default:
 			Serial.println("Unknown TEC!");
-			return false;
+			return PACKET_ERR_CMD_UNKNOWN;
 	}
 
-	return true;
+	return PACKET_ERR_NONE; // return no error
 }
 
 // Check if packet is a TEC to be executed
@@ -643,7 +794,9 @@ bool isPacketTEC(const Packet* packet)
 		case TEC_EPS_REBOOT:
 		case TEC_ADCS_REBOOT:
 		case TEC_ADCS_TLE:
-		case TEC_LORA_LINK:
+		case TEC_LORA_STATE:
+		case TEC_LORA_CONFIG:
+		case TEC_LORA_PING:
 			return true;
 	
 		default:
@@ -656,11 +809,23 @@ bool isACKNeeded(const Packet* packet)
 {
 	switch (packet->command)
 	{
-		case TEC_LORA_LINK:
+		case TEC_LORA_PING:
 			return false; // ACK not needed for these commands
 		
 		default:
 			return true; // ACK needed
+	}
+}
+
+// Check if ACK is needed for the command before execution
+bool isACKNeededBefore(const Packet* packet)
+{
+	switch (packet->command)
+	{
+		case TEC_OBC_REBOOT:
+			return true; // ACK needs to be sent before rebooting
+		default:
+			return false; // ACK not needed
 	}
 }
 
@@ -691,4 +856,23 @@ void sendNACK(bool ecc, uint8_t TEC, int8_t error)
 
 	// Send NACK packet to queue
 	xQueueSend(RTOS_queue_TX, &nack_packet, 0);
+}
+
+
+// ---------------------------------
+// TIMER FUNCTIONS
+// ---------------------------------
+
+void vTxStateReset(TimerHandle_t xTimer)
+{
+	// Reset TX state
+	tx_state = BYTE_TX_ON; // reset to default TX state
+	Serial.println("LoRa TX state reset to ON");
+
+	// Delete timer
+	if (RTOS_tx_timer != NULL)
+	{
+		xTimerDelete(RTOS_tx_timer, 0);
+		RTOS_tx_timer = NULL;
+	}
 }

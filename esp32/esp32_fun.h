@@ -20,6 +20,11 @@ extern "C"
 #include <time.h>
 #include <sys/time.h>
 
+// Library for message authentication code
+#include "mbedtls/md.h"
+#include <stdio.h>
+#include <string.h>
+
 // ---------------------------------
 // LORA CONFIGURATION
 // ---------------------------------
@@ -31,10 +36,10 @@ extern "C"
 #define DIO1_PIN 33
 
 // SX1278 LoRa module configuration
-#define F 433.0 // frequency [MHz]
+#define F 436.0 // frequency [MHz]
 #define BW 125.0 // bandwidth [kHz]
 #define SF 10 // spreading factor
-#define CR 8 // coding rate
+#define CR 5 // coding rate
 #define SYNC_WORD 0x12 // standard for private communications
 #define OUTPUT_POWER 10 // 10 dBm is set for testing phase (ideal value to use: 22 dBm)
 #define PREAMBLE_LENGTH 8 // standard
@@ -102,7 +107,7 @@ void printPacket(const char* prefix, const uint8_t* packet, uint8_t length);
 #define CMD_QUEUE_SIZE 2 // [packets] size of cmd queue
 
 // MAC configuration
-#define SECRET_KEY 0xA1B2C3D4 // secret key for MAC generation
+const uint8_t SECRET_KEY[] = { 0xA1, 0xB2, 0xC3, 0xD4 }; // secret key for MAC generation
 
 // RS encoding configuration
 extern bool rs_enabled;
@@ -110,7 +115,13 @@ extern bool rs_enabled;
 constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of data block (data + parity)
 #define BYTE_RS_OFF 0x55
 #define BYTE_RS_ON 0xAA
-#define BYTE_RS_PADDING 0x00 
+#define BYTE_RS_PADDING 0x00
+
+// TX state configuration
+extern uint8_t tx_state;
+#define BYTE_TX_OFF 0x00 // TX off
+#define BYTE_TX_ON 0x01 // TX on
+#define BYTE_TX_NOBEACON 0x02 // TX no beacon
 
 // Error codes
 #define PACKET_ERR_NONE 0 // no error in packet
@@ -119,12 +130,9 @@ constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of dat
 #define PACKET_ERR_LENGTH -3 // error in packet length
 #define PACKET_ERR_MAC -4 // error in MAC
 #define PACKET_ERR_CMD_FULL -5 // error in command queue full
-
-// #define CMD_ERR_NONE 0 // no error in command
-// #define CMD_ERR_PACKET -1 // error in packet state
-// #define CMD_ERR_HEADER -2 // error in packet header
-// #define CMD_ERR_ID -3 // error in packet ID (double or out of range)
-// #define CMD_ERR_MISSING -4 // missing packet in command
+#define PACKET_ERR_CMD_GENERIC -6 // error in command generic
+#define PACKET_ERR_CMD_UNKNOWN -7 // error in command unknown
+#define PACKET_ERR_CMD_PAYLOAD -8 // error in command payload
 
 // TEC codes
 #define TEC_OBC_REBOOT 0x01 // reboot OBC command
@@ -134,7 +142,9 @@ constexpr uint8_t DATA_BLOCK_SIZE = RS_BLOCK_SIZE - NPAR; // [bytes] size of dat
 #define TEC_EPS_REBOOT 0x08 // reboot EPS command
 #define TEC_ADCS_REBOOT 0x10 // reboot ADCS command
 #define TEC_ADCS_TLE 0x11 // send TLE to ADCS command
-#define TEC_LORA_LINK 0x18 // send LoRa link status command
+#define TEC_LORA_STATE 0x18 // send LoRa state command
+#define TEC_LORA_CONFIG 0x19 // send LoRa link status command
+#define TEC_LORA_PING 0x1A // send LoRa link status command
 
 // TER codes
 #define TER_BEACON 0x30 // telemetry beacon reply
@@ -166,6 +176,23 @@ void printPacket(const char* prefix, const uint8_t* packet, uint8_t length);
 // HELPER FUNCTIONS
 // ---------------------------------
 
+// Struct to hold packet information
+struct Packet
+{
+	uint8_t station;
+	bool ecc; // flag to indicate if RS ECC is used
+	uint8_t command;
+	uint8_t payload_length;
+	uint32_t time_unix;
+	uint32_t MAC;
+	uint8_t payload[PACKET_PAYLOAD_MAX];
+	int8_t state;
+
+	void init(bool rs_enabled, uint8_t cmd);
+	int8_t setPayload(const uint8_t* data, uint8_t length);
+	int8_t seal(); // seal packet by calculating MAC and setting time
+};
+
 // Initialize system time to a specific UNIX timestamp, or default to Jan 1, 2025 if 0
 void setUNIX(uint32_t unixTime = 0);
 
@@ -173,7 +200,8 @@ void setUNIX(uint32_t unixTime = 0);
 uint32_t getUNIX();
 
 // MAC function to generate a message authentication code
-uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
+// uint32_t makeMAC(uint32_t timestamp, uint32_t secret_key);
+int8_t makeMAC(const Packet* packet, uint32_t* out_mac);
 
 // Write float as 4 byte big endian
 void writeFloatToBytes(float value, uint8_t* buffer);
@@ -185,23 +213,6 @@ void handleSerialInput();
 // ---------------------------------
 // RADIO FUNCTIONS
 // ---------------------------------
-
-// Struct to hold packet information
-struct Packet
-{
-	int8_t state;
-	bool ecc; // flag to indicate if RS ECC is used
-	uint8_t station;
-	uint8_t command;
-	uint32_t MAC;
-	uint32_t time_unix;
-	uint8_t payload_length;
-	uint8_t payload[PACKET_PAYLOAD_MAX];
-
-	void init(bool rs_enabled, uint8_t cmd);
-	void setPayload(const uint8_t* data, uint8_t length);
-	void seal(); // seal packet by calculating MAC and setting time
-};
 
 // Notify COMMS task of a radio event (called when packet sent or received)
 void packetEvent(void);
@@ -238,7 +249,7 @@ int8_t decodeECC(uint8_t* data, uint8_t& data_len);
 // ---------------------------------
 
 // Execute TEC from valid packets
-bool executeTEC(const Packet* cmd);
+int8_t executeTEC(const Packet* cmd);
 
 // Check if packet is a TEC to be executed
 bool isPacketTEC(const Packet* packet);
@@ -246,10 +257,22 @@ bool isPacketTEC(const Packet* packet);
 // Check if ACK is needed for the command
 bool isACKNeeded(const Packet* packet);
 
+// Check if ACK is needed for the command before execution
+bool isACKNeededBefore(const Packet* packet);
+
 // Send ACK packet to report valid command received
 void sendACK(bool ecc, uint8_t TEC);
 
 // Send NACK packet to report invalid command received
 void sendNACK(bool ecc, uint8_t TEC, int8_t error);
+
+
+// ---------------------------------
+// TIMER FUNCTIONS
+// ---------------------------------
+
+extern TimerHandle_t RTOS_tx_timer; // timer to reset TX state
+
+void vTxStateReset(TimerHandle_t xTimer);
 
 #endif

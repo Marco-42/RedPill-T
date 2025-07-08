@@ -9,7 +9,11 @@ QueueHandle_t RTOS_queue_TX;
 QueueHandle_t RTOS_queue_cmd;
 
 // General comunication state configuration 
-uint8_t COMMS_state = 0;
+uint8_t COMMS_state = COMMS_IDLE;
+
+// Transmission state
+uint8_t tx_state = BYTE_TX_ON;
+TimerHandle_t RTOS_tx_timer;
 
 // Flag to check if Reed-Solomon ECC is enabled
 bool rs_enabled = false;
@@ -155,6 +159,10 @@ void COMMS_stateMachine(void *parameter)
 							rx_packet.state = PACKET_ERR_CMD_FULL; // command queue is full, cannot process packet
 						}
 					}
+					else
+					{
+						Serial.printf("Received non-TEC packet with command %d\n", rx_packet.command);
+					}
 				}
 
 				// Serial.printf("COMMS_RX: Command %d has state %d, it is %s\n", rx_packet.command, rx_packet.state, is_TEC ? "TEC" : "non-TEC");
@@ -163,9 +171,9 @@ void COMMS_stateMachine(void *parameter)
 					rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
 					if (rx_packet.state == PACKET_ERR_NONE)
 					{
-						if (isACKNeeded(&rx_packet))
+						if (isACKNeededBefore(&rx_packet))
 						{
-							// Send ACK packet to confirm valid command executed
+							// Send early ACK packet to confirm valid command executed
 							sendACK(rs_enabled, rx_packet.command);
 						}
 					}
@@ -191,7 +199,14 @@ void COMMS_stateMachine(void *parameter)
 					// Get packet data from queue
 					Packet tx_packet_struct;
 					xQueueReceive(RTOS_queue_TX, &tx_packet_struct, portMAX_DELAY);
-					
+				
+					if (tx_state == BYTE_TX_OFF || 
+						(tx_state == BYTE_TX_NOBEACON && tx_packet_struct.command == TER_BEACON))
+					{
+						Serial.println("COMMS_TX: Transmission is off, skipping packet.");
+						continue; // skip transmission if TX is off
+					}
+
 					// Prepare packet
 					uint8_t tx_packet[PACKET_SIZE_MAX];
 					uint8_t tx_packet_size = packetToData(&tx_packet_struct, tx_packet);
@@ -210,7 +225,6 @@ void COMMS_stateMachine(void *parameter)
 
 					// Wait for transmission to end
 					ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
 				}
 				
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing all packets
@@ -230,7 +244,20 @@ void COMMS_stateMachine(void *parameter)
 					xQueueReceive(RTOS_queue_cmd, &cmd_packet, portMAX_DELAY);
 
 					// Execute command
-					executeTEC(&cmd_packet);
+					int8_t cmd_state = executeTEC(&cmd_packet);
+					if (cmd_state == PACKET_ERR_NONE)
+					{
+						// Command executed successfully, send ACK if needed
+						if (isACKNeeded(&cmd_packet))
+						{
+							sendACK(cmd_packet.ecc, cmd_packet.command);
+						}
+					}
+					else
+					{
+						// Command execution failed, send NACK with error code
+						sendNACK(cmd_packet.ecc, cmd_packet.command, cmd_state);
+					}
 				}
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing all commands
