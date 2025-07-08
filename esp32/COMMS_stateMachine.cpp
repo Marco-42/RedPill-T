@@ -37,8 +37,8 @@ void COMMS_stateMachine(void *parameter)
 	
 	// Start LoRa module
 	Serial.print("[SX1278] Initializing ... ");
-	int8_t state = radio.begin(F, BW, SF, CR, SYNC_WORD, OUTPUT_POWER, PREAMBLE_LENGTH, GAIN);
-	printRadioStatus(state, true); // block program if LoRa cannot be initialized
+	int8_t radio_state = radio.begin(F, BW, SF, CR, SYNC_WORD, OUTPUT_POWER, PREAMBLE_LENGTH, GAIN);
+	printRadioStatus(radio_state, true); // block program if LoRa cannot be initialized
 
 	// Set ISR to be called when packets are sent or received
 	radio.setPacketSentAction(packetEvent);

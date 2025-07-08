@@ -729,17 +729,88 @@ int8_t executeTEC(const Packet* cmd)
 		}
 
 		case TEC_LORA_CONFIG:
+		{
 			Serial.println("TEC: LORA_CONFIG");
 
-			// // Create packet with LoRa configuration
-			// Packet lora_config_packet;
-			// lora_config_packet.init(rs_enabled, TER_LORA_LINK); // initialize packet
-			// lora_config_packet.setPayload(&tx_enabled, 1); // set payload to TX state
-			// lora_config_packet.seal(); // seal packet with current time and MAC
+			// Byte 0–2: frequency in MHz
+			uint32_t freq_mhz = (((uint32_t)cmd->payload[0] << 16) |
+								((uint32_t)cmd->payload[1] << 8) |
+								(uint32_t)cmd->payload[2]) / 1000;
 
-			// // Send packet to queue
-			// xQueueSend(RTOS_queue_TX, &lora_config_packet, 0);
-			break;
+			// Byte 3
+			uint8_t b3 = cmd->payload[3];
+			uint8_t bandwidth = (b3 >> 6) & 0b11; // 2 bits
+			float bw_khz = 0.0;
+			switch (bandwidth)
+			{
+			case 0:
+				bw_khz = 62.5;
+				break;
+			case 1:
+				bw_khz = 125.0;
+				break;
+			case 2:
+				bw_khz = 250.0;
+				break;
+			case 3:
+				bw_khz = 500.0;
+				break;
+			default:
+				break;
+			}
+			uint8_t sf = ((b3 >> 3) & 0b111) + 6; // 3 bits, add 6
+			uint8_t cr = (b3 & 0b111) + 5; // 3 bits, add 5
+
+			// Byte 4
+			uint8_t b4 = cmd->payload[4];
+			int8_t power = ((b4 >> 3) & 0b11111) - 9; // 5 bits
+			uint8_t reserved = b4 & 0b111; // 3 bits
+
+			// Validate parameters
+			Serial.printf("LoRa Config: Freq: %u kHz, BW: %.1f kHz, SF: %d, CR: %d, Power: %d dBm\n", freq_mhz, bw_khz, sf, cr, power);
+			if (freq_mhz < 400 || freq_mhz > 500 || bw_khz < 62.5 || bw_khz > 500 ||
+				sf < 6 || sf > 12 || cr < 5 || cr > 8 || power < -4 || power > 17) // TODO update power range for SX1268, -9 to +22 dBm
+			{
+				Serial.println("Invalid LoRa configuration parameters!");
+				return PACKET_ERR_CMD_PAYLOAD; // payload error
+			}
+
+			// Apply LoRa configuration
+			int8_t state = radio.setFrequency(freq_mhz);
+			if (state != RADIOLIB_ERR_NONE)
+			{
+				Serial.println("Failed to set frequency");
+				return PACKET_ERR_CMD_PAYLOAD; // payload error
+			}
+
+			state = radio.setBandwidth(bw_khz);
+			if (state != RADIOLIB_ERR_NONE)
+			{
+				Serial.println("Failed to set bandwidth");
+				return PACKET_ERR_CMD_PAYLOAD; // payload error
+			}
+
+			state = radio.setSpreadingFactor(sf);
+			if (state != RADIOLIB_ERR_NONE)
+			{
+				Serial.println("Failed to set spreading factor");
+				return PACKET_ERR_CMD_PAYLOAD; // payload error
+			}
+
+			state = radio.setCodingRate(cr);
+			if (state != RADIOLIB_ERR_NONE)
+			{
+				Serial.println("Failed to set coding rate");
+				return PACKET_ERR_CMD_PAYLOAD; // payload error
+			}
+
+			state = radio.setOutputPower(power);
+			if (state != RADIOLIB_ERR_NONE)
+			{
+				Serial.println("Failed to set output power");
+				return PACKET_ERR_CMD_PAYLOAD; // payload error
+			}
+		}
 
 		case TEC_LORA_PING:
 		{
