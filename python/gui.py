@@ -2,15 +2,20 @@ import struct
 import sys
 import serial
 import serial.tools.list_ports
-from datetime import datetime
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QColor, QPalette, QTextCursor
-from PyQt5.QtCore import QTimer, Qt
-import hashlib
 
+from datetime import datetime
+
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QColor
+from PyQt5.QtCore import QTimer, Qt, QDateTime
+
+import hmac
+import hashlib
 import traceback
 
 # ========== CONSTANTS AND CONFIGURATION ==========
+
+RX_TIMEOUT = 5  # seconds to wait for a reply after sending a TEC
 
 # Packet configuration
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
@@ -19,9 +24,12 @@ PACKET_PAYLOAD_MAX = 98  # maximum payload length in bytes
 # MAC configuration
 SECRET_KEY = 0xA1B2C3D4
 
-# RS encoding configuration
+# Fixed bytes configuration
 BYTE_RS_OFF = 0x55
 BYTE_RS_ON = 0xAA
+BYTE_TX_OFF = 0x00
+BYTE_TX_ON = 0x01
+BYTE_TX_NOBEACON = 0x02
 
 # Error codes
 PACKET_ERR_NONE = 0
@@ -30,6 +38,9 @@ PACKET_ERR_DECODE = -2
 PACKET_ERR_LENGTH = -3
 PACKET_ERR_MAC = -4
 PACKET_ERR_CMD_FULL = -5
+PACKET_ERR_CMD_GENERIC = -6
+PACKET_ERR_CMD_UNKNOWN = -7
+PACKET_ERR_CMD_PAYLOAD = -8
 
 PACKET_ERR_DESCRIPTION = {
     PACKET_ERR_NONE: "Unexpected behavior: no error code provided",
@@ -56,19 +67,31 @@ TEC_TER_TYPES = {
     "[DT] Data Transfer": 3
 }
 
-# TODO: ADD task codes definitions
+# TEC task codes definitions
+TEC_OBC_REBOOT = 0x01 # reboot OBC command
+TEC_EXIT_STATE = 0x02 # exit state command
+TEC_VAR_CHANGE = 0x03 # variable change command
+TEC_SET_TIME = 0x04 # set time command
+TEC_EPS_REBOOT = 0x08 # reboot EPS command
+TEC_ADCS_REBOOT = 0x10 # reboot ADCS command
+TEC_ADCS_TLE = 0x11 # send TLE to ADCS command
+TEC_LORA_STATE = 0x18 # send LoRa state command
+TEC_LORA_CONFIG = 0x19 # send LoRa configuration command
+TEC_LORA_PING = 0x1A # send LoRa ping status command
 
-
-# TEC_TASKS definition
+# TEC_TASKS labels
 TEC_TASKS = {
     # HK
-    "OBC reboot": 1,
-    "Exit state": 2,
-    "Variable change": 3,
-    "Set clock": 4,
-    "EPS reboot": 8,
-    "ADCS reboot": 16,
-    "TLE update": 17,
+    "OBC reboot": TEC_OBC_REBOOT,
+    "Exit state": TEC_EXIT_STATE,
+    "Variable change": TEC_VAR_CHANGE,
+    "Set clock": TEC_SET_TIME,
+    "EPS reboot": TEC_EPS_REBOOT,
+    "ADCS reboot": TEC_ADCS_REBOOT,
+    "TLE update": TEC_ADCS_TLE,
+    "LoRa state": TEC_LORA_STATE,
+    "LoRa config": TEC_LORA_CONFIG,
+    "LoRa ping": TEC_LORA_PING,
     # DAQ
     "Start DAQ": 68,
     "Stop DAQ": 69,
@@ -80,19 +103,25 @@ TEC_TASKS = {
     "Download": 194
 }
 
+# TER task codes definitions
+TER_BEACON = 0x30 # telemetry beacon reply
+TER_ACK = 0x31 # ACK reply
+TER_NACK = 0x32 # NACK reply
+TER_LORA_PING = 0x33 # LoRa ping state reply
 
-# TER_TASKS definition
+# TER_TASKS labels
 TER_TASKS = {
     # HK
-    "Beacon": 48,
-    "ACK": 49,
-    "NACK": 50
+    "Beacon": TER_BEACON,
+    "ACK": TER_ACK,
+    "NACK": TER_NACK,
+    "LoRa ping": TER_LORA_PING
 }
 
 # Input form configs (label, widget_type, optional widget args)
 INPUT_FIELDS_CONFIG = {
     "OBC reboot": [
-        ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ("TEXT", QLabel, "No configuration available, execution is immediate", None, None, None)
     ],
     "Exit state": [
         # ("Delay:", QSpinBox, 0, 0, 100, "[s]"),
@@ -104,16 +133,35 @@ INPUT_FIELDS_CONFIG = {
         ("Value:", QSpinBox, 0, 0, 254, "0-254"),
     ],
     "Set clock": [
-        ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ("Date and Time:", QDateTimeEdit, QDateTime.currentDateTime(), None, None, None)
     ],
     "EPS reboot": [
-        ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ("TEXT", QLabel, "No configuration available, execution is immediate", None, None, None)
     ],
     "ADCS reboot": [
-        ("No configuration available, execution is immediate", QLabel, None, None, None, None)
+        ("TEXT", QLabel, "No configuration available, execution is immediate", None, None, None)
     ],
     "TLE update": [
         ("TLE Data:", QPlainTextEdit, "Line 1\nLine 2", None, None, None)
+    ],
+    "LoRa state": [
+        ("TX State:", QComboBox, "On", ["On", "Beacon off", "Off"], None, None),
+        ("TEXT", QLabel, "Enter time to keep state for, 0 is forever", None, None, None),
+        ("Days:", QSpinBox, 0, 0, 193, "d"),
+        ("Hours:", QSpinBox, 0, 0, 23, "h"),
+        ("Minutes:", QSpinBox, 0, 0, 59, "m"),
+        ("Seconds:", QSpinBox, 0, 0, 59, "s"),
+        ("TEXT", QLabel, "Reverts to TX State: On after time is elapsed", None, None, None),
+    ],
+    "LoRa config": [
+        ("Frequency:", QDoubleSpinBox, 436.0, 400.0, 500.0, "MHz"),
+        ("Bandwidth:", QComboBox, "125", ["62.5", "125", "250", "500"], None, "kHz"),
+        ("SF:", QSpinBox, 10, 6, 12, None),
+        ("CR:", QSpinBox, 5, 5, 8, None),
+        ("Power:", QSpinBox, -9, 10, 22, "dBm"), #TODO: check power range mapping
+    ],
+    "LoRa ping": [
+        ("TEXT", QLabel, "No configuration available, execution is immediate", None, None, None)
     ]
 }
 
@@ -121,28 +169,34 @@ INPUT_FIELDS_CONFIG = {
 # ========== HELPER FUNCTIONS ==========
 
 # Build the payload based on type index and task name
-def build_payload(tec_name, input_widgets):
-    if tec_name == "OBC reboot":
+def build_payload(tec_code, input_widgets):
+    
+    if tec_code == TEC_OBC_REBOOT:
         payload = b''
 
-    elif tec_name == "Exit state":
+    elif tec_code == TEC_EXIT_STATE:
         from_state = input_widgets["From state:"].value() & 0x0F
         to_state = input_widgets["To state:"].value() & 0x0F
         byte_val = (from_state << 4) | to_state
         payload = bytes([byte_val])
 
-    elif tec_name == "Variable change":
+    elif tec_code == TEC_VAR_CHANGE:
         address = input_widgets["Address:"].value() & 0xFF
         value = input_widgets["Value:"].value() & 0xFF
         payload = bytes([address, value])
 
-    elif tec_name == "EPS reboot":
+    elif tec_code == TEC_SET_TIME:
+        dt_widget = input_widgets["Date and Time:"]
+        qdt = dt_widget.dateTime()  # QDateTime object
+        unix_time = int(qdt.toSecsSinceEpoch())  # convert to UNIX timestamp (int)
+        payload = unix_time.to_bytes(4, byteorder='big')
+    elif tec_code == TEC_EPS_REBOOT:
         payload = b''
 
-    elif tec_name == "ADCS reboot":
+    elif tec_code == TEC_ADCS_REBOOT:
         payload = b''
 
-    elif tec_name == "TLE update":
+    elif tec_code == TEC_ADCS_TLE:
         tle_data = input_widgets["TLE Data:"].toPlainText().strip()
         tle_lines = tle_data.splitlines()
         if len(tle_lines) < 2:
@@ -189,59 +243,116 @@ def build_payload(tec_name, input_widgets):
             rev_number
         )
 
+    elif tec_code == TEC_LORA_STATE:
+        tx_state = input_widgets["TX State:"].currentText()
+        if tx_state == "On":
+            # Restrict to 2 bits and repeat 4 times to fill the byte
+            tx_state_val = BYTE_TX_ON & 0b11
+        elif tx_state == "Beacon off":
+            tx_state_val = BYTE_TX_NOBEACON & 0b11
+        elif tx_state == "Off":
+            tx_state_val = BYTE_TX_OFF & 0b11
+        else:
+            raise ValueError(f"Invalid TX State: {tx_state}")
+        tx_state_byte = (tx_state_val << 6) | (tx_state_val << 4) | (tx_state_val << 2) | tx_state_val
+
+        days = input_widgets["Days:"].value()
+        hours = input_widgets["Hours:"].value()
+        minutes = input_widgets["Minutes:"].value()
+        seconds = input_widgets["Seconds:"].value()
+        duration_total = (days * 86400) + (hours * 3600) + (minutes * 60) + seconds
+        duration_bytes = duration_total.to_bytes(3, 'big')  # 3 bytes
+
+        # Combine all into one payload
+        payload = bytes([tx_state_byte]) + duration_bytes
+
+    elif tec_code == TEC_LORA_CONFIG:
+        frequency_khz = int(input_widgets["Frequency:"].value() * 1000)
+        frequency_bytes = frequency_khz.to_bytes(3, 'big')
+
+        bandwidth = input_widgets["Bandwidth:"].currentText()
+        if bandwidth == "62.5":
+            bandwidth_bits = 0b00
+        elif bandwidth == "125":
+            bandwidth_bits = 0b01
+        elif bandwidth == "250":
+            bandwidth_bits = 0b10
+        elif bandwidth == "500":
+            bandwidth_bits = 0b11
+        else:
+            raise ValueError(f"Invalid bandwidth value: {bandwidth}")
+        
+        sf = input_widgets["SF:"].value()
+        sf_bits = (sf - 6) & 0b111  # SF 6-12 maps to bits 0-6, 3 bits total
+
+        cr = input_widgets["CR:"].value()
+        cr_bits = (cr - 5) & 0b111  # CR 5-8 maps to bits 0-3, 3 bits total
+
+        first_byte = bytes([(bandwidth_bits << 6) | (sf_bits << 3) | cr_bits])
+
+        power = input_widgets["Power:"].value()
+        power_bits = (power + 9) & 0b11111 # Power -9 to +22 maps to bits 0-31, 5 bits total
+
+        reserved_bits = 0b000
+        second_byte = bytes([(power_bits << 3) | reserved_bits])
+
+        payload = frequency_bytes + first_byte + second_byte
+
+    elif tec_code == TEC_LORA_PING:
+        payload = b''
+
     else:
         payload = b''
 
     return payload
 
-# Simple MAC function
-def simple_mac(timestamp, key):
-    x = (timestamp ^ key) & 0xFFFFFFFF
-    x = ((x >> 16) ^ x) * 0x45d9f3b
-    x = x & 0xFFFFFFFF
-    x = ((x >> 16) ^ x) * 0x45d9f3b
-    x = x & 0xFFFFFFFF
-    x = (x >> 16) ^ x
-    return x & 0xFFFFFFFF
+def hmac_mac(key_int, message: bytes) -> int:
+    # Convert 32-bit integer key to bytes
+    key_bytes = key_int.to_bytes(4, byteorder='big')
+
+    # Compute HMAC-SHA256 and return first 4 bytes as uint32
+    mac = hmac.new(key_bytes, message, hashlib.sha256).digest()
+    return int.from_bytes(mac[:4], byteorder='big')
 
 # Build the full packet with header, payload, and ECC(for transmission)
 def build_packet(gs_text, tec_code, payload_bytes, ecc_enabled):
     # === Byte 0: Station ID ===
     if gs_text in TX_SOURCES:
-        byte_station = TX_SOURCES[gs_text]
+        station = TX_SOURCES[gs_text]
     else:
         raise ValueError(f"Invalid Ground Station: {gs_text}")
 
     # === Byte 1: ECC Flag ===
-    byte_ecc = BYTE_RS_ON if ecc_enabled else BYTE_RS_OFF
+    ecc = BYTE_RS_ON if ecc_enabled else BYTE_RS_OFF
 
     # === Byte 2: TEC
-    byte_tec = tec_code
+    tec = tec_code
 
     # === Byte 3: Payload length ===
     payload_length = len(payload_bytes)
     if payload_length > PACKET_PAYLOAD_MAX:
         raise ValueError(f"Payload too long (max {PACKET_PAYLOAD_MAX} bytes)")
-    byte_payload_length = payload_length
 
-    # === Byte 4-7: MAC ===
+    # === Byte 4-7: UNIX timestamp ===
     unix_time = int(datetime.now().timestamp())
-
-    mac = simple_mac(unix_time, SECRET_KEY)
-    bytes_mac = mac.to_bytes(4, byteorder='big')
-
-    # === Byte 8-11: UNIX timestamp ===
     bytes_time = unix_time.to_bytes(4, byteorder='big')
 
-    # === Final packet ===
-    header = bytes([
-        byte_station,
-        byte_ecc,
-        byte_tec,
-        byte_payload_length
+    # === Byte 8-11: MAC ===
+    mac_placeholder = b'\x00\x00\x00\x00'
+    header_partial = bytes([
+        station,
+        ecc,
+        tec,
+        payload_length
     ])
+    packet_placeholder = header_partial + bytes_time + mac_placeholder + payload_bytes
 
-    return header + bytes_mac + bytes_time + payload_bytes
+    # Compute MAC over the whole packet
+    mac = hmac_mac(SECRET_KEY, packet_placeholder)
+    bytes_mac = mac.to_bytes(4, byteorder='big')
+
+    # Build final packet
+    return header_partial + bytes_time + bytes_mac + payload_bytes
 
 # Decode a packet from bytes (for reception)
 def decode_packet(packet_bytes):
@@ -271,13 +382,13 @@ def decode_packet(packet_bytes):
     if len(packet_bytes) < expected_len:
         raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
 
-    # Bytes 4–7: MAC (int)
-    bytes_mac = packet_bytes[4:8]
-    mac = int.from_bytes(bytes_mac, byteorder='big')
-
-    # Bytes 8–11: Timestamp (int)
-    bytes_time = packet_bytes[8:12]
+    # Bytes 4-7: Timestamp (int)
+    bytes_time = packet_bytes[4:8]
     timestamp = int.from_bytes(bytes_time, byteorder='big')
+
+    # Bytes 8–11: MAC (int)
+    bytes_mac = packet_bytes[8:12]
+    mac = int.from_bytes(bytes_mac, byteorder='big')
 
     # Payload: list of ints
     if payload_length > 0:
@@ -750,18 +861,14 @@ class MainWindow(QWidget):
                     item.setBackground(bg_transparent)
                     # item.setForeground(fg)
 
-    # Set the last TEC status description with appropriate styles
-    # def set_last_tec_status_description(self, message):
-        
-
     # Get the color for the status of the last TEC
     def get_color_for_status(self, status):
         status = status.upper()
         if status == "NO COMMS":
             bg_color = QColor("lightgray")
-        elif status.startswith("WAITING"):
+        elif status.startswith("WAITING") or status == "NO REPLY":
             bg_color = QColor("orange")
-        elif status.startswith("ACK"):
+        elif status.startswith("ACK") or status.startswith("REPLY"):
             bg_color = QColor("green")
         else:
             bg_color = QColor("red")
@@ -790,37 +897,52 @@ class MainWindow(QWidget):
         self.task_selector.blockSignals(False)
         self.update_packet_content_form()
 
-
-
     # Update the packet content form based on selected type and task
     def update_packet_content_form(self):
-    # Clear and remove all widgets from layout and memory
+        # Clear and remove all widgets and nested layouts from layout
         while self.packet_setup_layout.count():
             item = self.packet_setup_layout.takeAt(0)
+
+            if item is None:
+                continue
+
             widget = item.widget()
-            if widget:
+            layout = item.layout()
+
+            if widget is not None:
                 widget.deleteLater()
+            elif layout is not None:
+                # Recursively delete items in nested layouts
+                while layout.count():
+                    sub_item = layout.takeAt(0)
+                    sub_widget = sub_item.widget()
+                    if sub_widget is not None:
+                        sub_widget.deleteLater()
 
         self.created_widgets.clear()  # Fully reset cache
 
-        # tec_type = self.type_selector.currentIndex()
         tec_name = self.task_selector.currentText()
-        # key = (tec_type, tec_name)
-
         fields = INPUT_FIELDS_CONFIG.get(tec_name, [])
 
         for field in fields:
             label_text = field[0]
             widget_class = field[1]
             default_value = field[2] if len(field) > 2 else None
-            min_val = field[3] if len(field) > 3 else None
+            options_or_min = field[3] if len(field) > 3 else None
             max_val = field[4] if len(field) > 4 else None
             right_text = field[5] if len(field) > 5 else None
+            
+            # Special case: full-width row label
+            if label_text == "TEXT" and widget_class == QLabel:
+                label = QLabel(default_value)
+                # label.setStyleSheet("font-weight: bold")  # Optional: make it stand out
+                self.packet_setup_layout.addRow(label)
+                continue
 
             if widget_class in (QSpinBox, QDoubleSpinBox):
                 spinbox = widget_class()
-                if min_val is not None and max_val is not None:
-                    spinbox.setRange(min_val, max_val)
+                if options_or_min is not None and max_val is not None:
+                    spinbox.setRange(options_or_min, max_val)
                 if default_value is not None:
                     spinbox.setValue(default_value)
 
@@ -841,11 +963,23 @@ class MainWindow(QWidget):
 
             else:
                 widget = widget_class()
+
                 if default_value is not None:
                     if isinstance(widget, QPlainTextEdit):
                         widget.setPlainText(str(default_value))
                         widget.setMaximumHeight(200)
-                    else:
+                    elif isinstance(widget, QComboBox):
+                        if isinstance(options_or_min, list):
+                            widget.addItems(options_or_min)
+                            if default_value in options_or_min:
+                                widget.setCurrentText(default_value)
+                            # else:
+                            #     widget.setCurrentIndex(0)
+                        else:
+                            widget.setCurrentText(str(default_value))
+                    elif isinstance(widget, QDateTimeEdit):
+                        widget.setDateTime(default_value) 
+                    elif hasattr(widget, "setText"):
                         widget.setText(str(default_value))
 
                 self.created_widgets[(tec_name, label_text)] = widget
@@ -884,7 +1018,13 @@ class MainWindow(QWidget):
                 if spinbox:
                     input_widgets[label_text] = spinbox
                     continue
-
+                
+                # Try to find QDoubleSpinBox inside container
+                double_spinbox = field_widget.findChild(QDoubleSpinBox)
+                if double_spinbox:
+                    input_widgets[label_text] = double_spinbox
+                    continue
+                
                 # Try to find plain text edit inside container
                 plain_text = field_widget.findChild(QPlainTextEdit)
                 if plain_text:
@@ -892,11 +1032,11 @@ class MainWindow(QWidget):
                     continue
 
             # If not a container, check if field_widget itself is input widget
-            if isinstance(field_widget, (QSpinBox, QLineEdit, QPlainTextEdit)):
+            if isinstance(field_widget, (QSpinBox, QDoubleSpinBox, QLineEdit, QPlainTextEdit, QComboBox, QDateTimeEdit)):
                 input_widgets[label_text] = field_widget
                     
         try:
-            payload = build_payload(tec_label, input_widgets)
+            payload = build_payload(tec_code, input_widgets)
         except Exception as e:
             self.log_status(f"[ERROR] Failed to build payload: {e}")
             return
@@ -960,7 +1100,7 @@ class MainWindow(QWidget):
             self.log_status("[ERROR] Not connected.")
             return
 
-        # Get the CMD details of the next group
+        # Get the TEC details
         tec_name = self.tec_queue[0][0]
         tec_hex = self.tec_queue[0][1]
 
@@ -985,11 +1125,7 @@ class MainWindow(QWidget):
 
         # Log sent TEC to history with "WAITING" status
         self.sent_tecs.append((tec_name, tec_hex, "WAITING"))
-
-        # Insert a new row at the top
         self.last_tec_table.insertRow(0)
-
-        # Fill cells
         self.last_tec_table.setItem(0, 0, QTableWidgetItem(tec_name))
         self.last_tec_table.setItem(0, 1, QTableWidgetItem(tec_hex))
 
@@ -998,10 +1134,11 @@ class MainWindow(QWidget):
         self.update_queue_display()
 
         # Update last TEC status
-        self.last_tec_status_description.setText("")
+        self.last_tec_status_description.setText("Waiting for ACK/NACK/REPLY...")
         self.set_last_tec_status(f"WAITING: 0 s")
         self.last_tec_sent_time = datetime.now()
         self.timeout_timer.start(1000)  # check every second
+        self.execute_next_button.setEnabled(False) # disable until ACK/NACK/REPLY is received
 
 
     # ========== PACKET RECEPTION HANDLING ==========
@@ -1009,55 +1146,62 @@ class MainWindow(QWidget):
     # Handle reception of a decoded packet
     def handle_reception(self, decoded_packet, packet_bytes):
 
-        self.timeout_timer.stop()  # Stop timeout check
+        self.timeout_timer.stop()  # stop timeout check
+        self.execute_next_button.setEnabled(True)  # re-enable next execution button
 
         # Extract fields from the decoded packet
         ter = decoded_packet["ter"]
         payload = decoded_packet["payload_bytes"]
         
+        # Get the label of the last TEC sent
+        label_item = self.last_tec_table.item(0, 0)  # Column 1: TEC label
+        tec_label = label_item.text() if label_item else f"0x{tec_requested:02X}"
+        
         # Update ACK/NACK status of the last TEC
         elapsed = (datetime.now() - self.last_tec_sent_time).total_seconds()
-        if ter == 0x31 and payload == [self.last_sent_tec]:
-            status = f"ACK in {elapsed:.2f} s"
-            self.set_last_tec_status(status)
-            self.last_tec_status_description.setText(f"TEC {self.last_sent_tec:02X} executed successfully.")
-            self.log_status(f"[INFO] ACK received after {elapsed:.2f} s")
 
-        elif ter == 0x31 and payload != [self.last_sent_tec]:
-            status = "INVALID ACK"
-            self.set_last_tec_status(status)
-            self.last_tec_status_description.setText(f"TEC {self.last_sent_tec:02X} seems to be executed, but ACK was invalid. PAYLOAD: {payload}")
-            self.log_status(f"[WARN] Malformed ACK payload {payload} received after {elapsed:.2f} s")
+        if ter == TER_ACK:
+            if payload == [self.last_sent_tec]:
+                status = f"ACK in {elapsed:.2f} s"
+                self.set_last_tec_status(status)
+                self.last_tec_status_description.setText(f"TEC {tec_label} executed successfully.")
+                self.log_status(f"[INFO] ACK received after {elapsed:.2f} s.")
 
-        elif ter == 0x32:
+            else:
+                status = "INVALID ACK"
+                self.set_last_tec_status(status)
+                self.last_tec_status_description.setText(f"TEC {tec_label} seems to be executed, but ACK was invalid. PAYLOAD: {payload}")
+                self.log_status(f"[WARN] Malformed ACK payload {payload} received after {elapsed:.2f} s.")
+
+        elif ter == TER_NACK:
             status = "NACK"
             self.set_last_tec_status(status)
 
             if len(payload) == 2:
-                cmd_code = payload[0]
+                tec_requested = payload[0]
                 error_code = int.from_bytes([payload[1]], byteorder='big', signed=True)
                 status_msg = PACKET_ERR_DESCRIPTION.get(error_code, f"Unknown error code: {error_code}")
                 
-                label_item = self.last_tec_table.item(0, 0)  # Column 1: TEC label
-                tec_name = label_item.text() if label_item else f"0x{cmd_code:02X}"
+                
 
-                self.last_tec_status_description.setText(f"TEC {tec_name} was not executed. ERROR: {status_msg}")
+                self.last_tec_status_description.setText(f"TEC {tec_label} was not executed. ERROR: {status_msg}")
                 self.log_status(f"[WARN] NACK received. Error: {status_msg}")
+            
             else:
                 self.last_tec_status_description.setText("Malformed NACK payload.")
                 self.log_status("[ERROR] Malformed NACK payload.")
 
-        else:
-            status = "ACK/NACK NOT RECEIVED"
+        elif ter == TER_LORA_PING:
+            status = f"REPLY in {elapsed:.2f} s"
             self.set_last_tec_status(status)
+            self.last_tec_status_description.setText(f"TEC {tec_label} executed successfully, requested data received.")
+            self.log_status(f"[INFO] REPLY received after {elapsed:.2f} s.")
 
-        # "station_id": station_id,
-        # "ecc_enabled": ecc_enabled,
-        # "TER": TER,
-        # "payload_length": payload_length,
-        # "mac": mac,
-        # "timestamp": timestamp,
-        # "payload_bytes": payload_bytes  # always a list of ints
+        else:
+            status = "UNEXPECTED TER"
+            self.set_last_tec_status(status)
+            self.last_tec_status_description.setText(f"Received unexpected TER: {ter:02X}")
+            self.log_status(f"[WARN] Received unexpected TER: {ter:02X}.")
 
         # Add to received TERs table
         self.received_ter_table.insertRow(0)
@@ -1071,10 +1215,12 @@ class MainWindow(QWidget):
     # Check if the last TEC sent has timed out
     def check_tec_timeout(self):
         elapsed = (datetime.now() - self.last_tec_sent_time).total_seconds()
-        if elapsed > 10:
+        if elapsed > RX_TIMEOUT:
             self.timeout_timer.stop()
+            self.execute_next_button.setEnabled(True)  # re-enable next execution button
             self.set_last_tec_status("NO REPLY")
-            self.log_status(f"[WARN] Timeout: No reply received after 10 seconds")
+            self.last_tec_status_description.setText(f"No reply received after {RX_TIMEOUT} s, check if command in blind is enabled.")
+            self.log_status(f"[WARN] Timeout: No reply received after {RX_TIMEOUT} s.")
         else:
             self.set_last_tec_status(f"WAITING: {round(elapsed)} s")
 
@@ -1096,14 +1242,14 @@ class MainWindow(QWidget):
 
             ter_hex = item_hex.text() if item_hex else "HEX error"
             ter_label = item_label.text() if item_label else "TER error"
-            self.ter_content_display.append(f"<b>HEX: {ter_hex}</b>")
+            self.ter_content_display.append(f"<b>PACKET > {ter_hex}</b>")
 
             try:
                 packet_bytes = [int(byte, 16) for byte in ter_hex.split()]
                 ter_decoded = decode_packet(packet_bytes)
 
                 # Display header information
-                self.ter_content_display.append(f"<b>-------HEADER---------</b>")
+                self.ter_content_display.append(f"<b>HEADER > {ter_hex[:PACKET_HEADER_LENGTH * 3]}</b>")
 
                 source_label = next((name for name, code in TX_SOURCES.items() if code == ter_decoded['station_id']), f"Unknown {ter_decoded['station_id']}")
                 self.ter_content_display.append(f"Source: {source_label}")
@@ -1125,32 +1271,45 @@ class MainWindow(QWidget):
                 self.ter_content_display.append(f"Payload Length: {ter_decoded['payload_length']}")
 
                 # Display payload information
-                self.ter_content_display.append(f"<b>-------PAYLOAD---------</b>")
+                self.ter_content_display.append(f"<b>PAYLOAD > {ter_hex[PACKET_HEADER_LENGTH * 3:]}</b>")
+                ter = ter_decoded['ter']
+                payload_bytes = ter_decoded['payload_bytes']
 
-                if ter_decoded['ter'] == 0x30:  # Beacon
+                if ter == TER_BEACON:
                     self.ter_content_display.append("Type: Beacon")
                     # Optionally decode payload if known
 
-                elif ter_decoded['ter'] == 0x31:  # ACK
-                    if ter_decoded['payload_bytes']:
-                        tec_executed = ter_decoded['payload_bytes'][0]
+                elif ter == TER_ACK:
+                    if payload_bytes:
+                        tec_executed = payload_bytes[0]
                         tec_executed_label = get_task_label(TEC_TASKS, tec_executed)
 
                         self.ter_content_display.append(f"TEC executed: {tec_executed_label}")
 
-                elif ter_decoded['ter'] == 0x32:  # NACK
-                    if len(ter_decoded['payload_bytes']) == 2:
-                        cmd_code = ter_decoded['payload_bytes'][0]
-                        error_code = int.from_bytes([ter_decoded['payload_bytes'][1]], byteorder='big', signed=True)
+                elif ter == TER_NACK:
+                    if len(payload_bytes) == 2:
+                        tec_requested = payload_bytes[0]
+                        error_code = int.from_bytes([payload_bytes[1]], byteorder='big', signed=True)
                         error_msg = PACKET_ERR_DESCRIPTION.get(error_code, f"Unknown error code: {error_code}")
-                        self.ter_content_display.append(f"TEC not executed: {cmd_code:02X}")
+
+                        self.ter_content_display.append(f"TEC not executed: {tec_requested:02X}")
                         self.ter_content_display.append(f"Error: {error_msg}")
 
                     else:
                         self.ter_content_display.append("Malformed NACK payload.")
-                
-                elif ter_decoded['ter'] == 0x33:
-                    self.ter_content_display.append("Type: 33")
+
+                elif ter == TER_LORA_PING:
+                    rssi_bytes = bytes(payload_bytes[0:4])
+                    rssi = struct.unpack(">f", rssi_bytes)[0]
+                    snr_bytes = bytes(payload_bytes[4:8])
+                    snr = struct.unpack(">f", snr_bytes)[0]
+                    freq_shift_bytes = bytes(payload_bytes[8:12])
+                    freq_shift = struct.unpack(">f", freq_shift_bytes)[0]
+
+
+                    self.ter_content_display.append(f"RSSI: {rssi:.2f} dBm")
+                    self.ter_content_display.append(f"SNR: {snr:.2f} dB")
+                    self.ter_content_display.append(f"Frequency Shift: {freq_shift:.2f} Hz")
 
                 else:
                     self.ter_content_display.append("Type: Unknown or not handled")
