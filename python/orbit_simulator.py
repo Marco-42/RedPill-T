@@ -1,7 +1,6 @@
 import sys
 from datetime import datetime
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import QTimer
 import numpy as np
 from sgp4.api import Satrec, jday
