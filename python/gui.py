@@ -7,7 +7,7 @@ from datetime import datetime
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QColor
-from PyQt5.QtCore import QTimer, Qt, QDateTime
+from PyQt5.QtCore import *
 
 import hmac
 import hashlib
@@ -38,9 +38,10 @@ PACKET_ERR_DECODE = -2
 PACKET_ERR_LENGTH = -3
 PACKET_ERR_MAC = -4
 PACKET_ERR_CMD_FULL = -5
-PACKET_ERR_CMD_GENERIC = -6
+PACKET_ERR_CMD_POINTER = -6
 PACKET_ERR_CMD_UNKNOWN = -7
 PACKET_ERR_CMD_PAYLOAD = -8
+PACKET_ERR_CMD_MEMORY = -9
 
 PACKET_ERR_DESCRIPTION = {
     PACKET_ERR_NONE: "Unexpected behavior: no error code provided",
@@ -48,7 +49,11 @@ PACKET_ERR_DESCRIPTION = {
     PACKET_ERR_DECODE: "Packet decode error",
     PACKET_ERR_LENGTH: "Invalid packet length",
     PACKET_ERR_MAC: "MAC verification failed",
-    PACKET_ERR_CMD_FULL: "TEC buffer full"
+    PACKET_ERR_CMD_FULL: "TEC buffer full",
+    PACKET_ERR_CMD_POINTER: "Command pointer error",
+    PACKET_ERR_CMD_UNKNOWN: "Requested command not found",
+    PACKET_ERR_CMD_PAYLOAD: "Payload of command is invalid",
+    PACKET_ERR_CMD_MEMORY: "Memory allocation error during command execution"
 }
 
 # Source codes for transmission
@@ -79,27 +84,29 @@ TEC_LORA_STATE = 0x18 # send LoRa state command
 TEC_LORA_CONFIG = 0x19 # send LoRa configuration command
 TEC_LORA_PING = 0x1A # send LoRa ping status command
 
+TEC_CRY_EXP = 0x80 # execute crystals experiment command
+
 # TEC_TASKS labels
 TEC_TASKS = {
     # HK
-    "OBC reboot": TEC_OBC_REBOOT,
-    "Exit state": TEC_EXIT_STATE,
-    "Variable change": TEC_VAR_CHANGE,
-    "Set clock": TEC_SET_TIME,
-    "EPS reboot": TEC_EPS_REBOOT,
-    "ADCS reboot": TEC_ADCS_REBOOT,
     "TLE update": TEC_ADCS_TLE,
+    "Set clock": TEC_SET_TIME,
+    "LoRa ping": TEC_LORA_PING,
     "LoRa state": TEC_LORA_STATE,
     "LoRa config": TEC_LORA_CONFIG,
-    "LoRa ping": TEC_LORA_PING,
+    "Exit state": TEC_EXIT_STATE,
+    "Variable change": TEC_VAR_CHANGE,
+    "OBC reboot": TEC_OBC_REBOOT,
+    "EPS reboot": TEC_EPS_REBOOT,
+    "ADCS reboot": TEC_ADCS_REBOOT,
     # DAQ
     "Start DAQ": 68,
     "Stop DAQ": 69,
     # PE
-    "Execute A": 132,
+    "Crystals experiment": TEC_CRY_EXP,
     "Execute B": 133,
     # DT
-    "Upload": 193,
+    "Picture download": 193,
     "Download": 194
 }
 
@@ -146,7 +153,7 @@ INPUT_FIELDS_CONFIG = {
     ],
     "LoRa state": [
         ("TX State:", QComboBox, "On", ["On", "Beacon off", "Off"], None, None),
-        ("TEXT", QLabel, "Enter time to keep state for, 0 is forever", None, None, None),
+        ("TEXT", QLabel, "Enter time to keep state for, 0 is forever:", None, None, None),
         ("Days:", QSpinBox, 0, 0, 193, "d"),
         ("Hours:", QSpinBox, 0, 0, 23, "h"),
         ("Minutes:", QSpinBox, 0, 0, 59, "m"),
@@ -162,7 +169,19 @@ INPUT_FIELDS_CONFIG = {
     ],
     "LoRa ping": [
         ("TEXT", QLabel, "No configuration available, execution is immediate", None, None, None)
-    ]
+    ],
+    "Crystals experiment": [
+        ("Glass:", QComboBox, "Off", ["Off", "Dark", "Light"], None, None),
+        ("TEXT", QLabel, "Enter time to delay Crystals activation since packet RX", None, None, None),
+        ("Activation delay:", QTimeEdit, QTime(0, 0, 0), 0, 0, "hh:mm:ss"),
+        ("Photodiode:", QComboBox, "No", ["Yes", "No"], None, None),
+        ("Picture:", QComboBox, "No", ["Yes", "No"], None, None),
+        ("TEXT", QLabel, "Enter time to delay observations since Crystals activation", None, None, None),
+        ("Observation delay:", QTimeEdit, QTime(0, 0, 0), 0, 0, "hh:mm:ss"),
+    ],
+    "Picture settings": [
+        ("TEXT", QLabel, "TODO", None, None, None)
+    ],
 }
 
 
@@ -190,6 +209,7 @@ def build_payload(tec_code, input_widgets):
         qdt = dt_widget.dateTime()  # QDateTime object
         unix_time = int(qdt.toSecsSinceEpoch())  # convert to UNIX timestamp (int)
         payload = unix_time.to_bytes(4, byteorder='big')
+    
     elif tec_code == TEC_EPS_REBOOT:
         payload = b''
 
@@ -244,18 +264,19 @@ def build_payload(tec_code, input_widgets):
         )
 
     elif tec_code == TEC_LORA_STATE:
+        # TX State (1 byte)
         tx_state = input_widgets["TX State:"].currentText()
         if tx_state == "On":
-            # Restrict to 2 bits and repeat 4 times to fill the byte
-            tx_state_val = BYTE_TX_ON & 0b11
+            tx_state_val = BYTE_TX_ON & 0b1111
         elif tx_state == "Beacon off":
-            tx_state_val = BYTE_TX_NOBEACON & 0b11
+            tx_state_val = BYTE_TX_NOBEACON & 0b1111
         elif tx_state == "Off":
             tx_state_val = BYTE_TX_OFF & 0b11
         else:
             raise ValueError(f"Invalid TX State: {tx_state}")
-        tx_state_byte = (tx_state_val << 6) | (tx_state_val << 4) | (tx_state_val << 2) | tx_state_val
+        tx_state_byte = (tx_state_val << 4) |  tx_state_val
 
+        # Duration (3 bytes)
         days = input_widgets["Days:"].value()
         hours = input_widgets["Hours:"].value()
         minutes = input_widgets["Minutes:"].value()
@@ -300,6 +321,59 @@ def build_payload(tec_code, input_widgets):
 
     elif tec_code == TEC_LORA_PING:
         payload = b''
+
+    elif tec_code == TEC_CRY_EXP:
+        # Glass state: Off, Dark, Light (3 bits)
+        glass_state = input_widgets["Glass:"].currentText()
+        if glass_state == "Off":
+            glass_val = 0b000
+        elif glass_state == "Dark":
+            glass_val = 0b001
+        elif glass_state == "Light":
+            glass_val = 0b010
+        else:
+            raise ValueError(f"Invalid Glass state: {glass_state}")
+
+        # Repeat glass_val twice (6 bits total)
+        glass_bits = (glass_val << 3) | glass_val
+
+        activation_time = input_widgets["Activation delay:"].time()
+        activation_secs = (activation_time.hour() * 3600 + activation_time.minute() * 60 + activation_time.second())
+
+        # Combine: 6 bits glass_bits + 18 bits activation_secs
+        glass_and_delay = (glass_bits << 18) | activation_secs
+        glass_and_delay_bytes = glass_and_delay.to_bytes(3, 'big')
+
+        # Photodiode: Yes/No (3 bits for future expansion)
+        photodiode = input_widgets["Photodiode:"].currentText()
+        if photodiode == "No":
+            diode_val = 0b000
+        elif photodiode == "Yes":
+            diode_val = 0b001
+        else:
+            raise ValueError(f"Invalid Photodiode state: {photodiode}")
+
+        # Picture: Yes/No (3 bits for future expansion)
+        picture = input_widgets["Picture:"].currentText()
+        if picture == "No":
+            picture_val = 0b000
+        elif picture == "Yes":
+            picture_val = 0b001
+        else:
+            raise ValueError(f"Invalid Picture state: {picture}")
+
+        # Combine: 3 bits diode + 3 bits picture
+        state_bits = (diode_val << 3) | picture_val
+
+        observation_time = input_widgets["Observation delay:"].time()
+        observation_secs = (observation_time.hour() * 3600 + observation_time.minute() * 60 + observation_time.second())
+
+        # Combine: 6 bits state_bits + 18 bits observation_secs
+        state_and_delay = (state_bits << 18) | observation_secs
+        state_and_delay_bytes = state_and_delay.to_bytes(3, 'big')
+
+        # Final payload: 6 bytes
+        payload = glass_and_delay_bytes + state_and_delay_bytes
 
     else:
         payload = b''
@@ -977,13 +1051,31 @@ class MainWindow(QWidget):
                             #     widget.setCurrentIndex(0)
                         else:
                             widget.setCurrentText(str(default_value))
+                    elif isinstance(widget, QTimeEdit):
+                        widget.setDisplayFormat("HH:mm:ss")
+                        if isinstance(default_value, QTime):
+                            widget.setTime(default_value)
+
                     elif isinstance(widget, QDateTimeEdit):
-                        widget.setDateTime(default_value) 
+                        if isinstance(default_value, QDateTime):
+                            widget.setDateTime(default_value)
                     elif hasattr(widget, "setText"):
                         widget.setText(str(default_value))
 
-                self.created_widgets[(tec_name, label_text)] = widget
-                self.packet_setup_layout.addRow(label_text, widget)
+                if right_text:
+                    container = QWidget()
+                    h_layout = QHBoxLayout(container)
+                    h_layout.setContentsMargins(0, 0, 0, 0)
+                    h_layout.setSpacing(5)
+
+                    h_layout.addWidget(widget)
+                    h_layout.addWidget(QLabel(right_text))
+
+                    self.created_widgets[(tec_name, label_text)] = (container, widget)
+                    self.packet_setup_layout.addRow(label_text, container)
+                else:
+                    self.created_widgets[(tec_name, label_text)] = widget
+                    self.packet_setup_layout.addRow(label_text, widget)
 
 
     # ========== PACKET GENERATION ==========
@@ -1011,30 +1103,23 @@ class MainWindow(QWidget):
 
             label_text = label_widget.text()
 
+            # Check if field_widget itself is input widget
+            if isinstance(field_widget, (QSpinBox, QDoubleSpinBox   , QPlainTextEdit, QComboBox, QDateTimeEdit, QTimeEdit, QLineEdit)):
+                input_widgets[label_text] = field_widget
+                continue
+
             # Check if the field widget is a container (like QWidget containing spinbox)
             if isinstance(field_widget, QWidget):
-                # Try to find spinbox inside container
-                spinbox = field_widget.findChild(QSpinBox)
-                if spinbox:
-                    input_widgets[label_text] = spinbox
-                    continue
-                
-                # Try to find QDoubleSpinBox inside container
-                double_spinbox = field_widget.findChild(QDoubleSpinBox)
-                if double_spinbox:
-                    input_widgets[label_text] = double_spinbox
-                    continue
-                
-                # Try to find plain text edit inside container
-                plain_text = field_widget.findChild(QPlainTextEdit)
-                if plain_text:
-                    input_widgets[label_text] = plain_text
-                    continue
+                # Try to find any supported input widget inside the container
+                for widget_type in (QSpinBox, QDoubleSpinBox, QPlainTextEdit, QComboBox, QDateTimeEdit, QTimeEdit, QLineEdit):
+                    found_widget = field_widget.findChild(widget_type)
+                    if found_widget:
+                        input_widgets[label_text] = found_widget
+                        break
 
-            # If not a container, check if field_widget itself is input widget
-            if isinstance(field_widget, (QSpinBox, QDoubleSpinBox, QLineEdit, QPlainTextEdit, QComboBox, QDateTimeEdit)):
-                input_widgets[label_text] = field_widget
-                    
+        print("Input widget keys:", list(input_widgets.keys()))
+        for k, w in input_widgets.items():
+            print(f"Label: '{k}', widget type: {type(w).__name__}")
         try:
             payload = build_payload(tec_code, input_widgets)
         except Exception as e:
@@ -1181,8 +1266,6 @@ class MainWindow(QWidget):
                 tec_requested = payload[0]
                 error_code = int.from_bytes([payload[1]], byteorder='big', signed=True)
                 status_msg = PACKET_ERR_DESCRIPTION.get(error_code, f"Unknown error code: {error_code}")
-                
-                
 
                 self.last_tec_status_description.setText(f"TEC {tec_label} was not executed. ERROR: {status_msg}")
                 self.log_status(f"[WARN] NACK received. Error: {status_msg}")
