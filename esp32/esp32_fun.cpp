@@ -26,8 +26,9 @@ void printRadioStatus(int8_t state, bool blocking)
 	// No error reported
 	if (state == RADIOLIB_ERR_NONE)
 	{
-		Serial.println("ok");
-	} else
+		// Serial.println("ok");
+	}
+	else
 	{
 		Serial.println((String) "failed! --> Code: " + state);
 		if (blocking)
@@ -42,8 +43,8 @@ void printRadioStatus(int8_t state, bool blocking)
 	}
 }
 
-// Print received packet on serial with optional prefix
-void printPacket(const char* prefix, const uint8_t* packet, uint8_t length)
+// Print received data on serial with optional prefix
+void printData(const char* prefix, const uint8_t* data, uint8_t length)
 {
     if (prefix != nullptr)
     {
@@ -52,7 +53,31 @@ void printPacket(const char* prefix, const uint8_t* packet, uint8_t length)
 	
 	for (uint8_t i = 0; i < length; ++i)
 	{
-		Serial.printf("%02X ", packet[i]);
+		Serial.printf("%02X ", data[i]);
+	}
+	Serial.println();
+}
+
+// Print packet on serial with optional prefix
+void printPacket(const char* prefix, const Packet* packet)
+{
+	if (prefix != nullptr) {
+		Serial.print(prefix);
+	}
+	Serial.printf("%02X ", packet->station);
+	Serial.printf("%02X ", packet->ecc ? RS_ON : RS_OFF);
+	Serial.printf("%02X ", packet->command);
+	Serial.printf("%02X ", packet->payload_length);
+	// Print time_unix as 4 bytes, each as two hex digits, space-separated
+	for (int i = 0; i < 4; ++i) {
+		Serial.printf("%02X ", (packet->time_unix >> (8 * (3 - i))) & 0xFF);
+	}
+	// Print MAC as 4 bytes, each as two hex digits, space-separated
+	for (int i = 0; i < 4; ++i) {
+		Serial.printf("%02X ", (packet->MAC >> (8 * (3 - i))) & 0xFF);
+	}
+	for (uint8_t i = 0; i < packet->payload_length; ++i) {
+		Serial.printf("%02X ", packet->payload[i]);
 	}
 	Serial.println();
 }
@@ -117,7 +142,7 @@ int8_t makeMAC(const Packet* packet, uint32_t* out_mac)
 
     // === Construct header ===
     buffer[0] = packet->station;
-    buffer[1] = packet->ecc ? BYTE_RS_ON : BYTE_RS_OFF;
+    buffer[1] = packet->ecc ? RS_ON : RS_OFF;
     buffer[2] = packet->command;
     buffer[3] = packet->payload_length;
 
@@ -202,7 +227,7 @@ void handleSerialInput()
 					 (temp_buffer[0] == 'g' || temp_buffer[0] == 'G') &&
 					 (temp_buffer[1] == 'o' || temp_buffer[1] == 'O')))
 				{
-					Serial.printf("Processing %d packet(s)...\n", packet_count);
+					// Serial.printf("Processing %d packet(s)...\n", packet_count);
 					
 					for (uint8_t i = 0; i < packet_count; ++i)
 					{
@@ -283,7 +308,7 @@ ICACHE_RAM_ATTR void packetEvent(void)
 void startReception(void)
 {
 	// Start listening
-	Serial.print("Listening ... ");
+	// Serial.print("Listening ... ");
 	int8_t rx_state = radio.startReceive();
 
 	// Report listening status
@@ -294,24 +319,8 @@ void startReception(void)
 void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 {
 	// Start transmission
-	Serial.print("Transmitting: ");
-	// Serial.print("Transmitting: " + String((char*) tx_packet) + " ... ");
-	for (uint8_t i = 0; i < packet_size; i++)
-	{
-		Serial.print(tx_packet[i], HEX);
-		// Serial.print("=");
-		// Serial.print(tx_packet[i]);
-		Serial.print(" ");
-	}
-	Serial.print("... ");
-
+	printData("Transmitting: ", tx_packet, packet_size);
 	int8_t tx_state = radio.startTransmit(tx_packet, packet_size);
-
-	// Set task to notify by packetEvent
-	//xTaskNotify = RTOS_TX_manager_handle; //NOT CLEAR
-	//POSSIBLE CORRECTION:
-	//xTaskNotifyGive(RTOS_TX_manager_handle);
-	
 	
 	// Report transmission status
 	printRadioStatus(tx_state);
@@ -320,7 +329,6 @@ void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 // ---------------------------------
 // PACKET FUNCTIONS
 // ---------------------------------
-
 
 // Initialize packet with default values
 void Packet::init(bool rs_enabled, uint8_t cmd)
@@ -382,7 +390,6 @@ int8_t Packet::seal()
 	return PACKET_ERR_NONE;
 }
 
-
 // Convert received data to packet with validation
 void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 {
@@ -397,11 +404,11 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 	packet->station = data[0];
 
 	// Byte 1: RS flag
-	if (data[1] == BYTE_RS_ON)
+	if (data[1] == RS_ON)
 	{
 		packet->ecc = true;
 	}
-	else if (data[1] == BYTE_RS_OFF)
+	else if (data[1] == RS_OFF)
 	{
 		packet->ecc = false;
 	}
@@ -413,6 +420,12 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 
 	// Byte 2: command (TEC type + Task value)
 	packet->command = data[2];
+	
+	if (!isTEC(packet->command)) // Check if command is a valid TEC
+	{
+		packet->state = PACKET_ERR_CMD_UNKNOWN; // unknown command
+		return;
+	}
 
 	// Byte 3: Payload length
 	packet->payload_length = data[3];
@@ -423,7 +436,7 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 		// Remove all trailing padding bytes
 		while (length > PACKET_HEADER_LENGTH + packet->payload_length)
 		{
-			if (data[length - 1] == BYTE_RS_PADDING) // Check if last byte is padding
+			if (data[length - 1] == RS_PADDING) // Check if last byte is padding
 			{
 				// Remove padding byte
 				length--;
@@ -481,11 +494,11 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 	// Byte 1: RS encoding flag
 	if (packet->ecc)
 	{
-		data[1] = BYTE_RS_ON; // RS encoding on
+		data[1] = RS_ON; // RS encoding on
 	}
 	else
 	{
-		data[1] = BYTE_RS_OFF; // RS encoding off
+		data[1] = RS_OFF; // RS encoding off
 	}
 
 	// Byte 2: command
@@ -525,7 +538,7 @@ uint8_t packetToData(const Packet* packet, uint8_t* data)
 bool isDataECCEnabled(const uint8_t* data, uint8_t length)
 {
 	// Check if RS ECC is enabled in the packet
-	if ((length % RS_BLOCK_SIZE == 0) && (data[1] != BYTE_RS_OFF))
+	if ((length % RS_BLOCK_SIZE == 0) && (data[1] != RS_OFF))
 	{
 		// If the data length is a multiple of RS_BLOCK_SIZE and RS ECC is not disabled, we can infer ECC is enabled
 		return true;
@@ -544,7 +557,7 @@ void encodeECC(uint8_t* data, uint8_t& data_len)
 	// Encode each block with padding as needed
 	for (uint8_t i = 0; i < num_blocks; ++i)
 	{
-		uint8_t block[DATA_BLOCK_SIZE] = {BYTE_RS_PADDING}; // Initialize with padding byte
+		uint8_t block[DATA_BLOCK_SIZE] = {RS_PADDING}; // Initialize with padding byte
 		uint8_t remaining = data_len - i * DATA_BLOCK_SIZE;
 		uint8_t copy_len = remaining >= DATA_BLOCK_SIZE ? DATA_BLOCK_SIZE : remaining;
 
@@ -597,10 +610,14 @@ int8_t decodeECC(uint8_t* data, uint8_t& data_len)
 		if (check_syndrome() != 0)
 		{
 			int8_t result = correct_errors_erasures(codewords[i], RS_BLOCK_SIZE, 0, nullptr);
-			if (result != 0)
+			if (result == 0)
 			{
 				Serial.printf("RS decode failed on block %d\n", i);
 				error = PACKET_ERR_DECODE; // set error code for RS decode failure
+			}
+			else
+			{
+				Serial.printf("RS decode corrected errors in block %d\n", i);
 			}
 		}
 		// Copy only the data bytes (without parity) back to the original data buffer
@@ -624,7 +641,7 @@ int8_t executeTEC(const Packet* cmd)
 {
 	if (cmd == nullptr)
 	{
-		return PACKET_ERR_CMD_GENERIC;
+		return PACKET_ERR_CMD_POINTER;
 	}
 
 	// Execute (assumes payloads are correct!)
@@ -671,19 +688,17 @@ int8_t executeTEC(const Packet* cmd)
 
 			// Unpack LoRa state from payload
 			uint8_t tx_state_new = cmd->payload[0];
-			uint8_t val0 = (tx_state_new >> 0) & 0b11;
-			uint8_t val1 = (tx_state_new >> 2) & 0b11;
-			uint8_t val2 = (tx_state_new >> 4) & 0b11;
-			uint8_t val3 = (tx_state_new >> 6) & 0b11;
-			Serial.printf("LoRa TX State new: %d, values: %d, %d, %d\n", tx_state_new, val1, val2, val3);
+			uint8_t val0 = (tx_state_new >> 0) & 0b1111;
+			uint8_t val1 = (tx_state_new >> 4) & 0b1111;
+			Serial.printf("LoRa TX State new: %d, values: %d, %d\n", tx_state_new, val0, val1);
 
-			if (val0 == val1 && val0 == val2 && val0 == val3)
+			if (val0 == val1)
 			{
-				// All values are the same, use common value
-				tx_state_new = val0;
+				tx_state_new = val0; // use common value
 			}
 			else
 			{
+				Serial.println("LoRa TX State values are not all the same!");
 				return PACKET_ERR_CMD_PAYLOAD; // payload error if not all same
 			}
 
@@ -694,36 +709,59 @@ int8_t executeTEC(const Packet* cmd)
 			tx_state = tx_state_new;
 			Serial.printf("LoRa TX State set to %d for %d s\n", tx_state, duration);
 
+			// Cancel previous timer if still active
+			if (RTOS_timer_lora_state != NULL)
+			{
+				xTimerStop(RTOS_timer_lora_state, 0);
+				Packet* old_cmd = (Packet*)pvTimerGetTimerID(RTOS_timer_lora_state);
+				xTimerDelete(RTOS_timer_lora_state, 0);
+				vPortFree(old_cmd); // free memory of old command
+				RTOS_timer_lora_state = NULL;
+				Serial.println("Cancelled previous LoRa state timer");
+			}
+			
 			// Handle duration-based reset
-			if (duration > 0) {
+			if (duration > 0)
+			{
+				// Create packet with no delay to trigger the state change when timer expires
+				Packet* delayed_cmd = (Packet*)pvPortMalloc(sizeof(Packet));
+				if (delayed_cmd == nullptr)
+				{
+					Serial.println("Failed to allocate memory for delayed packet");
+					return PACKET_ERR_CMD_MEMORY;
+				}
+				memcpy(delayed_cmd, cmd, sizeof(Packet));
+
+				// Set default state and delay to 0 in payload
+				printPacket("Packet before editing: ", delayed_cmd);
+				delayed_cmd->payload[0] = ((TX_ON & 0b1111) << 4) | (TX_ON & 0b1111);
+				delayed_cmd->payload[1] = 0x00;
+				delayed_cmd->payload[2] = 0x00;
+				delayed_cmd->payload[3] = 0x00;
+				delayed_cmd->seal(); // seal the packet
+				printPacket("Packet after editing: ", delayed_cmd);
+
 				// Duration is in seconds, convert to ticks
 				TickType_t ticks = pdMS_TO_TICKS(duration * 1000UL);
 
-				// Create timer if not already created
-				if (RTOS_tx_timer == NULL)
-				{
-					RTOS_tx_timer = xTimerCreate("LoRa State Timer",
+				// Create one-shot timer, no need to track globally
+				RTOS_timer_lora_state = xTimerCreate("LoRa State Timer",
 													ticks,
-													pdFALSE,  // one-shot
-													NULL,
-													vTxStateReset);
-				}
-
-				if (RTOS_tx_timer != NULL)
+													pdFALSE,
+													(void*)delayed_cmd,
+													vQueueDelayedPacket);
+				if (RTOS_timer_lora_state != NULL)
 				{
-					// Stop and change timer duration before restarting
-					xTimerStop(RTOS_tx_timer, 0);
-					xTimerChangePeriod(RTOS_tx_timer, ticks, 0);
-					xTimerStart(RTOS_tx_timer, 0);
+					xTimerStart(RTOS_timer_lora_state, 0);
+				}
+				else
+				{
+					vPortFree(delayed_cmd);
 				}
 			}
 			else
 			{
-				// No timer needed; state is permanent
-				if (RTOS_tx_timer != NULL)
-				{
-					xTimerStop(RTOS_tx_timer, 0);
-				}
+				// Permanent state, nothing else to do
 			}
 			break;
 		}
@@ -836,6 +874,104 @@ int8_t executeTEC(const Packet* cmd)
 			break;
 		}
 
+		case TEC_CRY_EXP:
+		{
+			Serial.println("TEC: CRY_EXP");
+
+			// First 3 bytes: glass state (6 bits) + activation delay (18 bits)
+			uint32_t glass_and_delay =
+				((uint32_t)cmd->payload[0] << 16) |
+				((uint32_t)cmd->payload[1] << 8) |
+				((uint32_t)cmd->payload[2]);
+
+			uint8_t glass_bits = (glass_and_delay >> 18) & 0b111111;
+			uint32_t activation_delay = glass_and_delay & 0x3FFFF;  // 18 bits
+
+			uint8_t glass = (glass_bits >> 3) & 0b111;
+			uint8_t val0 = glass_bits & 0b111;
+
+			// Validate repeated glass value
+			if (glass != val0)
+			{
+				Serial.println("Glass value mismatch!");
+				return PACKET_ERR_CMD_PAYLOAD;
+			}
+
+			Serial.printf("Glass state: %d (activation in %d s)\n", glass, activation_delay);
+			
+			// Cancel previous timer if still active
+			if (RTOS_timer_cry_state != NULL)
+			{
+				xTimerStop(RTOS_timer_cry_state, 0);
+				Packet* old_cmd = (Packet*)pvTimerGetTimerID(RTOS_timer_cry_state);
+				xTimerDelete(RTOS_timer_cry_state, 0);
+				vPortFree(old_cmd); // free memory of old command
+				RTOS_timer_cry_state = NULL;
+				Serial.println("Cancelled previous Crystals state timer");
+			}
+			
+			// Delayed activation
+			if (activation_delay > 0)
+			{
+				// Create packet with no delay and no pictures to trigger the state change when timer expires
+				Packet* delayed_cmd = (Packet*)pvPortMalloc(sizeof(Packet));
+				if (delayed_cmd == nullptr)
+				{
+					Serial.println("Failed to allocate memory for delayed packet");
+					return PACKET_ERR_CMD_MEMORY;
+				}
+				memcpy(delayed_cmd, cmd, sizeof(Packet));
+
+				// Set wanted state and delay to 0 in payload
+				printPacket("Packet before editing: ", delayed_cmd);
+				memset(delayed_cmd->payload, 0, delayed_cmd->payload_length); // clear payload
+				delayed_cmd->payload[0] = glass_bits << 2;
+				delayed_cmd->seal(); // seal the packet
+				printPacket("Packet after editing: ", delayed_cmd);
+
+				// Duration is in seconds, convert to ticks
+				TickType_t ticks = pdMS_TO_TICKS(activation_delay * 1000UL);
+
+				// Create one-shot timer, no need to track globally
+				RTOS_timer_cry_state = xTimerCreate("Crystals State Timer",
+													ticks,
+													pdFALSE,
+													(void*)delayed_cmd,
+													vQueueDelayedPacket);
+				if (RTOS_timer_cry_state != NULL)
+				{
+					xTimerStart(RTOS_timer_cry_state, 0);
+				}
+				else
+				{
+					vPortFree(delayed_cmd);
+				}
+			}
+			else
+			{
+				// TODO: set crystals state
+			}
+
+			// Next 3 bytes: diode (3 bits), picture (3 bits) + acquisition delay (18 bits)
+			uint32_t diode_and_delay =
+				((uint32_t)cmd->payload[3] << 16) |
+				((uint32_t)cmd->payload[4] << 8) |
+				((uint32_t)cmd->payload[5]);
+
+			uint8_t state_bits = (diode_and_delay >> 18) & 0b111111;
+			uint32_t acquisition_delay = diode_and_delay & 0x3FFFF;
+			uint32_t acquisition_delay_total = activation_delay + acquisition_delay;
+
+			uint8_t diode = (state_bits >> 3) & 0b111;
+			uint8_t picture = state_bits & 0b111;
+
+			Serial.printf("Photodiode: %d, Picture: %d (acquisition in %d s after activation)\n", diode, picture, acquisition_delay_total);
+
+			// TODO: always create photodiode acquisition packet and picture acquisition packet, with delay
+
+			break;
+		}
+
 		// TODO: deprecate these commands when splitting code for PQ/GS
 		case TER_ACK:
 			Serial.println("TER: ACK");
@@ -854,9 +990,9 @@ int8_t executeTEC(const Packet* cmd)
 }
 
 // Check if packet is a TEC to be executed
-bool isPacketTEC(const Packet* packet)
+bool isTEC(uint8_t command)
 {
-	switch (packet->command)
+	switch (command)
 	{
 		case TEC_OBC_REBOOT:
 		case TEC_EXIT_STATE:
@@ -868,6 +1004,7 @@ bool isPacketTEC(const Packet* packet)
 		case TEC_LORA_STATE:
 		case TEC_LORA_CONFIG:
 		case TEC_LORA_PING:
+		case TEC_CRY_EXP:
 			return true;
 	
 		default:
@@ -934,16 +1071,38 @@ void sendNACK(bool ecc, uint8_t TEC, int8_t error)
 // TIMER FUNCTIONS
 // ---------------------------------
 
-void vTxStateReset(TimerHandle_t xTimer)
+void vQueueDelayedPacket(TimerHandle_t xTimer)
 {
-	// Reset TX state
-	tx_state = BYTE_TX_ON; // reset to default TX state
-	Serial.println("LoRa TX state reset to ON");
-
-	// Delete timer
-	if (RTOS_tx_timer != NULL)
+	Packet* delayed_cmd = (Packet*)pvTimerGetTimerID(xTimer);
+	if (delayed_cmd != nullptr)
 	{
-		xTimerDelete(RTOS_tx_timer, 0);
-		RTOS_tx_timer = NULL;
+		BaseType_t sent = xQueueSend(RTOS_queue_cmd, delayed_cmd, 0);
+		if (sent != pdPASS)
+		{
+			Serial.println("Error: RTOS_queue_cmd is full, delayed command not queued");
+		}
+		else
+		{
+			Serial.println("Delayed command queued successfully");
+		}
+		printPacket("Delayed packet: ", delayed_cmd); // print the delayed command for debugging
+		vPortFree(delayed_cmd);
+	}
+
+	// Delete timer to clean up resources
+	xTimerDelete(xTimer, 0);
+
+	// Reset global timer handle using if-else instead of switch
+	if (xTimer == RTOS_timer_lora_state)
+	{
+		RTOS_timer_lora_state = NULL;
+	}
+	else if (xTimer == RTOS_timer_cry_state)
+	{
+		RTOS_timer_cry_state = NULL;
+	}
+	else
+	{
+		Serial.println("Warning: Unknown timer deleted, not resetting global handle");
 	}
 }

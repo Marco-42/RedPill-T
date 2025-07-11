@@ -12,8 +12,12 @@ QueueHandle_t RTOS_queue_cmd;
 uint8_t COMMS_state = COMMS_IDLE;
 
 // Transmission state
-uint8_t tx_state = BYTE_TX_ON;
-TimerHandle_t RTOS_tx_timer;
+uint8_t tx_state = TX_ON;
+TimerHandle_t RTOS_timer_lora_state = NULL; // timer to reset LoRa state
+
+// Crystal state
+uint8_t cry_state = CRY_OFF; // default state is OFF
+TimerHandle_t RTOS_timer_cry_state = NULL; // timer to reset crystal state
 
 // Flag to check if Reed-Solomon ECC is enabled
 bool rs_enabled = false;
@@ -130,7 +134,7 @@ void COMMS_stateMachine(void *parameter)
 					// Decode ECC data if enabled
 					if (ecc)
 					{
-						printPacket("Before decoding: ", rx_data, rx_data_size);
+						printData("Before decoding: ", rx_data, rx_data_size);
 						rx_packet.state = decodeECC(rx_data, rx_data_size);
 					}
 				}
@@ -139,50 +143,62 @@ void COMMS_stateMachine(void *parameter)
 				{
 					// Always try to recover the packet, content can not be trusted otherwise
 					ecc = true;
-					printPacket("Before decoding: ", rx_data, rx_data_size);
+					printData("Before decoding: ", rx_data, rx_data_size);
 					rx_packet.state = decodeECC(rx_data, rx_data_size);
 				}
-				printPacket("Decoded: ", rx_data, rx_data_size);
+				printData("Decoded: ", rx_data, rx_data_size);
 
-				// Store packet if no decode error
+				// Validate and save packet into struct
+				dataToPacket(rx_data, rx_data_size, &rx_packet);
+				rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
+
+				// Execute packet if no decode error
 				if (rx_packet.state == PACKET_ERR_NONE)
 				{
-					// Validate and decode packet into struct
-					dataToPacket(rx_data, rx_data_size, &rx_packet);
-
-					// Check if packet is a TEC and send it to command queue
-					is_TEC = isPacketTEC(&rx_packet); // check if packet is a tec
-					if (is_TEC)
+					// Send TEC to command queue
+					if (xQueueSend(RTOS_queue_cmd, &rx_packet, 0) != pdPASS)
 					{
-						if (xQueueSend(RTOS_queue_cmd, &rx_packet, 0) != pdPASS)
-						{
-							rx_packet.state = PACKET_ERR_CMD_FULL; // command queue is full, cannot process packet
-						}
-					}
-					else
-					{
-						Serial.printf("Received non-TEC packet with command %d\n", rx_packet.command);
+						rx_packet.state = PACKET_ERR_CMD_FULL; // command queue is full, cannot process packet
 					}
 				}
-
-				// Serial.printf("COMMS_RX: Command %d has state %d, it is %s\n", rx_packet.command, rx_packet.state, is_TEC ? "TEC" : "non-TEC");
-				if (is_TEC)
+				
+				if (rx_packet.state == PACKET_ERR_NONE)
 				{
-					rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
-					if (rx_packet.state == PACKET_ERR_NONE)
+					if (isACKNeededBefore(&rx_packet))
 					{
-						if (isACKNeededBefore(&rx_packet))
-						{
-							// Send early ACK packet to confirm valid command executed
-							sendACK(rs_enabled, rx_packet.command);
-						}
-					}
-					else
-					{
-						// Send NACK packet to confirm invalid command received
-						sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
+						// Send early ACK packet to confirm valid command executed
+						sendACK(rs_enabled, rx_packet.command);
 					}
 				}
+				else
+				{
+					// Send NACK packet to report invalid command received
+					sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
+				}
+
+				
+				// Send reply if TEC received
+				// if (is_TEC)
+				// {				
+				// 	rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
+				// 	if (rx_packet.state == PACKET_ERR_NONE)
+				// 	{
+				// 		if (isACKNeededBefore(&rx_packet))
+				// 		{
+				// 			// Send early ACK packet to confirm valid command executed
+				// 			sendACK(rs_enabled, rx_packet.command);
+				// 		}
+				// 	}
+				// 	else
+				// 	{
+				// 		// Send NACK packet to report invalid command received
+				// 		sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
+				// 	}
+				// }
+				// else
+				// {
+				// 	Serial.printf("Received non-TEC packet with command %d (state: %d)\n", rx_packet.command, rx_packet.state);
+				// }
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing command
 				break;
@@ -200,8 +216,8 @@ void COMMS_stateMachine(void *parameter)
 					Packet tx_packet_struct;
 					xQueueReceive(RTOS_queue_TX, &tx_packet_struct, portMAX_DELAY);
 				
-					if (tx_state == BYTE_TX_OFF || 
-						(tx_state == BYTE_TX_NOBEACON && tx_packet_struct.command == TER_BEACON))
+					if (tx_state == TX_OFF || 
+						(tx_state == TX_NOBEACON && tx_packet_struct.command == TER_BEACON))
 					{
 						Serial.println("COMMS_TX: Transmission is off, skipping packet.");
 						continue; // skip transmission if TX is off
@@ -215,10 +231,26 @@ void COMMS_stateMachine(void *parameter)
 					if (rs_enabled && tx_packet_struct.ecc)
 					{
 						// Encode data using Reed-Solomon ECC
-						printPacket("Before encoding: ", tx_packet, tx_packet_size);
+						printData("Before encoding: ", tx_packet, tx_packet_size);
 
 						encodeECC(tx_packet, tx_packet_size);
 					}
+
+					// Inject random errors for testing
+					// This is for testing purposes only, remove in production code
+					// With 50% probability, randomly change a byte in tx_packet
+					// if (tx_packet_size > 0 && (esp_random() % 100) < 50)
+					// {
+					// 	uint8_t error_length = (esp_random() % 2) + 1; // Randomly choose 1 to 2 bytes to flip
+					// 	uint8_t random_index = esp_random() % tx_packet_size;
+					// 	for (uint8_t i = 0; i < error_length && random_index + i < tx_packet_size; ++i)
+					// 	{
+					// 		// Randomly flip bits in the selected byte
+					// 		tx_packet[random_index + i] ^= (1 << (esp_random() % 8)); // Flip a random bit
+					// 	}
+						
+					// 	Serial.printf("Injected error in packet at index %d, length %d\n", random_index, error_length);
+					// }
 					
 					// Start transmission
 					startTransmission(tx_packet, tx_packet_size);
