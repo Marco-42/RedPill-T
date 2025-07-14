@@ -205,85 +205,118 @@ void writeFloatToBytes(float value, uint8_t* buffer)
 // Process commands in serial input TODO: maybe this should not be part of comms state machine
 void handleSerialInput()
 {
-	uint8_t packet_buffers[CMD_QUEUE_SIZE][PACKET_SIZE_MAX];
-	uint8_t packet_lengths[CMD_QUEUE_SIZE];
-	uint8_t packet_count = 0;
+	const uint16_t timeout_ms = 20; // max silence threshold between bytes
+	const uint16_t max_wait_ms = 200; // max wait time for full line
 
-	uint8_t temp_buffer[PACKET_SIZE_MAX];
-	uint8_t temp_length = 0;
+	uint8_t buffer[PACKET_SIZE_MAX + 1]; // null-terminated buffer
+	uint8_t length = 0;
 
-	while (true)
+	// Wait until something is available
+	if (!Serial.available())
+		return;
+
+	uint32_t start_time = millis();
+
+	// Read data until silence or timeout
+	while ((millis() - start_time < max_wait_ms) && length < PACKET_SIZE_MAX)
 	{
-		vTaskDelay(100);  // Throttle
-
-		while (Serial.available())
+		while (Serial.available() && length < PACKET_SIZE_MAX)
 		{
-			uint8_t c = Serial.read();
+			buffer[length++] = Serial.read();
+			start_time = millis(); // reset timeout on new byte
+		}
+		vTaskDelay(pdMS_TO_TICKS(timeout_ms)); // brief silence wait
+	}
 
-			if (c == '\n' || c == '\r')
+	buffer[length] = '\0';  // null-terminate for safety
+	String line = String((char*)buffer);
+    line.trim();  // remove leading/trailing whitespace, newlines
+
+	// Handle radio settings line
+	if (line.startsWith("RADIO:"))
+	{
+		line = line.substring(6);  // Remove "RADIO:"
+		
+		char* token = strtok((char*)line.c_str(), " ");
+		float freq_mhz = 0.0f;
+		float bw_khz = 0.0f;
+		uint8_t sf = 0;
+		uint8_t cr = 0;
+		int8_t power = 0;
+
+		if (token) freq_mhz = atof(token); // 1st: frequency
+		token = strtok(nullptr, " ");
+		if (token) bw_khz = atof(token); // 2nd: bandwidth
+		token = strtok(nullptr, " ");
+		if (token) sf = (uint8_t)atoi(token); // 3rd: spreading factor
+		token = strtok(nullptr, " ");
+		if (token) cr = (uint8_t)atoi(token); // 4th: coding rate
+		token = strtok(nullptr, " ");
+		if (token) power = (int8_t)atoi(token); // 5th: power
+
+		if (token) // token will be non-null if all 5 values were read
+		{
+			// Set radio parameters
+			int8_t state = radio.setFrequency(freq_mhz);
+			state = state + radio.setBandwidth(bw_khz);
+			state = state + radio.setSpreadingFactor(sf);
+			state = state + radio.setCodingRate(cr);
+			state = state + radio.setOutputPower(power);
+
+			if (state == 0)
 			{
-				// Check for "go" or "end" commands by comparing raw buffer
-				if ((temp_length == 2 &&
-					 (temp_buffer[0] == 'g' || temp_buffer[0] == 'G') &&
-					 (temp_buffer[1] == 'o' || temp_buffer[1] == 'O')))
-				{
-					// Serial.printf("Processing %d packet(s)...\n", packet_count);
-					
-					for (uint8_t i = 0; i < packet_count; ++i)
-					{
-						Packet packet;
-						dataToPacket(packet_buffers[i], packet_lengths[i], &packet);
-						if (packet.state == PACKET_ERR_NONE)
-						{
-							xQueueSend(RTOS_queue_TX, &packet, 0);
-							// Serial.printf("Packet %d sent.\n", i);
-						}
-						else
-						{
-							Serial.printf("Packet %d invalid. Skipped. Error: %d\n", i, packet.state);
-						}
-					}
-					return;
-				}
-				else if ((temp_length == 3 &&
-						  (temp_buffer[0] == 'e' || temp_buffer[0] == 'E') &&
-						  (temp_buffer[1] == 'n' || temp_buffer[1] == 'N') &&
-						  (temp_buffer[2] == 'd' || temp_buffer[2] == 'D')))
-				{
-					Serial.println("Cancelled. Packets discarded.");
-					return;
-				}
-				else if (temp_length > 0 && packet_count < CMD_QUEUE_SIZE)
-				{
-					memcpy(packet_buffers[packet_count], temp_buffer, temp_length);
-					packet_lengths[packet_count] = temp_length;
-					packet_count++;
-					Serial.printf("Stored packet %d (%d bytes): ", packet_count, temp_length);
-					for (uint8_t i = 0; i < temp_length; ++i)
-					{
-						Serial.printf("%02X ", temp_buffer[i]);
-					}
-					Serial.println();
-				}
-				else
-				{
-					Serial.println("Error or packet limit reached. Skipping.");
-				}
-
-				temp_length = 0; // reset for next line
+				Serial.printf("RADIO settings: F %.2f MHz, BW %.2f kHz, SF %u, CR %u, Power %d dBm\n", freq_mhz, bw_khz, sf, cr, power);
 			}
 			else
 			{
-				if (temp_length < PACKET_SIZE_MAX)
-				{
-					temp_buffer[temp_length++] = c;
-				}
-				else
-				{
-					Serial.println("Packet too long. Ignoring rest.");
-				}
+				Serial.printf("RADIO error: failed to apply settings (errors: %d)\n", state);
 			}
 		}
+		else
+		{
+			Serial.println("RADIO error: expected 5 parameters (F, BW, SF, CR, Power)");
+		}
+	}
+	// Handle command line
+	else if (line.startsWith("TEC:"))
+	{
+		line = line.substring(4);  // remove "TEC:"
+		line.trim();
+
+		uint8_t data[PACKET_SIZE_MAX];
+		uint8_t data_len = 0;
+
+		char* token = strtok((char*)line.c_str(), " ");
+		while (token != nullptr && data_len < PACKET_SIZE_MAX)
+		{
+			data[data_len++] = strtoul(token, nullptr, 16);  // Hex conversion
+			token = strtok(nullptr, " ");
+		}
+
+		if (data_len > 0)
+		{
+			Packet packet;
+			dataToPacket(data, data_len, &packet);
+			if (packet.state == PACKET_ERR_NONE)
+			{
+				xQueueSend(RTOS_queue_TX, &packet, 0);
+				Serial.printf("Packet queued (%d bytes): ", data_len);
+				printData("", data, data_len);
+			}
+			else
+			{
+				Serial.printf("Invalid packet. Error: %d\n", packet.state);
+			}
+		}
+		else
+		{
+			Serial.println("PACKET error: No valid data");
+		}
+	}
+	// Display error
+	else
+	{
+		Serial.println("Unrecognized line format");
 	}
 }
 
@@ -325,6 +358,7 @@ void startTransmission(uint8_t* tx_packet, uint8_t packet_size)
 	// Report transmission status
 	printRadioStatus(tx_state);
 }
+
 
 // ---------------------------------
 // PACKET FUNCTIONS
@@ -793,8 +827,6 @@ int8_t executeTEC(const Packet* cmd)
 			case 3:
 				bw_khz = 500.0;
 				break;
-			default:
-				break;
 			}
 			uint8_t sf = ((b3 >> 3) & 0b111) + 6; // 3 bits, add 6
 			uint8_t cr = (b3 & 0b111) + 5; // 3 bits, add 5
@@ -803,6 +835,9 @@ int8_t executeTEC(const Packet* cmd)
 			uint8_t b4 = cmd->payload[4];
 			int8_t power = ((b4 >> 3) & 0b11111) - 9; // 5 bits
 			uint8_t reserved = b4 & 0b111; // 3 bits
+
+			// Byte 5: duration in seconds
+			uint8_t duration = cmd->payload[5];
 
 			// Validate parameters
 			Serial.printf("LoRa Config: Freq: %u kHz, BW: %.1f kHz, SF: %d, CR: %d, Power: %d dBm\n", freq_mhz, bw_khz, sf, cr, power);
@@ -815,39 +850,93 @@ int8_t executeTEC(const Packet* cmd)
 
 			// Apply LoRa configuration
 			int8_t state = radio.setFrequency(freq_mhz);
+			state = state + radio.setBandwidth(bw_khz);
+			state = state + radio.setSpreadingFactor(sf);
+			state = state + radio.setCodingRate(cr);
+			state = state + radio.setOutputPower(power);
 			if (state != RADIOLIB_ERR_NONE)
 			{
-				Serial.println("Failed to set frequency");
 				return PACKET_ERR_CMD_PAYLOAD; // payload error
 			}
 
-			state = radio.setBandwidth(bw_khz);
-			if (state != RADIOLIB_ERR_NONE)
+			// Cancel previous timer if still active
+			if (RTOS_timer_lora_config != NULL)
 			{
-				Serial.println("Failed to set bandwidth");
-				return PACKET_ERR_CMD_PAYLOAD; // payload error
+				xTimerStop(RTOS_timer_lora_config, 0);
+				Packet* old_cmd = (Packet*)pvTimerGetTimerID(RTOS_timer_lora_config);
+				xTimerDelete(RTOS_timer_lora_config, 0);
+				vPortFree(old_cmd); // free memory of old command
+				RTOS_timer_lora_config = NULL;
+				Serial.println("Cancelled previous LoRa config timer");
 			}
 
-			state = radio.setSpreadingFactor(sf);
-			if (state != RADIOLIB_ERR_NONE)
+			// Handle duration-based reset
+			if (duration > 0)
 			{
-				Serial.println("Failed to set spreading factor");
-				return PACKET_ERR_CMD_PAYLOAD; // payload error
-			}
+				// Create packet with no delay to trigger the state change when timer expires
+				Packet* delayed_cmd = (Packet*)pvPortMalloc(sizeof(Packet));
+				if (delayed_cmd == nullptr)
+				{
+					Serial.println("Failed to allocate memory for delayed packet");
+					return PACKET_ERR_CMD_MEMORY;
+				}
+				memcpy(delayed_cmd, cmd, sizeof(Packet));
 
-			state = radio.setCodingRate(cr);
-			if (state != RADIOLIB_ERR_NONE)
-			{
-				Serial.println("Failed to set coding rate");
-				return PACKET_ERR_CMD_PAYLOAD; // payload error
-			}
+				// Set default state and delay to 0 in payload
+				printPacket("Packet before editing: ", delayed_cmd);
+				uint32_t freq_khz = F * 1000;
+				uint32_t bw_hz = BW * 1000;
+				switch (bw_hz)
+				{
+					case 62500:
+						bandwidth = 0;
+						break;
+					case 125000:
+						bandwidth = 1;
+						break;
+					case 250000:
+						bandwidth = 2;
+						break;
+					case 500000:
+						bandwidth = 3;
+						break;
+				}
+				sf = SF;
+				cr = CR;
+				power = OUTPUT_POWER;
 
-			state = radio.setOutputPower(power);
-			if (state != RADIOLIB_ERR_NONE)
-			{
-				Serial.println("Failed to set output power");
-				return PACKET_ERR_CMD_PAYLOAD; // payload error
+				delayed_cmd->payload[0] = (freq_khz >> 16) & 0xFF;
+				delayed_cmd->payload[1] = (freq_khz >> 8) & 0xFF;
+				delayed_cmd->payload[2] = freq_khz & 0xFF;
+				delayed_cmd->payload[3] = (bandwidth << 6) | ((sf - 6) << 3) | (cr - 5); // 2 bits BW, 3 bits SF, 3 bits CR
+				delayed_cmd->payload[4] = ((power + 9) << 3) | reserved; // 5 bits power, 3 bits reserved
+				delayed_cmd->payload[5] = 0x00; // duration in seconds
+				delayed_cmd->seal(); // seal the packet
+				printPacket("Packet after editing: ", delayed_cmd);
+
+				// Duration is in seconds, convert to ticks
+				TickType_t ticks = pdMS_TO_TICKS(duration * 1000UL);
+
+				// Create one-shot timer, no need to track globally
+				RTOS_timer_lora_config = xTimerCreate("LoRa Config Timer",
+													ticks,
+													pdFALSE,
+													(void*)delayed_cmd,
+													vQueueDelayedPacket);
+				if (RTOS_timer_lora_config != NULL)
+				{
+					xTimerStart(RTOS_timer_lora_config, 0);
+				}
+				else
+				{
+					vPortFree(delayed_cmd);
+				}
 			}
+			else
+			{
+				// Permanent state, nothing else to do
+			}
+			break;
 		}
 
 		case TEC_LORA_PING:
@@ -1030,10 +1119,11 @@ bool isACKNeededBefore(const Packet* packet)
 {
 	switch (packet->command)
 	{
-		case TEC_OBC_REBOOT:
-			return true; // ACK needs to be sent before rebooting
+		case TEC_OBC_REBOOT: // before rebooting OBC
+		case TEC_LORA_CONFIG: // before changing LoRa config
+			return true;
 		default:
-			return false; // ACK not needed
+			return false; // ACK not needed early
 	}
 }
 
@@ -1096,6 +1186,10 @@ void vQueueDelayedPacket(TimerHandle_t xTimer)
 	if (xTimer == RTOS_timer_lora_state)
 	{
 		RTOS_timer_lora_state = NULL;
+	}
+	else if (xTimer == RTOS_timer_lora_config)
+	{
+		RTOS_timer_lora_config = NULL;
 	}
 	else if (xTimer == RTOS_timer_cry_state)
 	{

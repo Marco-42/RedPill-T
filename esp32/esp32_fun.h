@@ -268,8 +268,9 @@ extern QueueHandle_t RTOS_queue_TX; // queue for TX packets
 extern QueueHandle_t RTOS_queue_cmd; // queue for command packets
 
 extern TimerHandle_t RTOS_timer_lora_state; // timer to reset LoRa state
+extern TimerHandle_t RTOS_timer_lora_config; // timer to reset LoRa config
 extern TimerHandle_t RTOS_timer_cry_state; // timer to update cry state
-extern TimerHandle_t RTOS_timer_camera; // timer to delay camera capture
+// extern TimerHandle_t RTOS_timer_camera; // timer to delay camera capture
 
 void vQueueDelayedPacket(TimerHandle_t xTimer);
 

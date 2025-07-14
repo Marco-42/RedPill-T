@@ -11,9 +11,10 @@ QueueHandle_t RTOS_queue_cmd;
 // General comunication state configuration 
 uint8_t COMMS_state = COMMS_IDLE;
 
-// Transmission state
+// Lora state
 uint8_t tx_state = TX_ON;
 TimerHandle_t RTOS_timer_lora_state = NULL; // timer to reset LoRa state
+TimerHandle_t RTOS_timer_lora_config = NULL; // timer to reset LoRa config
 
 // Crystal state
 uint8_t cry_state = CRY_OFF; // default state is OFF
@@ -143,7 +144,7 @@ void COMMS_stateMachine(void *parameter)
 				{
 					// Always try to recover the packet, content can not be trusted otherwise
 					ecc = true;
-					printData("Before decoding: ", rx_data, rx_data_size);
+					printData("CRC error! Before decoding: ", rx_data, rx_data_size);
 					rx_packet.state = decodeECC(rx_data, rx_data_size);
 				}
 				printData("Decoded: ", rx_data, rx_data_size);
@@ -151,6 +152,12 @@ void COMMS_stateMachine(void *parameter)
 				// Validate and save packet into struct
 				dataToPacket(rx_data, rx_data_size, &rx_packet);
 				rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
+
+				// Report RSSI and SNR if available
+				float RSSI = radio.getRSSI();
+				float SNR = radio.getSNR();
+				float freq_shift = radio.getFrequencyError();
+				Serial.printf("RSSI: %.2f SNR: %.2f dF: %.2f\n", RSSI, SNR, freq_shift);
 
 				// Execute packet if no decode error
 				if (rx_packet.state == PACKET_ERR_NONE)
@@ -172,33 +179,16 @@ void COMMS_stateMachine(void *parameter)
 				}
 				else
 				{
-					// Send NACK packet to report invalid command received
-					sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
+					if (isTEC(rx_packet.command))
+					{
+						// Send NACK packet to report invalid command received
+						sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
+					}
+					else
+					{
+						Serial.println("Received packet is not TEC, ignore reply");
+					}
 				}
-
-				
-				// Send reply if TEC received
-				// if (is_TEC)
-				// {				
-				// 	rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
-				// 	if (rx_packet.state == PACKET_ERR_NONE)
-				// 	{
-				// 		if (isACKNeededBefore(&rx_packet))
-				// 		{
-				// 			// Send early ACK packet to confirm valid command executed
-				// 			sendACK(rs_enabled, rx_packet.command);
-				// 		}
-				// 	}
-				// 	else
-				// 	{
-				// 		// Send NACK packet to report invalid command received
-				// 		sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
-				// 	}
-				// }
-				// else
-				// {
-				// 	Serial.printf("Received non-TEC packet with command %d (state: %d)\n", rx_packet.command, rx_packet.state);
-				// }
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing command
 				break;
@@ -299,7 +289,7 @@ void COMMS_stateMachine(void *parameter)
 			// SERIAL INPUT
 			case COMMS_SERIAL:
 			{
-				Serial.println("COMMS_SERIAL: enter packets -> 'go' to send, 'end' to discard");
+				Serial.println("COMMS_SERIAL: processing serial input ...");
 
 				handleSerialInput();
 
