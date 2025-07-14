@@ -190,6 +190,36 @@ INPUT_FIELDS_CONFIG = {
 
 # ========== HELPER FUNCTIONS ==========
 
+# Get the type index from a task code
+def get_type_from_task(code):
+	# Determine the type key based on code ranges (0-63: HK, 64-127: DAQ, 128-191: PE, 192-255: DT)
+	if 0 <= code <= 63:
+		return 0  # HK
+	elif 64 <= code <= 127:
+		return 1  # DAQ
+	elif 128 <= code <= 191:
+		return 2  # PE
+	elif 192 <= code <= 255:
+		return 3  # DT
+	else:
+		return None  # Unknown type
+
+# Get the label for a task code from the tasks dictionary
+def get_task_label(tasks_dict, code):
+	for label, task_code in tasks_dict.items():
+		if task_code == code:
+			type_index = get_type_from_task(code)
+			full_prefix = next((k for k, v in TEC_TER_TYPES.items() if v == type_index), "[Unknown]")
+			# Extract the text between the first '[' and ']'
+			start = full_prefix.find('[')
+			end = full_prefix.find(']')
+			prefix = full_prefix[start+1:end] if start != -1 and end != -1 else full_prefix
+			return f"[{prefix}] {label}"
+	return f"Unknown: 0x{code:02X}"
+
+
+# ========== PACKET HANDLING FUNCTIONS ==========
+
 # Build the payload based on type index and task name
 def build_payload(tec_code, input_widgets):
 	
@@ -388,6 +418,7 @@ def build_payload(tec_code, input_widgets):
 
 	return payload
 
+# Compute HMAC-SHA256 and return first 4 bytes as uint32
 def hmac_mac(key_int, message: bytes) -> int:
 	# Convert 32-bit integer key to bytes
 	key_bytes = key_int.to_bytes(4, byteorder='big')
@@ -488,38 +519,27 @@ def decode_packet(packet_bytes):
 		"payload_bytes": payload_bytes  # always a list of ints
 	}
 
-# Get the type index from a task code
-def get_type_from_task(code):
-	# Determine the type key based on code ranges (0-63: HK, 64-127: DAQ, 128-191: PE, 192-255: DT)
-	if 0 <= code <= 63:
-		return 0  # HK
-	elif 64 <= code <= 127:
-		return 1  # DAQ
-	elif 128 <= code <= 191:
-		return 2  # PE
-	elif 192 <= code <= 255:
-		return 3  # DT
-	else:
-		return None  # Unknown type
 
-# Get the label for a task code from the tasks dictionary
-def get_task_label(tasks_dict, code):
-	for label, task_code in tasks_dict.items():
-		if task_code == code:
-			type_index = get_type_from_task(code)
-			full_prefix = next((k for k, v in TEC_TER_TYPES.items() if v == type_index), "[Unknown]")
-			# Extract the text between the first '[' and ']'
-			start = full_prefix.find('[')
-			end = full_prefix.find(']')
-			prefix = full_prefix[start+1:end] if start != -1 and end != -1 else full_prefix
-			return f"[{prefix}] {label}"
-	return f"Unknown: 0x{code:02X}"
+# =========== TABLE FUNCTIONS ==========
 
+def clear_table(table: QTableWidget):
+	table.setRowCount(0)
+
+def export_table_to_db(table: QTableWidget):
+	# placeholder for future database export logic
+	print("Exporting table to database...")
+	for row in range(table.rowCount()):
+		row_data = [table.item(row, col).text() if table.item(row, col) else "" 
+					for col in range(table.columnCount())]
+		print(row_data)  # Replace with actual DB logic later
+
+	clear_table(table) # clear table after export
 
 # ========== MAIN WINDOW CLASS ==========
 
 class MainWindow(QWidget):
 
+	# ========== LAYOUT ==========
 
 	def __init__(self):
 		super().__init__()
@@ -549,7 +569,6 @@ class MainWindow(QWidget):
 		self.timeout_timer.setInterval(1000)
 		self.timeout_timer.timeout.connect(self.check_tec_timeout)
 
-
 	# Initialize left panel with TEC encoder, configuration, and queue controls
 	def init_left_panel(self):
 		self.gs_selector = QComboBox()
@@ -569,33 +588,33 @@ class MainWindow(QWidget):
 		self.ecc_radio_layout.addWidget(self.ecc_enable_radio)
 		self.ecc_radio_layout.addWidget(self.ecc_disable_radio)
 
-		self.type_selector = QComboBox()
-		self.type_selector.addItems(TEC_TER_TYPES)
-		self.type_selector.currentIndexChanged.connect(self.update_task_selector)
+		self.tec_type_selector = QComboBox()
+		self.tec_type_selector.addItems(TEC_TER_TYPES)
+		self.tec_type_selector.currentIndexChanged.connect(self.update_task_selector)
 
-		self.task_selector = QComboBox()
-		self.task_selector.currentIndexChanged.connect(self.update_packet_content_form)
+		self.tec_task_selector = QComboBox()
+		self.tec_task_selector.currentIndexChanged.connect(self.update_packet_content_form)
 
-		self.add_to_queue_button = QPushButton("Add to Queue")
-		self.add_to_queue_button.clicked.connect(self.add_to_queue)
+		self.queue_tec_button = QPushButton("Add to Queue")
+		self.queue_tec_button.clicked.connect(self.add_tec_to_queue)
 
-		self.queue_table = QTableWidget()
-		self.queue_table.setColumnCount(2)
-		self.queue_table.setHorizontalHeaderLabels(["TEC", "HEX"])
-		self.queue_table.horizontalHeader().setStretchLastSection(True)
-		self.queue_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-		self.queue_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-		self.queue_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+		self.queued_tec_table = QTableWidget()
+		self.queued_tec_table.setColumnCount(2)
+		self.queued_tec_table.setHorizontalHeaderLabels(["TEC", "HEX"])
+		self.queued_tec_table.horizontalHeader().setStretchLastSection(True)
+		self.queued_tec_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.queued_tec_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+		self.queued_tec_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
 
-		self.abort_last_button = QPushButton("Abort Last")
-		self.abort_last_button.clicked.connect(self.abort_last_tec)
+		self.abort_last_tec_button = QPushButton("Abort Last")
+		self.abort_last_tec_button.clicked.connect(self.abort_last_tec)
 
-		self.abort_next_button = QPushButton("Abort Next")
-		self.abort_next_button.clicked.connect(self.abort_next_tec)
+		self.abort_next_tec_button = QPushButton("Abort Next")
+		self.abort_next_tec_button.clicked.connect(self.abort_next_tec)
 
-		self.execute_next_button = QPushButton("Execute Next")
-		self.execute_next_button.clicked.connect(self.execute_next_tec)
-		self.execute_next_button.setEnabled(False)
+		self.execute_next_tec_button = QPushButton("Execute Next")
+		self.execute_next_tec_button.clicked.connect(self.execute_next_tec)
+		self.execute_next_tec_button.setEnabled(False)
 
 		self.last_tec_status = QLabel("NO COMMS")
 		self.last_tec_status.setAlignment(Qt.AlignCenter)
@@ -603,12 +622,19 @@ class MainWindow(QWidget):
 
 		self.last_tec_status_description = QLabel("")
 
-		self.last_tec_table = QTableWidget()
-		self.last_tec_table.setColumnCount(2)
-		self.last_tec_table.setHorizontalHeaderLabels(["TEC", "HEX"])
-		self.last_tec_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-		self.last_tec_table.horizontalHeader().setStretchLastSection(True)
-		self.last_tec_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+		self.sent_tec_table = QTableWidget()
+		self.sent_tec_table.setColumnCount(2)
+		self.sent_tec_table.setHorizontalHeaderLabels(["TEC", "HEX"])
+		self.sent_tec_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.sent_tec_table.horizontalHeader().setStretchLastSection(True)
+		self.sent_tec_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+
+		self.clear_sent_button = QPushButton("Discard")
+		self.clear_sent_button.clicked.connect(lambda: clear_table(self.sent_tec_table))
+
+		self.export_sent_button = QPushButton("Export to DB")
+		self.export_sent_button.clicked.connect(lambda: export_table_to_db(self.sent_tec_table))
+
 
 		# === Assemble Left Layout ===
 		main_layout = QHBoxLayout()
@@ -622,8 +648,8 @@ class MainWindow(QWidget):
 		packet_layout = QFormLayout()
 		packet_layout.addRow("Ground Station:", self.gs_selector)
 		packet_layout.addRow("ECC:", self.ecc_radio_layout)
-		packet_layout.addRow("Type:", self.type_selector)
-		packet_layout.addRow("Task:", self.task_selector)
+		packet_layout.addRow("Type:", self.tec_type_selector)
+		packet_layout.addRow("Task:", self.tec_task_selector)
 		packet_group.setLayout(packet_layout)
 
 		packet_setup_group = QGroupBox("TEC Content")
@@ -634,27 +660,36 @@ class MainWindow(QWidget):
 
 		queued_group = QGroupBox("Queued TECs")
 		queued_layout = QVBoxLayout()
-		queued_layout.addWidget(self.queue_table)
+		queued_layout.addWidget(self.queued_tec_table)
 		btn_row = QHBoxLayout()
-		btn_row.addWidget(self.abort_next_button)
-		btn_row.addWidget(self.abort_last_button)
+		btn_row.addWidget(self.abort_next_tec_button)
+		btn_row.addWidget(self.abort_last_tec_button)
 		queued_layout.addLayout(btn_row)
-		queued_layout.addWidget(self.execute_next_button)
+		queued_layout.addWidget(self.execute_next_tec_button)
 		queued_group.setLayout(queued_layout)
 
 		last_group = QGroupBox("Last TEC Status")
 		last_layout = QVBoxLayout()
 		last_layout.addWidget(self.last_tec_status)
 		last_layout.addWidget(self.last_tec_status_description)
-		last_layout.addWidget(self.last_tec_table)
 		last_group.setLayout(last_layout)
+
+		sent_table_group = QGroupBox("Sent TECs")
+		sent_table_layout = QVBoxLayout()
+		sent_table_layout.addWidget(self.sent_tec_table)
+		sent_table_btn_row = QHBoxLayout()
+		sent_table_btn_row.addWidget(self.clear_sent_button)
+		sent_table_btn_row.addWidget(self.export_sent_button)
+		sent_table_layout.addLayout(sent_table_btn_row)
+		sent_table_group.setLayout(sent_table_layout)
 
 		left_col.addWidget(tx_label)
 		left_col.addWidget(packet_group)
 		left_col.addWidget(packet_setup_group)
-		left_col.addWidget(self.add_to_queue_button)
+		left_col.addWidget(self.queue_tec_button)
 		left_col.addWidget(queued_group)
 		left_col.addWidget(last_group)
+		left_col.addWidget(sent_table_group)
 
 		main_layout.addLayout(left_col, 1)
 		self.main_layout = main_layout
@@ -770,6 +805,18 @@ class MainWindow(QWidget):
 		received_ter_group.setLayout(received_ter_layout)
 		received_tab_layout.addWidget(received_ter_group)
 
+		buttons_row = QHBoxLayout()
+		self.clear_received_ter_button = QPushButton("Clear")
+		self.clear_received_ter_button.clicked.connect(lambda: clear_table(self.received_ter_table))
+		self.export_recceived_button = QPushButton("Export to DB")
+		self.export_recceived_button.clicked.connect(lambda: export_table_to_db(self.received_ter_table))
+		buttons_row.addWidget(self.clear_received_ter_button)
+		buttons_row.addWidget(self.export_recceived_button)
+
+		received_ter_layout.addLayout(buttons_row)
+		received_ter_group.setLayout(received_ter_layout)
+		received_tab_layout.addWidget(received_ter_group)
+
 		received_tab.setLayout(received_tab_layout)
 		return received_tab
 
@@ -827,7 +874,6 @@ class MainWindow(QWidget):
 		return settings_tab
 
 
-
 	# ========== AUTHENTICATION ==========
 
 	# Check the password for the selected ground station
@@ -868,7 +914,7 @@ class MainWindow(QWidget):
 			self.last_gs_index = index
 
 
-	# ========== SERIAL COMMUNICATION ==========
+	# ========== SERIAL COMMUNICATION AND STATUS ==========
 
 	# Connect to the selected serial port
 	def connect_serial(self):
@@ -877,9 +923,9 @@ class MainWindow(QWidget):
 			self.serial_conn = serial.Serial(port, 9600, timeout=0.1)
 			self.set_serial_status(True)
 			self.connect_button.setText("Disconnect")
-			self.execute_next_button.setEnabled(True)
+			self.execute_next_tec_button.setEnabled(True)
 			self.apply_lora_settings_btn.setEnabled(True)
-			# self.execute_next_button.setStyleSheet("background-color: rgba(0, 255, 0, 128);")
+			# self.execute_next_tec_button.setStyleSheet("background-color: rgba(0, 255, 0, 128);")
 			self.log_status(f"[INFO] Connected to {port}")
 			self.serial_timer.start(100)
 		except Exception as e:
@@ -893,8 +939,8 @@ class MainWindow(QWidget):
 			self.serial_conn.close()
 			self.set_serial_status(False)
 			self.connect_button.setText("Connect")
-			self.execute_next_button.setEnabled(False)
-			self.execute_next_button.setStyleSheet("")
+			self.execute_next_tec_button.setEnabled(False)
+			self.execute_next_tec_button.setStyleSheet("")
 			self.apply_lora_settings_btn.setEnabled(True)
 			self.apply_lora_settings_btn.setStyleSheet("")
 			self.log_status("[INFO] Disconnected")
@@ -939,7 +985,7 @@ class MainWindow(QWidget):
 							self.log_status(f"[INFO] Packet decoded: {decoded_packet}")
 
 							# Pass to handler for ACK/NACK or other processing
-							self.handle_reception(decoded_packet, packet_bytes)
+							self.handle_packet_reception(decoded_packet, packet_bytes)
 
 						except Exception as e:
 							error_type = type(e).__name__
@@ -970,11 +1016,6 @@ class MainWindow(QWidget):
 				self.log_status(f"[ERROR] Reading failed: {e}")
 				self.disconnect_serial()
 
-	# Send message to status console with timestamp
-	def log_status(self, message):
-		timestamp = datetime.now().strftime("[%H:%M:%S]")
-		self.status_console.append(f"{timestamp} {message}")
-		
 	# Send message to serial console with timestamp
 	def log_serial(self, message):
 		timestamp = datetime.now().strftime("[%H:%M:%S]")
@@ -993,11 +1034,16 @@ class MainWindow(QWidget):
 
 		if self.serial_conn and self.serial_conn.isOpen():
 			self.serial_conn.write(command_line.encode())
-			self.log_serial(f"[TX] {command_line.strip()}")
+			self.log_serial(f"[TX]: {command_line.strip()}")
 			self.log_status(f"[INFO] Updated LoRa settings: {freq:.3f} MHz, {bw:.1f} kHz, SF{sf}, CR{cr}, Power {power} dBm")
 		else:
 			self.log_status(f"[ERROR] Serial connection is not open. Cannot send command")
 
+	# Send message to status console with timestamp
+	def log_status(self, message):
+		timestamp = datetime.now().strftime("[%H:%M:%S]")
+		self.status_console.append(f"{timestamp} {message}")
+		
 
 	# ========== STATUS VISUALIZATION ==========
 
@@ -1028,13 +1074,13 @@ class MainWindow(QWidget):
 			f"background-color: {bg_color.name()}; color: {text_color.name()}; font-weight: bold; padding: 5px;"
 		)
 
-		# Now repaint the whole last_tec_table, row by row, preserving each row's color based on stored status
+		# Now repaint the whole sent_tec_table, row by row, preserving each row's color based on stored status
 		for row_idx, (_, _, row_status) in enumerate(reversed(self.sent_tecs)):
 			bg, fg = self.get_color_for_status(row_status)
 			bg_transparent = QColor(bg)
 			bg_transparent.setAlpha(64)
-			for col in range(self.last_tec_table.columnCount()):
-				item = self.last_tec_table.item(row_idx, col)
+			for col in range(self.sent_tec_table.columnCount()):
+				item = self.sent_tec_table.item(row_idx, col)
 				if item:
 					item.setBackground(bg_transparent)
 					# item.setForeground(fg)
@@ -1066,15 +1112,15 @@ class MainWindow(QWidget):
 
 	# Update the task selector based on the selected type index
 	def update_task_selector(self, index):
-		self.task_selector.blockSignals(True)
-		self.task_selector.clear()
+		self.tec_task_selector.blockSignals(True)
+		self.tec_task_selector.clear()
 
 		tasks_for_type = {label: code for label, code in TEC_TASKS.items()
 						if get_type_from_task(code) == index}
 
-		self.task_selector.addItems(tasks_for_type.keys())
+		self.tec_task_selector.addItems(tasks_for_type.keys())
 
-		self.task_selector.blockSignals(False)
+		self.tec_task_selector.blockSignals(False)
 		self.update_packet_content_form()
 
 	# Update the packet content form based on selected type and task
@@ -1100,7 +1146,7 @@ class MainWindow(QWidget):
 
 		self.created_widgets.clear()
 
-		tec_name = self.task_selector.currentText()
+		tec_name = self.tec_task_selector.currentText()
 		fields = INPUT_FIELDS_CONFIG.get(tec_name, [])
 
 		for field in fields:
@@ -1170,14 +1216,14 @@ class MainWindow(QWidget):
 					self.packet_setup_layout.addRow(label_text, widget)
 
 
-	# ========== PACKET GENERATION ==========
+	# ========== TEC QUEUE MANAGEMENT ==========
 
 	# Add the current packet to the TEC queue
-	def add_to_queue(self):
-		self.add_to_queue_button.setEnabled(False)
+	def add_tec_to_queue(self):
+		self.queue_tec_button.setEnabled(False)
 		self.queue_timer.start()
 
-		tec_label = self.task_selector.currentText()
+		tec_label = self.tec_task_selector.currentText()
 		tec_code = TEC_TASKS.get(tec_label, 0)
 		tec_name = get_task_label(TEC_TASKS, tec_code)
 
@@ -1233,22 +1279,19 @@ class MainWindow(QWidget):
 
 		self.tec_queue.append((tec_name, tec_hex))
 
-		self.update_queue_display()
+		self.update_tec_queue_display()
 		self.log_status(f"[INFO] Added TEC to queue")
 
 	# Throttle add to queue to ensure packet unix time is unique
 	def enable_add_to_queue_button(self):
-		self.add_to_queue_button.setEnabled(True)
-
-
-	# ========== TEC QUEUE MANAGEMENT ==========
+		self.queue_tec_button.setEnabled(True)
 
 	# Update the queue display in the table widget
-	def update_queue_display(self):
-		self.queue_table.setRowCount(len(self.tec_queue))
+	def update_tec_queue_display(self):
+		self.queued_tec_table.setRowCount(len(self.tec_queue))
 		for row, (tec_name, hex_str) in enumerate(self.tec_queue):
-			self.queue_table.setItem(row, 0, QTableWidgetItem(tec_name))
-			self.queue_table.setItem(row, 1, QTableWidgetItem(hex_str))
+			self.queued_tec_table.setItem(row, 0, QTableWidgetItem(tec_name))
+			self.queued_tec_table.setItem(row, 1, QTableWidgetItem(hex_str))
 
 	# Abort the last TEC in the queue
 	def abort_last_tec(self):
@@ -1257,7 +1300,7 @@ class MainWindow(QWidget):
 			return
 
 		removed_cmd = self.tec_queue.pop()  # Remove the last TEC in the queue
-		self.update_queue_display()
+		self.update_tec_queue_display()
 		self.log_status(f"[INFO] Aborted TEC {removed_cmd[0]}")
 
 	# Abort the next TEC in the queue
@@ -1268,7 +1311,7 @@ class MainWindow(QWidget):
 
 		# Remove the first (next) TEC in the queue
 		removed_cmd = self.tec_queue.pop(0)
-		self.update_queue_display()
+		self.update_tec_queue_display()
 		self.log_status(f"[INFO] Aborted TEC {removed_cmd[0]}")
 
 	# Execute the next TEC in the queue
@@ -1305,29 +1348,28 @@ class MainWindow(QWidget):
 
 		# Log sent TEC to history with "WAITING" status
 		self.sent_tecs.append((tec_name, tec_hex, "WAITING"))
-		self.last_tec_table.insertRow(0)
-		self.last_tec_table.setItem(0, 0, QTableWidgetItem(tec_name))
-		self.last_tec_table.setItem(0, 1, QTableWidgetItem(tec_hex))
+		self.sent_tec_table.insertRow(0)
+		self.sent_tec_table.setItem(0, 0, QTableWidgetItem(tec_name))
+		self.sent_tec_table.setItem(0, 1, QTableWidgetItem(tec_hex))
 
 		# Remove sent packet from queue
 		self.tec_queue.pop(0)
-		self.update_queue_display()
+		self.update_tec_queue_display()
 
 		# Update last TEC status
 		self.last_tec_status_description.setText("Waiting for ACK/NACK/REPLY...")
 		self.set_last_tec_status(f"WAITING: 0 s")
 		self.last_tec_sent_time = datetime.now()
 		self.timeout_timer.start()
-		self.execute_next_button.setEnabled(False) # disable until ACK/NACK/REPLY is received
+		self.execute_next_tec_button.setEnabled(False) # disable until ACK/NACK/REPLY is received
 
 
 	# ========== PACKET RECEPTION HANDLING ==========
-
+	
 	# Handle reception of a decoded packet
-	def handle_reception(self, decoded_packet, packet_bytes):
-
+	def handle_packet_reception(self, decoded_packet, packet_bytes):
 		self.timeout_timer.stop()  # stop timeout check
-		self.execute_next_button.setEnabled(True)  # re-enable next execution button
+		self.execute_next_tec_button.setEnabled(True)  # re-enable next execution button
 
 		# Extract fields from the decoded packet
 		ter = decoded_packet["ter"]
@@ -1338,7 +1380,7 @@ class MainWindow(QWidget):
 			ter_tec_label = get_task_label(TER_TASKS, ter)
 
 			# Get the label of the last TEC sent
-			label_item = self.last_tec_table.item(0, 0)  # Column 1: TEC label
+			label_item = self.sent_tec_table.item(0, 0)  # Column 1: TEC label
 			tec_sent_label = label_item.text() if label_item else f"0x{ter:02X}"
 			
 			# Update ACK/NACK status of the last TEC
@@ -1399,7 +1441,7 @@ class MainWindow(QWidget):
 		elapsed = (datetime.now() - self.last_tec_sent_time).total_seconds()
 		if elapsed > RX_TIMEOUT:
 			self.timeout_timer.stop()
-			self.execute_next_button.setEnabled(True)  # re-enable next execution button
+			self.execute_next_tec_button.setEnabled(True)  # re-enable next execution button
 			self.set_last_tec_status("NO REPLY")
 			self.last_tec_status_description.setText(f"No reply received after {RX_TIMEOUT} s, check if command in blind is enabled")
 			self.log_status(f"[WARN] Timeout: No reply received after {RX_TIMEOUT} s")
