@@ -3,7 +3,7 @@ from datetime import datetime
 import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate
 
 DB_PATH = "./python/SatelliteDB.db"
 
@@ -19,7 +19,8 @@ def init_db(path=DB_PATH):
             ground_station_id TEXT,
             tec REAL,
             rssi REAL,
-            snr REAL,
+            snr REAL, 
+            freq_offset REAL,
             status TEXT,
             length INTEGER,
             mac TEXT,
@@ -31,50 +32,44 @@ def init_db(path=DB_PATH):
     return conn
 
 # Saving function (save packet in database)
-def save_packet(conn, ground_station_id, status, mac, payload, tec, direction = "Transmitter", rssi = "None", snr = "None", metadata=""):
-    """conn, ground_station_id, status, mac, payload, tec, direction(F), rssi(F), snr(F), metadata="""""
+def save_packet(conn, ground_station_id, status, mac, payload, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
+    """conn, ground_station_id, status, mac, payload, tec, direction(F), rssi(F), snr(F), freq_offset(F), metadata [conn is the database definition --> use init_db()]"""
     
     cursor = conn.cursor()
     length = len(payload)
+
+    # Get data of packet saving(UTC)
     timestamp = datetime.utcnow().isoformat()
 
-    # Setting known parameters
-    if ground_station_id == "RedPill":
-        direction = "Source"
-        rssi, snr = "None"
-
+    # Creation of the packet from raw data
     cursor.execute('''
         INSERT INTO packets (
-            timestamp, direction, ground_station_id, tec, rssi, snr,
+            timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset,
             status, length, mac, payload, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (timestamp, direction, ground_station_id, tec, rssi, snr, status, length, mac, payload, metadata))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset, status, length, mac, payload, metadata))
     
+    # Commit packet to database
     conn.commit()
 
-# Show all packets in terminal (optional)
+# Show all packets in terminal(usefull for debug operations)
 def show_all_packets(conn):
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, timestamp, direction, ground_station_id, tec, rssi, snr,
+        SELECT id, timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset,
                status, length, mac, metadata
         FROM packets
         ORDER BY timestamp
     ''')
     rows = cursor.fetchall()
 
-    print("\n📡 Saved packets:")
-    for row in rows:
-        print(f"ID:{row[0]} | TIME:[{row[1]}] | {row[2].upper()} | GS:{row[3]} | "
-              f"TEC:{row[4]} | RSSI:{row[5]} | SNR:{row[6]} | Status:{row[7]} | "
-              f"Length:{row[8]} | MAC:{row[9]} | Notes:{row[10]}")
-
-# GUI using PyQt5
+# Create the GUI for database visualization
 def open_database():
     class PacketViewer(QWidget):
         def __init__(self):
             super().__init__()
 
+            # Set the dark theme for GUI
             self.setStyleSheet("""
             QPushButton {
                 background-color: #ff4500;
@@ -85,7 +80,7 @@ def open_database():
             QPushButton:hover {
                 background-color: #e03d00;
             }
-            QLineEdit, QComboBox {
+            QLineEdit, QComboBox, QDateEdit {
                 background-color: #2e2e2e;
                 color: white;
                 border: 1px solid #555;
@@ -93,7 +88,7 @@ def open_database():
             QLabel {
                 color: white;
             }
-            """)
+        """)
             
             self.setWindowTitle("Jdata Database")
             self.resize(1200, 600)
@@ -106,19 +101,38 @@ def open_database():
 
             # Filters
             filter_layout = QHBoxLayout()
+
+            # Different filter that the user can apply to find packets inside the database
+            # Search for data
+            self.date_from = QDateEdit(calendarPopup=True)
+            self.date_from.setDisplayFormat("yyyy-MM-dd")
+            self.date_from.setDate(QDate.currentDate().addDays(-7))  # default: 7 days ago
+            filter_layout.addWidget(QLabel("From Date:"))
+            filter_layout.addWidget(self.date_from)
+
+            self.date_to = QDateEdit(calendarPopup=True)
+            self.date_to.setDisplayFormat("yyyy-MM-dd")
+            self.date_to.setDate(QDate.currentDate())  # default: today
+            filter_layout.addWidget(QLabel("To Date:"))
+            filter_layout.addWidget(self.date_to)
+
+            # Search for direction(source or trasmitter)
             self.direction_combo = QComboBox()
-            self.direction_combo.addItems(["All", "uplink", "downlink"])
+            self.direction_combo.addItems(["All", "Source", "Transmitter"])
             filter_layout.addWidget(QLabel("Direction:"))
             filter_layout.addWidget(self.direction_combo)
 
+            # Search for ground station ID
             self.gs_input = QLineEdit()
             filter_layout.addWidget(QLabel("Ground Station ID:"))
             filter_layout.addWidget(self.gs_input)
 
+            # Search for the status of transmission/reception
             self.status_input = QLineEdit()
             filter_layout.addWidget(QLabel("Status:"))
             filter_layout.addWidget(self.status_input)
 
+            # Refresh button
             self.refresh_btn = QPushButton("Refresh")
             self.refresh_btn.clicked.connect(self.load_data)
             filter_layout.addWidget(self.refresh_btn)
@@ -149,20 +163,73 @@ def open_database():
 
             # Right panel (packet detail)
             right_panel = QVBoxLayout()
-            right_panel.addWidget(QLabel("Packet Details:"))
-            self.details_box = QTextEdit()
-            self.details_box.setReadOnly(True)
-            self.details_box.setStyleSheet("font-family: monospace;")
-            right_panel.addWidget(self.details_box)
+
+            # First line in the right panel "PACKET DETAILS" + "DELETE PACKET" button
+            header_layout = QHBoxLayout()
+
+            # Setting the header for the right panel
+            details_label = QLabel("PACKET DETAILS:")
+            details_label.setStyleSheet("font-size: 12pt; font-weight: bold; color: white;")
+
+            # Setting the delete button layout
+            self.delete_btn = QPushButton("DELETE PACKET")
+            self.delete_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #8b0000;
+                    color: white;
+                    border: none;
+                    padding: 4px 10px;
+                    font-weight: bold;
+                    font-size: 11pt;
+                }
+                QPushButton:hover {
+                    background-color: #a30000;
+                }
+            """)
+
+            # Connect the delete button to the function
+            self.delete_btn.clicked.connect(self.delete_selected_packet)
+
+            header_layout.addWidget(details_label)
+            header_layout.addStretch()
+            header_layout.addWidget(self.delete_btn)
+
+            right_panel.addLayout(header_layout)
+
+            self.detail_frames = []
+
+            # Modify the layout for the right panel
+            for _ in range(7):
+                frame = QFrame()
+                frame.setStyleSheet("""
+                    QFrame {
+                        background-color: #2b2b2b;
+                        border: 1px solid #444;
+                        border-radius: 6px;
+                        padding: 8px;
+                        margin-bottom: 6px;
+                    }
+                    QLabel {
+                        color: white;
+                        font-family: Consolas, monospace;
+                        font-size: 12pt;
+                    }
+                """)
+                layout = QHBoxLayout()
+                layout.setContentsMargins(10, 4, 10, 4)
+                frame.setLayout(layout)
+                right_panel.addWidget(frame)
+                self.detail_frames.append((frame, layout))
 
             # Add both panels to main layout
-            main_layout.addLayout(left_panel, stretch=3)
-            main_layout.addLayout(right_panel, stretch=4)
+            main_layout.addLayout(left_panel, stretch=1)
+            main_layout.addLayout(right_panel, stretch=5)
 
             self.setLayout(main_layout)
             self.packets = []  # buffer for fetched packets
             self.load_data()
 
+        # Function to display data applying filters
         def load_data(self):
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
@@ -170,6 +237,13 @@ def open_database():
             query = "SELECT * FROM packets WHERE 1=1"
             params = []
 
+            # Date range
+            from_date = self.date_from.date().toString("yyyy-MM-dd")
+            to_date = self.date_to.date().toString("yyyy-MM-dd")
+            query += " AND date(timestamp) >= ? AND date(timestamp) <= ?"
+            params.extend([from_date, to_date])
+
+            # Other filters
             direction = self.direction_combo.currentText()
             gs_id = self.gs_input.text().strip()
             status = self.status_input.text().strip()
@@ -184,92 +258,188 @@ def open_database():
                 query += " AND status = ?"
                 params.append(status)
 
+            # Search data inside database
             cursor.execute(query, params)
             self.packets = cursor.fetchall()
 
             self.table.setRowCount(len(self.packets))
 
+            # Plotting founded data
             for i, pkt in enumerate(self.packets):
                 self.table.setItem(i, 0, QTableWidgetItem(str(pkt[0])))  # ID
                 self.table.setItem(i, 1, QTableWidgetItem(pkt[1]))       # Timestamp
                 self.table.setItem(i, 2, QTableWidgetItem(pkt[2]))       # Direction
 
             conn.close()
-            self.details_box.setStyleSheet("font-family: monospace; font-size: 12pt;")
-            self.details_box.clear()
 
+        # Function to show packet details when selected
         def show_packet_details(self, row, col):
             pkt = self.packets[row]
-            details = (
-                f"ID: {pkt[0]}\n"
-                f"Timestamp: {pkt[1]}\n"
-                f"Direction: {pkt[2]}\n"
-                f"Ground Station ID: {pkt[3]}\n"
-                f"TEC: {pkt[4]}\n"
-                f"RSSI: {pkt[5]}\n"
-                f"SNR: {pkt[6]}\n"
-                f"Status: {pkt[7]}\n"
-                f"Length: {pkt[8]}\n"
-                f"MAC: {pkt[9]}\n"
-                f"Payload: {pkt[10]}\n"
-                f"Metadata: {pkt[11]}"
-            )
-            self.details_box.setText(details)
+
+            rows = [
+                f"ID: {pkt[0]}    |   Direction: {pkt[2]}    |   GS id: {pkt[3]}",
+                f"Timestamp: {pkt[1].replace('T', ' ')}",
+                f"TEC: {pkt[4]}    |   RSSI: {pkt[5]}    |   SNR: {pkt[6]}",
+                f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {pkt[7]}",
+                f"MAC: {pkt[10]}",
+                f"Payload: {pkt[11]}",
+                f"Metadata: {pkt[12]}"
+            ]
+
+            for (frame, layout), text in zip(self.detail_frames, rows):
+
+                # Clear the previous content of the frame
+                for i in reversed(range(layout.count())):
+                    widget_to_remove = layout.itemAt(i).widget()
+                    layout.removeWidget(widget_to_remove)
+                    widget_to_remove.deleteLater()
+
+                # Ad the new label with packet details
+                label = QLabel(text)
+                layout.addWidget(label)
+
+        # Deleting selected packet from database
+        def delete_selected_packet(self):
+            selected_row = self.table.currentRow()
+
+            # Error message if no packet is selected
+            if selected_row < 0:
+                msg = QMessageBox(self)
+                msg.setIcon(QMessageBox.Warning)
+                msg.setWindowTitle("Warning")
+                msg.setText("Select a packet to delete.")
+                
+                # Setting the style of message box
+                msg.setStyleSheet("""
+                    QMessageBox {
+                        background-color: #2e2e2e;
+                        color: white;
+                        font-size: 11pt;
+                    }
+                    QPushButton {
+                        background-color: #ff4500;
+                        color: white;
+                        border: none;
+                        padding: 5px 10px;
+                    }
+                    QPushButton:hover {
+                        background-color: #555;
+                    }
+                """)
+
+                msg.exec_()
+                return
+
+            # Confirm elimination of the selected packet
+            pkt_id = self.packets[selected_row][0]
+            msgbox = QMessageBox(self)
+            msgbox.setWindowTitle("Confirm")
+            msgbox.setText(f"Sure to delete ID {pkt_id} from database?")
+            msgbox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            
+            # Setting the style of message box
+            msgbox.setStyleSheet("""
+                QMessageBox {
+                    background-color: #2e2e2e;
+                    color: white;
+                    font-size: 11pt;
+                }
+                QPushButton {
+                    background-color: #ff4500;
+                    color: white;
+                    border: none;
+                    padding: 5px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #555;
+                }
+            """)
+
+            reply = msgbox.exec_()
+
+            # Deleting the packet if confirmed
+            if reply == QMessageBox.Yes:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM packets WHERE id = ?", (pkt_id,))
+                conn.commit()
+                conn.close()
+
+                # Refresh the left table after elimination
+                self.load_data()
 
     dark_palette = QPalette()
 
-    # Colori di base
-    dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              # sfondo finestra
-    dark_palette.setColor(QPalette.WindowText, Qt.white)                   # testo
-    dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))               # sfondo input
-    dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))      # sfondo alternativo
+    # Color for dark theme of layout
+    dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              
+    dark_palette.setColor(QPalette.WindowText, Qt.white)                   
+    dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))               
+    dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))   
     dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
     dark_palette.setColor(QPalette.ToolTipText, Qt.white)
     dark_palette.setColor(QPalette.Text, Qt.white)
-    dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))             # sfondo pulsanti
-    dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))        # testo pulsanti (arancione)
-    dark_palette.setColor(QPalette.BrightText, Qt.red)                     # testo evidenziato
-    dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))          # evidenziazione (rosso/arancione)
+    dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))            
+    dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))       
+    dark_palette.setColor(QPalette.BrightText, Qt.red)                    
+    dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))         
     dark_palette.setColor(QPalette.HighlightedText, Qt.black)
 
-    # Applica il tema
+    # Apply dark theme
     QApplication.setPalette(dark_palette)
 
     app = QApplication(sys.argv)
     viewer = PacketViewer()
-    viewer.show()
+
+    # Show the windows
+    viewer.showMaximized()
     sys.exit(app.exec_())
 
-# Debug/test/demo
+# Debug/test
 if __name__ == "__main__":
     conn = init_db()
 
-    # Inserisci pacchetti di esempio
-    save_packet(
-        conn,
-        direction="uplink",
-        ground_station_id="GS001",
-        tec=12.5,
-        rssi=-75.2,
-        snr=10.1,
-        status="ok",
-        mac="00:1A:C2:7B:00:47",
-        payload=b"Command: RESET",
-        metadata="initial command"
-    )
+    # Example of packet saving
+    # save_packet(
+    #     conn,
+    #     ground_station_id="GS-ITA-01",
+    #     status="transmit",
+    #     mac="00:1A:C2:7B:00:47",
+    #     payload=b"CMD:RESET",
+    #     tec=12.34,
+    #     direction="uplink",
+    #     rssi=-85.3,
+    #     snr=9.2,
+    #     freq_offset=0.5,
+    #     metadata="Initial uplink reset command"
+    # )
 
-    save_packet(
-        conn,
-        direction="downlink",
-        ground_station_id="GS002",
-        tec=13.1,
-        rssi=-70.8,
-        snr=9.3,
-        status="ack",
-        mac="00:1A:C2:7B:00:47",
-        payload=b"ACK:RESET",
-        metadata="reply to reset command"
-    )
+    # save_packet(
+    #     conn,
+    #     ground_station_id="GS-ITA-01",
+    #     status="received",
+    #     mac="00:1A:C2:7B:00:47",
+    #     payload=b"ACK:RESET",
+    #     tec=11.88,
+    #     direction="downlink",
+    #     rssi=-72.6,
+    #     snr=12.4,
+    #     freq_offset=0.2,
+    #     metadata="Response from satellite"
+    # )
 
-    show_all_packets(conn)
+    # save_packet(
+    #     conn,
+    #     ground_station_id="RedPill",
+    #     status="telemetry",
+    #     mac="RP:00:00:00",
+    #     payload=b"Telemetry: Temp=33.4",
+    #     tec=13.77,
+    #     direction="source",
+    #     rssi=-70.0,
+    #     snr=10.1,
+    #     freq_offset=0.0,
+    #     metadata="Sent from onboard source"
+    # )
+    
+    # show_all_packets(conn)
     open_database()

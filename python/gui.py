@@ -14,6 +14,8 @@ import hmac
 import hashlib
 import traceback
 
+import Jdata as jdb
+
 # ========== CONSTANTS AND CONFIGURATION ==========
 
 RX_TIMEOUT = 5  # seconds to wait for a reply after sending a TEC
@@ -526,14 +528,80 @@ def clear_table(table: QTableWidget):
 	table.setRowCount(0)
 
 def export_table_to_db(table: QTableWidget):
-	# placeholder for future database export logic
-	print("Exporting table to database...")
-	for row in range(table.rowCount()):
-		row_data = [table.item(row, col).text() if table.item(row, col) else "" 
-					for col in range(table.columnCount())]
-		print(row_data)  # Replace with actual DB logic later
 
-	clear_table(table) # clear table after export
+	# Database initialization
+    db_conn = jdb.init_db()
+
+    # TEC table: 2 columns ["TEC", "HEX"]
+    # TER table: 5 columns ["TER", "RSSI", "SNR", "ΔF", "HEX"]
+	# Counting columns number to determine the table type
+    col_count = table.columnCount()
+
+	# For each row of the table, extract data, make a packet and send it to database
+    for row in range(table.rowCount()):
+
+		# TEC table
+        if col_count == 2:
+            tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
+            hex_str = table.item(row, 1).text() if table.item(row, 1) else ""
+            rssi = snr = freq_offset = "0"
+            status = tec_label
+		
+		# TER table
+        elif col_count == 5:
+            tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
+            rssi = table.item(row, 1).text() if table.item(row, 1) else "0"
+            snr = table.item(row, 2).text() if table.item(row, 2) else "0"
+            freq_offset = table.item(row, 3).text() if table.item(row, 3) else "0"
+            hex_str = table.item(row, 4).text() if table.item(row, 4) else ""
+            status = tec_label
+        else:
+            continue  # add here if is made a new table
+
+        # Extract payload bytes from hex string
+        try:
+            payload_bytes = bytes(int(b, 16) for b in hex_str.split())
+        except Exception:
+            payload_bytes = b""
+
+        # Extract the other datas from hex string
+        try:
+            decoded = decode_packet(payload_bytes)
+            ground_station_id = str(decoded.get("station_id", ""))
+            tec = decoded.get("ter", "")
+            mac = str(decoded.get("mac", ""))
+        except Exception:
+            ground_station_id = ""
+            tec = ""
+            mac = ""
+
+        # Save the single row in database
+        jdb.save_packet(
+            db_conn,
+            ground_station_id,
+            status,
+            mac,
+            payload_bytes,
+            tec,
+            direction="Receiver", # --> TO CHECK(TODO)
+            rssi=rssi,
+            snr=snr,
+            freq_offset=freq_offset,
+            metadata=""
+        )
+
+    clear_table(table)
+
+	# # Database initialization
+	# db_conn = jdb.init_db()
+
+	# # For each row of the table, extract data make a packet and send it to database
+	# for row in range(table.rowCount()):
+	# 	row_data = [table.item(row, col).text() if table.item(row, col) else "" 
+	# 				for col in range(table.columnCount())]
+	# 	print(row_data)  # Replace with actual DB logic later
+
+	# clear_table(table) # clear table after export
 
 # ========== MAIN WINDOW CLASS ==========
 
