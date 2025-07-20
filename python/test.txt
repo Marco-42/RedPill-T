@@ -453,6 +453,7 @@ Frequency Shift: -428.87 Hz
 antenna pico
 0 gradi
 
+ID PACKET: 37 --> for locate in db
 PACKET > 01 AA 33 0C 67 74 85 A0 BC AB 66 28 C2 D7 00 00 C0 60 00 00 43 97 84 EC 00 00 00 00
 RSSI: -103.25 dBm
 SNR: -1.25 dB
