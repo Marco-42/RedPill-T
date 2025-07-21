@@ -49,10 +49,14 @@ db = jd.init_db()
 # Axis vector and variable definition
 angle = [0, 0, 0, 0, 0, 30, 30, 30, 30, 30, 45, 45, 45, 45, 45]
 angle_mean = [0, 30, 45]
+angle_mean_ag = [0, 45, 60, 70, 30]
+angle_ag = [0, 0, 0, 0, 0, 45, 45, 45, 45, 45, 60, 60, 60, 60, 60, 70, 70, 70, 70, 70, 30, 30, 30, 30, 30]
 RSSI = []
 SNR = []
 ID = []
 conta = 0
+RSSI_ag = []
+SNR_ag = []
 
 # jd.open_database()
 
@@ -70,12 +74,20 @@ for pkt_id, rssi, snr in rows:
     if(pkt_id >= 37):
         RSSI.append(rssi)
         SNR.append(snr)
+    elif(pkt_id < 37 and pkt_id >= 12):
+        RSSI_ag.append(rssi)
+        SNR_ag.append(snr)
 
 # Computing the mean of RSSI and SNR every five packets
 RSSI_mean = []
 RSSI_std = []
 SNR_mean = []
 SNR_std = []
+
+RSSI_mean_ag = []
+RSSI_std_ag = []
+SNR_mean_ag = []
+SNR_std_ag = []
 
 for i in range(0, len(RSSI)):
     if i % 5 == 0:
@@ -86,13 +98,28 @@ for i in range(0, len(RSSI)):
         SNR_mean.append(np.mean(SNR[i:i+5]))
         SNR_std.append(statistics.stdev(SNR[i:i+5]))
 
+for i in range(0, len(RSSI_ag)):
+    if i % 5 == 0:
+        print(RSSI_ag[i:i+5])
+        print("-----------")
+        RSSI_mean_ag.append(np.mean(RSSI_ag[i:i+5]))
+        RSSI_std_ag.append(statistics.stdev(RSSI_ag[i:i+5]))
+        SNR_mean_ag.append(np.mean(SNR_ag[i:i+5]))
+        SNR_std_ag.append(statistics.stdev(SNR_ag[i:i+5]))
+
 # Converting array in vectors
 SNR_std = np.array(SNR_std)
 SNR_mean = np.array(SNR_mean)
 angle_mean = np.array(angle_mean)
 RSSI_std = np.array(RSSI_std)
 RSSI_mean = np.array(RSSI_mean)
+SNR_std_ag = np.array(SNR_std_ag)
+SNR_mean_ag = np.array(SNR_mean_ag)
+angle_mean_ag = np.array(angle_mean_ag)
+RSSI_std_ag = np.array(RSSI_std_ag)
+RSSI_mean_ag = np.array(RSSI_mean_ag)
 
+#region - Single element graph
 # Plotting SNR single points
 fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
 ax.errorbar(angle,SNR,xerr = 5, fmt='o', label=r'SNR data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
@@ -274,5 +301,128 @@ plt.savefig('./python/graph/RSSI_mean'+'.png',
             orientation ='Portrait',
             dpi = 100)
 
+# endregion
+
+diff = np.zeros(len(SNR_mean), dtype=np.float64)
+diff_std = np.zeros(len(SNR_mean), dtype=np.float64)
+conta = 0
+
+for i in range(len(SNR_mean)):
+    for k in range(len(SNR_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            diff[conta] = np.abs(SNR_mean_ag[k] - SNR_mean[i])
+            diff_std[conta] = np.sqrt(pow(SNR_std_ag[k], 2) + pow(SNR_std[i], 2))
+            conta = conta + 1
+            break
+
+print(diff)
+# Plotting SNR pico-pico e pico-high gain(with another graph for delta)
+fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+axx[0].errorbar(angle_mean,SNR_mean,xerr = 5, yerr = SNR_std, fmt='o', label=r'SNR data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
+axx[0].errorbar(angle_mean_ag,SNR_mean_ag,xerr = 5, yerr = SNR_std_ag, fmt='o', label=r'SNR data [Pico - High gain]',ms=3,color='darkorange', zorder = 2, lw = 1.5)
+
+axx[0].set_ylabel(r'$SNR \, [db]$', size = 13)
+axx[0].set_xlabel(r'Inclination', size = 13)
+axx[1].set_ylabel(r'$\Delta  \, [db]$', size = 13)
+axx[1].set_xlabel(r'Inclination', size = 13)
+
+axx[1].errorbar(angle_mean,diff,xerr = 5, yerr =diff_std, fmt='o', label=r'SNR data [Pico - High gain]',ms=3,color='darkred', zorder = 2, lw = 1.5)
+
+axx[0].set_xlim(-10, 82)
+axx[0].set_ylim(-20, 2)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(-3.5, 8)
+
+axx[0].text(70, -13.5, r'15 db', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/SNR_conf'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+
+diff = np.zeros(len(RSSI_mean), dtype=np.float64)
+diff_std = np.zeros(len(RSSI_mean), dtype=np.float64)
+conta = 0
+
+for i in range(len(RSSI_mean)):
+    for k in range(len(RSSI_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            diff[conta] = np.abs(RSSI_mean_ag[k] - RSSI_mean[i])
+            diff_std[conta] = np.sqrt(pow(RSSI_std_ag[k], 2) + pow(RSSI_std[i], 2))
+            conta = conta + 1
+            break
+
+print(diff)
+# Plotting RSSI pico-pico e pico-high gain(with another graph for delta)
+fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+axx[0].errorbar(angle_mean,RSSI_mean,xerr = 5, yerr = RSSI_std, fmt='o', label=r'RSSI data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
+axx[0].errorbar(angle_mean_ag,RSSI_mean_ag,xerr = 5, yerr = RSSI_std_ag, fmt='o', label=r'RSSI data [Pico - High gain]',ms=3,color='darkorange', zorder = 2, lw = 1.5)
+
+axx[0].set_ylabel(r'$RSSI \, [dbm]$', size = 13)
+axx[0].set_xlabel(r'Inclination', size = 13)
+axx[1].set_ylabel(r'$\Delta  \, [dbm]$', size = 13)
+axx[1].set_xlabel(r'Inclination', size = 13)
+
+axx[1].errorbar(angle_mean,diff,xerr = 5, yerr =diff_std, fmt='o', label=r'RSSI data [Pico - High gain]',ms=3,color='darkred', zorder = 2, lw = 1.5)
+
+axx[0].set_xlim(-10, 82)
+axx[0].set_ylim(-115, -100)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(-2, 9)
+
+axx[0].text(70, -111, r'15 db', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/RSSI_conf'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+# Plotting SNR_ag single points
+fig, ax = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
+ax.errorbar(angle_ag, SNR_ag, xerr=5, fmt='o', label=r'SNR_ag data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+
+ax.set_ylabel(r'$SNR \, [db]$', size=13)
+ax.set_xlabel(r'Inclination', size=13)
+ax.set_xlim(-10, 82)
+ax.set_ylim(-20, -2)
+ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/SNR_ag'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
+
+# Plotting RSSI_ag single points
+fig, ax = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
+ax.errorbar(angle_ag, RSSI_ag, xerr=5, fmt='o', label=r'RSSI_ag data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+
+ax.set_ylabel(r'$RSSI \, [dbm]$', size=13)
+ax.set_xlabel(r'Inclination', size=13)
+ax.set_xlim(-10, 82)
+ax.set_ylim(-115, -100)
+ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/RSSI_ag'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
 
 plt.show()
+

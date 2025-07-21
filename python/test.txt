@@ -94,7 +94,7 @@ Frequency Shift: 124.78 Hz
 
 
 45 (275 da 230)
-
+ID 17 --> to collocate in db
 PACKET > 01 55 33 0C 67 74 86 7E 0C C5 DE 00 C2 C8 00 00 00 00 00 00 C3 AE 96 81
 RSSI: -103.50 dBm
 SNR: -6.50 dB
@@ -182,7 +182,7 @@ Frequency Shift: -401.60 Hz
 ---------------------
 60 gradi
 
-
+ID 22 --> to collocate in db
 PACKET > 01 55 33 0C 67 74 86 BA 5D 04 AC 01 C2 D4 00 00 C0 80 00 00 C3 AE 96 81
 RSSI: -108.25 dBm
 SNR: -12.25 dB
@@ -270,7 +270,7 @@ Frequency Shift: -334.50 Hz
 
 ----------------------------------
 70 gradi con 15 dbm
-
+ID 27 --> to collocate in db
 PACKET > 01 AA 33 0C 67 74 87 40 BD D1 FA 2E C2 DF 80 00 C0 B8 00 00 C3 ED 80 A1 00 00 00 00
 RSSI: -111.75 dBm
 SNR: -14.75 dB
@@ -362,7 +362,7 @@ Frequency Shift: -462.42 Hz
 
 ---------------------
 30 gradi 10 dbm
-
+ID 32 --> to collocate in db
 PACKET > 01 AA 33 0C 67 74 87 A4 FD 20 89 68 C2 C8 00 00 3F C0 00 00 C3 D4 56 2E 00 00 00 00
 RSSI: -106.00 dBm
 SNR: -11.00 dB
