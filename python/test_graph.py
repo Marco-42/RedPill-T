@@ -100,8 +100,8 @@ for i in range(0, len(RSSI)):
 
 for i in range(0, len(RSSI_ag)):
     if i % 5 == 0:
-        print(RSSI_ag[i:i+5])
-        print("-----------")
+        # print(RSSI_ag[i:i+5])
+        # print("-----------")
         RSSI_mean_ag.append(np.mean(RSSI_ag[i:i+5]))
         RSSI_std_ag.append(statistics.stdev(RSSI_ag[i:i+5]))
         SNR_mean_ag.append(np.mean(SNR_ag[i:i+5]))
@@ -310,12 +310,11 @@ conta = 0
 for i in range(len(SNR_mean)):
     for k in range(len(SNR_mean_ag)):
         if angle_mean_ag[k] == angle_mean[i]:
-            diff[conta] = np.abs(SNR_mean_ag[k] - SNR_mean[i])
+            diff[conta] = (SNR_mean_ag[k] - SNR_mean[i])
             diff_std[conta] = np.sqrt(pow(SNR_std_ag[k], 2) + pow(SNR_std[i], 2))
             conta = conta + 1
             break
 
-print(diff)
 # Plotting SNR pico-pico e pico-high gain(with another graph for delta)
 fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
 axx[0].errorbar(angle_mean,SNR_mean,xerr = 5, yerr = SNR_std, fmt='o', label=r'SNR data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
@@ -326,16 +325,17 @@ axx[0].set_xlabel(r'Inclination', size = 13)
 axx[1].set_ylabel(r'$\Delta  \, [db]$', size = 13)
 axx[1].set_xlabel(r'Inclination', size = 13)
 
-axx[1].errorbar(angle_mean,diff,xerr = 5, yerr =diff_std, fmt='o', label=r'SNR data [Pico - High gain]',ms=3,color='darkred', zorder = 2, lw = 1.5)
+axx[1].errorbar(angle_mean,diff,xerr = 5, yerr =diff_std, fmt='o', label=r'$\Delta \,$SNR [P/H - P/P]',ms=3,color='darkred', zorder = 2, lw = 1.5)
 
 axx[0].set_xlim(-10, 82)
 axx[0].set_ylim(-20, 2)
 axx[1].set_xlim(-10, 82)
-axx[1].set_ylim(-3.5, 8)
+axx[1].set_ylim(-9, 5)
 
 axx[0].text(70, -13.5, r'15 db', fontsize=12, color='black', ha='center', va='center')
 
-axx[0].legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 11}, loc='lower right', frameon=False).set_zorder(2)
 
 plt.savefig('./python/graph/SNR_conf'+'.png',
             pad_inches = 1,
@@ -353,12 +353,11 @@ conta = 0
 for i in range(len(RSSI_mean)):
     for k in range(len(RSSI_mean_ag)):
         if angle_mean_ag[k] == angle_mean[i]:
-            diff[conta] = np.abs(RSSI_mean_ag[k] - RSSI_mean[i])
+            diff[conta] = (RSSI_mean_ag[k] - RSSI_mean[i])
             diff_std[conta] = np.sqrt(pow(RSSI_std_ag[k], 2) + pow(RSSI_std[i], 2))
             conta = conta + 1
             break
 
-print(diff)
 # Plotting RSSI pico-pico e pico-high gain(with another graph for delta)
 fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
 axx[0].errorbar(angle_mean,RSSI_mean,xerr = 5, yerr = RSSI_std, fmt='o', label=r'RSSI data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
@@ -369,16 +368,17 @@ axx[0].set_xlabel(r'Inclination', size = 13)
 axx[1].set_ylabel(r'$\Delta  \, [dbm]$', size = 13)
 axx[1].set_xlabel(r'Inclination', size = 13)
 
-axx[1].errorbar(angle_mean,diff,xerr = 5, yerr =diff_std, fmt='o', label=r'RSSI data [Pico - High gain]',ms=3,color='darkred', zorder = 2, lw = 1.5)
+axx[1].errorbar(angle_mean,diff,xerr = 5, yerr =diff_std, fmt='o', label=r'$\Delta \,$RSSI [P/H - P/P]',ms=3,color='darkred', zorder = 2, lw = 1.5)
 
 axx[0].set_xlim(-10, 82)
 axx[0].set_ylim(-115, -100)
 axx[1].set_xlim(-10, 82)
-axx[1].set_ylim(-2, 9)
+axx[1].set_ylim(-4, 10)
 
 axx[0].text(70, -111, r'15 db', fontsize=12, color='black', ha='center', va='center')
 
-axx[0].legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 11}, loc='lower right', frameon=False).set_zorder(2)
 
 plt.savefig('./python/graph/RSSI_conf'+'.png',
             pad_inches = 1,
@@ -424,5 +424,65 @@ plt.savefig('./python/graph/RSSI_ag'+'.png',
             orientation='Portrait',
             dpi=100)
 
-plt.show()
+# Computing gain
+gain_SNR = np.zeros(len(SNR_mean), dtype=np.float64)
+gain_SNR_ag = np.zeros(len(SNR_mean_ag), dtype=np.float64)
+gain_SNR_std = np.zeros(len(SNR_mean), dtype=np.float64)
+gain_SNR_ag_std = np.zeros(len(SNR_mean_ag), dtype=np.float64)
 
+for i in range(len(gain_SNR)):
+    gain_SNR[i] = SNR_mean[i] - SNR_mean[0]
+    gain_SNR_std[i] = np.sqrt(pow(SNR_std[0], 2) + pow(SNR_std[i], 2))
+
+for i in range(len(gain_SNR_ag)):
+    gain_SNR_ag[i] = SNR_mean_ag[i] - SNR_mean_ag[0]
+    gain_SNR_ag_std[i] = np.sqrt(pow(SNR_std_ag[0], 2) + pow(SNR_std_ag[i], 2))
+
+# Computing the difference between the gain of pico and antenna
+gain_diff = np.zeros(len(SNR_mean), dtype=np.float64)
+gain_diff_std = np.zeros(len(SNR_mean), dtype=np.float64)
+
+# Resetting counter
+conta = 0
+
+for i in range(len(SNR_mean)):
+    for k in range(len(SNR_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            gain_diff[conta] = (gain_SNR_ag[k] - gain_SNR[i])
+            gain_diff_std[conta] = np.sqrt(pow(gain_SNR_ag_std[k], 2) + pow(gain_SNR_std[i], 2))
+            conta = conta + 1
+            break
+
+# Plotting gain and gain difference
+fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+axx[0].errorbar(angle_mean,gain_SNR,xerr = 5, yerr = gain_SNR_std, fmt='o', label=r'SNR gain [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
+axx[0].errorbar(angle_mean_ag,gain_SNR_ag,xerr = 5, yerr = gain_SNR_ag_std, fmt='o', label=r'SNR gain [Pico - High gain]',ms=3,color='deepskyblue', zorder = 2, lw = 1.5)
+
+axx[0].set_ylabel(r'$Gain \, [db]$', size = 13)
+axx[0].set_xlabel(r'Inclination', size = 13)
+axx[1].set_ylabel(r'$\Delta  \, [db]$', size = 13)
+axx[1].set_xlabel(r'Inclination', size = 13)
+
+axx[1].errorbar(angle_mean,gain_diff,xerr = 5, yerr = gain_diff_std, fmt='o', label=r'$\Delta \, $ Gain [P/H - P/P]',ms=3,color='darkblue', zorder = 2, lw = 1.5)
+
+axx[0].set_xlim(-18, 82)
+axx[0].set_ylim(-15, 3)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(-4, 12)
+
+axx[0].text(70, -11.9, r'15 db', fontsize=12, color='black', ha='center', va='center')
+axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 13}, loc='lower right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/SNR_gain'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+
+plt.show()
