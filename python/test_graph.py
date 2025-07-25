@@ -7,6 +7,7 @@ import mplhep as hep
 from cycler import cycler
 import statistics
 from scipy.odr import *
+import struct
 
 # settaggio globale grafici
 plt.style.use(hep.style.ROOT)
@@ -43,6 +44,18 @@ def fitf(par, x):
     """par[0] = m  -  par[1] = q"""
     return x*(par[0]) + par[1]
 
+def extract_rssi(payload):
+    """Extract RSSI from payload"""
+    rssi_bytes = payload[12:16]
+    rssi = struct.unpack(">f", rssi_bytes)[0]
+    return rssi
+
+def extract_snr(payload):
+    """Extract SNR from payload"""
+    snr_bytes = payload[16:20]
+    snr = struct.unpack(">f", snr_bytes)[0]
+    return snr
+    
 # Database initialization
 db = jd.init_db()
 
@@ -54,6 +67,12 @@ angle_ag = [0, 0, 0, 0, 0, 45, 45, 45, 45, 45, 60, 60, 60, 60, 60, 70, 70, 70, 7
 RSSI = []
 SNR = []
 ID = []
+
+PICO_RSSI = []
+PICO_SNR = []
+PICO_RSSI_ag = []
+PICO_SNR_ag = []
+
 conta = 0
 RSSI_ag = []
 SNR_ag = []
@@ -62,21 +81,34 @@ SNR_ag = []
 
 # Searching for data inside database
 cursor = db.cursor()
-cursor.execute("SELECT id, rssi, snr FROM packets ORDER BY timestamp")
+cursor.execute("SELECT id, rssi, snr, payload FROM packets ORDER BY timestamp")
 
 rows = cursor.fetchall()
 
 # Fill vectors with data
-for pkt_id, rssi, snr in rows:
+for pkt_id, rssi, snr, payload in rows:
     ID.append(pkt_id)
 
     # Selliting only data for pico plotting
     if(pkt_id >= 37):
         RSSI.append(rssi)
         SNR.append(snr)
+        PICO_RSSI.append(extract_rssi(payload))
+        PICO_SNR.append(extract_snr(payload))
+
     elif(pkt_id < 37 and pkt_id >= 12):
         RSSI_ag.append(rssi)
         SNR_ag.append(snr)
+        PICO_RSSI_ag.append(extract_rssi(payload))
+        PICO_SNR_ag.append(extract_snr(payload))
+
+# Debug
+# for i in range(len(PICO_RSSI)):
+#     print(PICO_RSSI_ag[i], " ", RSSI_ag[i])
+
+# Debug
+# for i in range(len(PICO_RSSI)):
+#     print(PICO_SNR_ag[i], " ", SNR_ag[i])
 
 # Computing the mean of RSSI and SNR every five packets
 RSSI_mean = []
@@ -84,10 +116,20 @@ RSSI_std = []
 SNR_mean = []
 SNR_std = []
 
+PICO_RSSI_mean = []
+PICO_RSSI_std = []
+PICO_SNR_mean = []
+PICO_SNR_std = []
+
 RSSI_mean_ag = []
 RSSI_std_ag = []
 SNR_mean_ag = []
 SNR_std_ag = []
+
+PICO_RSSI_mean_ag = []
+PICO_RSSI_std_ag = []
+PICO_SNR_mean_ag = []
+PICO_SNR_std_ag = []
 
 for i in range(0, len(RSSI)):
     if i % 5 == 0:
@@ -97,6 +139,10 @@ for i in range(0, len(RSSI)):
         RSSI_std.append(statistics.stdev(RSSI[i:i+5]))
         SNR_mean.append(np.mean(SNR[i:i+5]))
         SNR_std.append(statistics.stdev(SNR[i:i+5]))
+        PICO_RSSI_mean.append(np.mean(PICO_RSSI[i:i+5]))
+        PICO_RSSI_std.append(statistics.stdev(PICO_RSSI[i:i+5]))
+        PICO_SNR_mean.append(np.mean(PICO_SNR[i:i+5]))
+        PICO_SNR_std.append(statistics.stdev(PICO_SNR[i:i+5]))
 
 for i in range(0, len(RSSI_ag)):
     if i % 5 == 0:
@@ -106,6 +152,12 @@ for i in range(0, len(RSSI_ag)):
         RSSI_std_ag.append(statistics.stdev(RSSI_ag[i:i+5]))
         SNR_mean_ag.append(np.mean(SNR_ag[i:i+5]))
         SNR_std_ag.append(statistics.stdev(SNR_ag[i:i+5]))
+        PICO_RSSI_mean_ag.append(np.mean(PICO_RSSI_ag[i:i+5]))
+        PICO_RSSI_std_ag.append(statistics.stdev(PICO_RSSI_ag[i:i+5]))
+        PICO_SNR_mean_ag.append(np.mean(PICO_SNR_ag[i:i+5]))
+        PICO_SNR_std_ag.append(statistics.stdev(PICO_SNR_ag[i:i+5]))
+
+print(PICO_RSSI_mean_ag)
 
 # Converting array in vectors
 SNR_std = np.array(SNR_std)
@@ -118,6 +170,15 @@ SNR_mean_ag = np.array(SNR_mean_ag)
 angle_mean_ag = np.array(angle_mean_ag)
 RSSI_std_ag = np.array(RSSI_std_ag)
 RSSI_mean_ag = np.array(RSSI_mean_ag)
+PICO_RSSI_std = np.array(PICO_RSSI_std)
+PICO_RSSI_mean = np.array(PICO_RSSI_mean)
+PICO_SNR_std = np.array(PICO_SNR_std)
+PICO_SNR_mean = np.array(PICO_SNR_mean)
+PICO_RSSI_std_ag = np.array(PICO_RSSI_std_ag)
+PICO_RSSI_mean_ag = np.array(PICO_RSSI_mean_ag)
+PICO_SNR_std_ag = np.array(PICO_SNR_std_ag)
+PICO_SNR_mean_ag = np.array(PICO_SNR_mean_ag)
+
 
 #region - Single element graph
 # Plotting SNR single points
@@ -303,6 +364,7 @@ plt.savefig('./python/graph/RSSI_mean'+'.png',
 
 # endregion
 
+#region - Mean graphs(data from gs - Monte Ceva)
 diff = np.zeros(len(SNR_mean), dtype=np.float64)
 diff_std = np.zeros(len(SNR_mean), dtype=np.float64)
 conta = 0
@@ -317,6 +379,7 @@ for i in range(len(SNR_mean)):
 
 # Plotting SNR pico-pico e pico-high gain(with another graph for delta)
 fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM GS - M. Ceva", fontsize=13, fontweight = 2)
 axx[0].errorbar(angle_mean,SNR_mean,xerr = 5, yerr = SNR_std, fmt='o', label=r'SNR data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
 axx[0].errorbar(angle_mean_ag,SNR_mean_ag,xerr = 5, yerr = SNR_std_ag, fmt='o', label=r'SNR data [Pico - High gain]',ms=3,color='darkorange', zorder = 2, lw = 1.5)
 
@@ -360,6 +423,7 @@ for i in range(len(RSSI_mean)):
 
 # Plotting RSSI pico-pico e pico-high gain(with another graph for delta)
 fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM GS - M. Ceva", fontsize=13, fontweight = 2)
 axx[0].errorbar(angle_mean,RSSI_mean,xerr = 5, yerr = RSSI_std, fmt='o', label=r'RSSI data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
 axx[0].errorbar(angle_mean_ag,RSSI_mean_ag,xerr = 5, yerr = RSSI_std_ag, fmt='o', label=r'RSSI data [Pico - High gain]',ms=3,color='darkorange', zorder = 2, lw = 1.5)
 
@@ -455,8 +519,9 @@ for i in range(len(SNR_mean)):
 
 # Plotting gain and gain difference
 fig, axx = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM GS - M. Ceva", fontsize=13, fontweight = 2)
 axx[0].errorbar(angle_mean,gain_SNR,xerr = 5, yerr = gain_SNR_std, fmt='o', label=r'SNR gain [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
-axx[0].errorbar(angle_mean_ag,gain_SNR_ag,xerr = 5, yerr = gain_SNR_ag_std, fmt='o', label=r'SNR gain [Pico - High gain]',ms=3,color='deepskyblue', zorder = 2, lw = 1.5)
+axx[0].errorbar(angle_mean_ag,gain_SNR_ag,xerr = 5, yerr = gain_SNR_ag_std, fmt='o', label=r'SNR gain [Pico - High gain]',ms=3,color='deepskyblue', zorder = 1, lw = 1.5)
 
 axx[0].set_ylabel(r'$Gain \, [db]$', size = 13)
 axx[0].set_xlabel(r'Inclination', size = 13)
@@ -484,5 +549,212 @@ plt.savefig('./python/graph/SNR_gain'+'.png',
             orientation ='Portrait',
             dpi = 100)
 
+#endregion
+
+#region - Mean graphs(data from pico - Noventa)
+
+# Computing the difference between the pico-pico and pico-high gain
+diff = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
+diff_std = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
+conta = 0
+
+for i in range(len(PICO_SNR_mean)):
+    for k in range(len(PICO_SNR_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            diff[conta] = (PICO_SNR_mean_ag[k] - PICO_SNR_mean[i])
+            diff_std[conta] = np.sqrt(pow(PICO_SNR_std_ag[k], 2) + pow(PICO_SNR_std[i], 2))
+            conta = conta + 1
+            break
+
+# Plotting PICO_SNR pico-pico e pico-high gain(with another graph for delta)
+fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM PICO - Noventa", fontsize=13, fontweight = 2)
+axx[0].errorbar(angle_mean, PICO_SNR_mean, xerr=5, yerr=PICO_SNR_std, fmt='o', label=r'PICO_SNR data [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, PICO_SNR_mean_ag, xerr=5, yerr=PICO_SNR_std_ag, fmt='o', label=r'PICO_SNR data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+
+axx[0].set_ylabel(r'$PICO\_SNR \, [db]$', size=13)
+axx[0].set_xlabel(r'Inclination', size=13)
+axx[1].set_ylabel(r'$\Delta  \, [db]$', size=13)
+axx[1].set_xlabel(r'Inclination', size=13)
+
+axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$PICO\_SNR [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
+
+axx[0].set_xlim(-10, 82)
+axx[0].set_ylim(-12.5, 8.5)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(2.5, 15)
+
+axx[0].text(70, -9, r'15 db', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 11}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/PICO_SNR_conf'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
+
+diff = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
+diff_std = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
+conta = 0
+
+for i in range(len(PICO_RSSI_mean)):
+    for k in range(len(PICO_RSSI_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            diff[conta] = (PICO_RSSI_mean_ag[k] - PICO_RSSI_mean[i])
+            diff_std[conta] = np.sqrt(pow(PICO_RSSI_std_ag[k], 2) + pow(PICO_RSSI_std[i], 2))
+            conta = conta + 1
+            break
+
+# Plotting PICO_RSSI pico-pico e pico-high gain(with another graph for delta)
+fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM PICO - Noventa", fontsize=13, fontweight = 2)
+axx[0].errorbar(angle_mean, PICO_RSSI_mean, xerr=5, yerr=PICO_RSSI_std, fmt='o', label=r'PICO\_RSSI data [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, PICO_RSSI_mean_ag, xerr=5, yerr=PICO_RSSI_std_ag, fmt='o', label=r'PICO\_RSSI data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+
+axx[0].set_ylabel(r'$RSSI \, [dbm]$', size=13)
+axx[0].set_xlabel(r'Inclination', size=13)
+axx[1].set_ylabel(r'$\Delta  \, [dbm]$', size=13)
+axx[1].set_xlabel(r'Inclination', size=13)
+
+axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$PICO\_RSSI [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
+
+axx[0].set_xlim(-10, 82)
+axx[0].set_ylim(-117.5, -92.5)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(6, 18)
+
+axx[0].text(70, -107, r'15 db', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 11}, loc='upper left', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/PICO_RSSI_conf'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
+
+# Computing gain
+gain_PICO_SNR = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
+gain_PICO_SNR_ag = np.zeros(len(PICO_SNR_mean_ag), dtype=np.float64)
+gain_PICO_SNR_std = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
+gain_PICO_SNR_ag_std = np.zeros(len(PICO_SNR_mean_ag), dtype=np.float64)
+
+for i in range(len(gain_PICO_SNR)):
+    gain_PICO_SNR[i] = PICO_SNR_mean[i] - PICO_SNR_mean[0]
+    gain_PICO_SNR_std[i] = np.sqrt(pow(PICO_SNR_std[0], 2) + pow(PICO_SNR_std[i], 2))
+
+for i in range(len(gain_PICO_SNR_ag)):
+    gain_PICO_SNR_ag[i] = PICO_SNR_mean_ag[i] - PICO_SNR_mean_ag[0]
+    gain_PICO_SNR_ag_std[i] = np.sqrt(pow(PICO_SNR_std_ag[0], 2) + pow(PICO_SNR_std_ag[i], 2))
+
+# Computing the difference between the gain of pico and antenna
+gain_diff = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
+gain_diff_std = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
+
+# Resetting counter
+conta = 0
+
+for i in range(len(PICO_SNR_mean)):
+    for k in range(len(PICO_SNR_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            gain_diff[conta] = (gain_PICO_SNR_ag[k] - gain_PICO_SNR[i])
+            gain_diff_std[conta] = np.sqrt(pow(gain_PICO_SNR_ag_std[k], 2) + pow(gain_PICO_SNR_std[i], 2))
+            conta = conta + 1
+            break
+
+# Plotting gain and gain difference
+fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM PICO - Noventa", fontsize=13, fontweight = 2)
+axx[0].errorbar(angle_mean, gain_PICO_SNR, xerr=5, yerr=gain_PICO_SNR_std, fmt='o', label=r'SNR gain [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, gain_PICO_SNR_ag, xerr=5, yerr=gain_PICO_SNR_ag_std, fmt='o', label=r'SNR gain [Pico - High gain]', ms=3, color='deepskyblue', zorder=1, lw=1.5)
+
+axx[0].set_ylabel(r'$Gain \, [db]$', size=13)
+axx[0].set_xlabel(r'Inclination', size=13)
+axx[1].set_ylabel(r'$\Delta  \, [db]$', size=13)
+axx[1].set_xlabel(r'Inclination', size=13)
+
+axx[1].errorbar(angle_mean, gain_diff, xerr=5, yerr=gain_diff_std, fmt='o', label=r'$\Delta \, $ Gain [P/H - P/P]', ms=3, color='darkblue', zorder=2, lw=1.5)
+
+axx[0].set_xlim(-18, 82)
+axx[0].set_ylim(-15, 3)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(-7, 7)
+
+axx[0].text(70, -5.8, r'15 db', fontsize=12, color='black', ha='center', va='center')
+axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/PICO_SNR_gain'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
+
+#endregion
+
+#region - Data comparason 
+
+# Plotting SNR pico-pico from GS and PICO and SNR pico-high gain from GS and PICO
+fig, axx = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
+fig.suptitle("SNR DATA", fontsize=13, fontweight = 2)
+axx.errorbar(angle_mean, PICO_SNR_mean, xerr=5, yerr=PICO_SNR_std, fmt='o', label=r'PICO - Noventa [Pico - Pico]', ms=3, color='orange', zorder=2, lw=1.5)
+axx.errorbar(angle_mean_ag, PICO_SNR_mean_ag, xerr=5, yerr=PICO_SNR_std_ag, fmt='o', label=r'PICO - Noventa [Pico - High gain]', ms=3, color='black', zorder=2, lw=1.5)
+axx.errorbar(angle_mean, SNR_mean, xerr=5, yerr=SNR_std, fmt='o', label=r'GS - M. Ceva [Pico - Pico]', ms=3, color='firebrick', zorder=2, lw=1.5)
+axx.errorbar(angle_mean_ag, SNR_mean_ag, xerr=5, yerr=SNR_std_ag, fmt='o', label=r'GS - M. Ceva [Pico - High gain]', ms=3, color='forestgreen', zorder=1, lw=1.5)
+
+axx.set_ylabel(r'$SNR \, [db]$', size=13)
+axx.set_xlabel(r'Inclination', size=13)
+
+axx.set_xlim(-10, 82)
+axx.set_ylim(-18.5, 11)
+
+axx.text(70, -9, r'15 db', fontsize=12, color='black', ha='center', va='center')
+
+axx.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/SNR_comp'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
+
+# Plotting RSSI pico-pico from GS and PICO and SNR pico-high gain from GS and PICO
+fig, axx = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
+fig.suptitle("RSSI DATA", fontsize=13, fontweight = 2)
+axx.errorbar(angle_mean, PICO_RSSI_mean, xerr=5, yerr=PICO_RSSI_std, fmt='o', label=r'PICO - Noventa [Pico - Pico]', ms=3, color='darkorange', zorder=2, lw=1.5)
+axx.errorbar(angle_mean_ag, PICO_RSSI_mean_ag, xerr=5, yerr=PICO_RSSI_std_ag, fmt='o', label=r'PICO - Noventa [Pico - High gain]', ms=3, color='black', zorder=2, lw=1.5)
+axx.errorbar(angle_mean, RSSI_mean, xerr=5, yerr=RSSI_std, fmt='o', label=r'GS - M. Ceva [Pico - Pico]', ms=3, color='deepskyblue', zorder=1, lw=1.5)
+axx.errorbar(angle_mean_ag, RSSI_mean_ag, xerr=5, yerr=RSSI_std_ag, fmt='o', label=r'GS - M. Ceva [Pico - High gain]', ms=3, color='mediumblue', zorder=2, lw=1.5)
+
+axx.set_ylabel(r'$RSSI \, [dbm]$', size=13)
+axx.set_xlabel(r'Inclination', size=13)
+
+axx.set_xlim(-10, 82)
+axx.set_ylim(-117.5, -93)
+
+axx.text(70, -116, r'15 db', fontsize=12, color='black', ha='center', va='center')
+
+axx.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+
+plt.savefig('./python/graph/RSSI_comp'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
 
 plt.show()
