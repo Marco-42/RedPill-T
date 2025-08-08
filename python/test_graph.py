@@ -191,7 +191,7 @@ ax.set_xlim(-10, 55)
 ax.set_ylim(-13, 0)
 ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/SNR'+'.png',
+plt.savefig('./python/test/graph/SNR'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -263,7 +263,7 @@ ax.set_xlim(-10, 55)
 ax.set_ylim(-13, 0)
 ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/SNR_mean'+'.png',
+plt.savefig('./python/test/graph/SNR_mean'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -281,7 +281,7 @@ ax.set_xlabel(r'Inclination', size = 13)
 # ax.set_ylim(-13, 0)
 ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/RSSI'+'.png',
+plt.savefig('./python/test/graph/RSSI'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -354,7 +354,7 @@ ax.set_xlabel(r'Inclination', size = 13)
 # ax.set_ylim(-13, 0)
 ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/RSSI_mean'+'.png',
+plt.savefig('./python/test/graph/RSSI_mean'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -400,7 +400,7 @@ axx[0].text(70, -13.5, r'15 db', fontsize=12, color='black', ha='center', va='ce
 axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 11}, loc='lower right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/SNR_conf'+'.png',
+plt.savefig('./python/test/graph/SNR_conf'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -444,7 +444,7 @@ axx[0].text(70, -111, r'15 db', fontsize=12, color='black', ha='center', va='cen
 axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 11}, loc='lower right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/RSSI_conf'+'.png',
+plt.savefig('./python/test/graph/RSSI_conf'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -454,7 +454,7 @@ plt.savefig('./python/graph/RSSI_conf'+'.png',
 
 # Plotting SNR_ag single points
 fig, ax = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
-ax.errorbar(angle_ag, SNR_ag, xerr=5, fmt='o', label=r'SNR_ag data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+ax.errorbar(angle_ag, SNR_ag, xerr=5, fmt='o', label=r'SNR data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
 
 ax.set_ylabel(r'$SNR \, [db]$', size=13)
 ax.set_xlabel(r'Inclination', size=13)
@@ -462,7 +462,7 @@ ax.set_xlim(-10, 82)
 ax.set_ylim(-20, -2)
 ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/SNR_ag'+'.png',
+plt.savefig('./python/test/graph/SNR_ag'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -472,7 +472,7 @@ plt.savefig('./python/graph/SNR_ag'+'.png',
 
 # Plotting RSSI_ag single points
 fig, ax = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
-ax.errorbar(angle_ag, RSSI_ag, xerr=5, fmt='o', label=r'RSSI_ag data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+ax.errorbar(angle_ag, RSSI_ag, xerr=5, fmt='o', label=r'RSSI data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
 
 ax.set_ylabel(r'$RSSI \, [dbm]$', size=13)
 ax.set_xlabel(r'Inclination', size=13)
@@ -480,7 +480,7 @@ ax.set_xlim(-10, 82)
 ax.set_ylim(-115, -100)
 ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/RSSI_ag'+'.png',
+plt.savefig('./python/test/graph/RSSI_ag'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -541,7 +541,7 @@ axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='cente
 axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 13}, loc='lower right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/SNR_gain'+'.png',
+plt.savefig('./python/test/graph/SNR_gain'+'.png',
             pad_inches = 1,
             transparent = True,
             facecolor ="w",
@@ -569,15 +569,15 @@ for i in range(len(PICO_SNR_mean)):
 # Plotting PICO_SNR pico-pico e pico-high gain(with another graph for delta)
 fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
 fig.suptitle("DATA FROM PICO - Noventa", fontsize=13, fontweight = 2)
-axx[0].errorbar(angle_mean, PICO_SNR_mean, xerr=5, yerr=PICO_SNR_std, fmt='o', label=r'PICO_SNR data [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
-axx[0].errorbar(angle_mean_ag, PICO_SNR_mean_ag, xerr=5, yerr=PICO_SNR_std_ag, fmt='o', label=r'PICO_SNR data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean, PICO_SNR_mean, xerr=5, yerr=PICO_SNR_std, fmt='o', label=r'SNR data [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, PICO_SNR_mean_ag, xerr=5, yerr=PICO_SNR_std_ag, fmt='o', label=r'SNR data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
 
-axx[0].set_ylabel(r'$PICO\_SNR \, [db]$', size=13)
+axx[0].set_ylabel(r'$SNR \, [db]$', size=13)
 axx[0].set_xlabel(r'Inclination', size=13)
 axx[1].set_ylabel(r'$\Delta  \, [db]$', size=13)
 axx[1].set_xlabel(r'Inclination', size=13)
 
-axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$PICO\_SNR [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
+axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$SNR [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
 
 axx[0].set_xlim(-10, 82)
 axx[0].set_ylim(-12.5, 8.5)
@@ -589,7 +589,7 @@ axx[0].text(70, -9, r'15 db', fontsize=12, color='black', ha='center', va='cente
 axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 11}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/PICO_SNR_conf'+'.png',
+plt.savefig('./python/test/graph/PICO_SNR_conf'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -612,15 +612,15 @@ for i in range(len(PICO_RSSI_mean)):
 # Plotting PICO_RSSI pico-pico e pico-high gain(with another graph for delta)
 fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
 fig.suptitle("DATA FROM PICO - Noventa", fontsize=13, fontweight = 2)
-axx[0].errorbar(angle_mean, PICO_RSSI_mean, xerr=5, yerr=PICO_RSSI_std, fmt='o', label=r'PICO\_RSSI data [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
-axx[0].errorbar(angle_mean_ag, PICO_RSSI_mean_ag, xerr=5, yerr=PICO_RSSI_std_ag, fmt='o', label=r'PICO\_RSSI data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean, PICO_RSSI_mean, xerr=5, yerr=PICO_RSSI_std, fmt='o', label=r'RSSI data [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, PICO_RSSI_mean_ag, xerr=5, yerr=PICO_RSSI_std_ag, fmt='o', label=r'RSSI data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
 
 axx[0].set_ylabel(r'$RSSI \, [dbm]$', size=13)
 axx[0].set_xlabel(r'Inclination', size=13)
 axx[1].set_ylabel(r'$\Delta  \, [dbm]$', size=13)
 axx[1].set_xlabel(r'Inclination', size=13)
 
-axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$PICO\_RSSI [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
+axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$RSSI [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
 
 axx[0].set_xlim(-10, 82)
 axx[0].set_ylim(-117.5, -92.5)
@@ -632,7 +632,7 @@ axx[0].text(70, -107, r'15 db', fontsize=12, color='black', ha='center', va='cen
 axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 11}, loc='upper left', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/PICO_RSSI_conf'+'.png',
+plt.savefig('./python/test/graph/PICO_RSSI_conf'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -693,7 +693,7 @@ axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='cente
 axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/PICO_SNR_gain'+'.png',
+plt.savefig('./python/test/graph/PICO_SNR_gain'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -723,7 +723,7 @@ axx.text(70, -9, r'15 db', fontsize=12, color='black', ha='center', va='center')
 
 axx.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/SNR_comp'+'.png',
+plt.savefig('./python/test/graph/SNR_comp'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -749,12 +749,14 @@ axx.text(70, -116, r'15 db', fontsize=12, color='black', ha='center', va='center
 
 axx.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 
-plt.savefig('./python/graph/RSSI_comp'+'.png',
+plt.savefig('./python/test/graph/RSSI_comp'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
             edgecolor='w',
             orientation='Portrait',
             dpi=100)
+
+# endregion
 
 plt.show()

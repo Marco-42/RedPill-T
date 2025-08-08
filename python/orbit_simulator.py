@@ -12,9 +12,13 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt
+from matplotlib.animation import FuncAnimation
 
-line1 = "1 25544U 98067A   20300.83097691  .00001534  00000-0  35580-4 0  9996"
-line2 = "2 25544  51.6453  57.0843 0001671  64.9808  73.0513 15.49338189252428"
+# line1 = "1 25544U 98067A   20300.83097691  .00001534  00000-0  35580-4 0  9996"
+# line2 = "2 25544  51.6453  57.0843 0001671  64.9808  73.0513 15.49338189252428"
+
+line1 = "1 25544U 98067A   25210.16425717  .00013032  00000-0  23438-3 0  9995"
+line2 = "2 25544  51.6345  99.0171 0001921 128.7802 231.3359 15.50188201521672"
 
 R_EARTH = 6371.0  # Earth radius in kilometers
 MINUTES = 720     # Number of minutes to simulate
@@ -23,7 +27,7 @@ MINUTES = 720     # Number of minutes to simulate
 gs_lons = 11.893123
 gs_lats = 45.410935
 gs_range = 1000 # Ground station range in Km
-gs_altitude = 0.012 # Ground station altitude in km 
+gs_altitude = 12 # Ground station altitude in m
 
 # Defining vector for time contact
 contact_time = []
@@ -118,8 +122,8 @@ def distance_3d(lat1, lon1, alt1, lat2, lon2, alt2):
 class SatelliteSimApp(QMainWindow):
     def __init__(self):
         super().__init__()
-
-        # Foglio di stile per rifinire i pulsanti e input
+        
+        # Creating display layout
         self.setStyleSheet("""
             QPushButton {
                 background-color: #ff4500;
@@ -141,15 +145,15 @@ class SatelliteSimApp(QMainWindow):
         """)
 
         self.setWindowTitle("Satellite Simulation GUI")
-        self.setGeometry(100, 100, 1000, 600)  # Dimensioni iniziali
+        self.setGeometry(100, 100, 1000, 600) 
 
         self.main_widget = QWidget()
         self.setCentralWidget(self.main_widget)
 
-        # Layout principale orizzontale
+        # Main layout
         layout = QHBoxLayout(self.main_widget)
 
-        # Pannello controlli (a sinistra)
+        # Controll pannel
         control_layout = QVBoxLayout()
 
         # ComboBox preset coordinate
@@ -169,12 +173,17 @@ class SatelliteSimApp(QMainWindow):
         self.lon_input = QLineEdit("")
         control_layout.addWidget(self.lon_input)
 
+        # Altitude input
+        control_layout.addWidget(QLabel("Ground Station Altitude (m):"))
+        self.altitude_input = QLineEdit("")
+        control_layout.addWidget(self.altitude_input)
+
         # Minimum elevation angle input
         control_layout.addWidget(QLabel("Minimum Elevation Angle (deg):"))
         self.elev_input = QLineEdit("10")
         control_layout.addWidget(self.elev_input)
         
-        # Selettore di proiezione
+        # Projection selector 
         control_layout.addWidget(QLabel("Map Projection:"))
 
         self.btn_platecarree = QPushButton("Global MAP")
@@ -191,7 +200,7 @@ class SatelliteSimApp(QMainWindow):
         self.loading_label = QLabel("Loading...")
         self.loading_label.setStyleSheet("color: orange; font-size: 16px;")
         self.loading_label.setAlignment(Qt.AlignCenter)
-        self.loading_label.setVisible(False)  # nascosta all'inizio
+        self.loading_label.setVisible(False)  # initially hide
         control_layout.addWidget(self.loading_label)
         
         # Plotting bar
@@ -209,23 +218,28 @@ class SatelliteSimApp(QMainWindow):
         control_layout.addWidget(self.btn_orbit)
 
         control_layout.addStretch()
-        layout.addLayout(control_layout, 1)  # proporzione 1
-
-        # Pannello grafico (a destra)
+        layout.addLayout(control_layout, 1) 
+        
+        # Animation sector
+        control_layout.addWidget(QLabel("Animation:"))
+        self.btn_full_animation = QPushButton("Complete Animation")
+        self.btn_full_animation.clicked.connect(lambda: self.run_simulation("full_animation"))
+        control_layout.addWidget(self.btn_full_animation)
+        
+        # Graphic pannel
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
-        self.figure.patch.set_facecolor("#1e1e1e")  # Sfondo della figura
-        self.canvas.setStyleSheet("background-color: #1e1e1e;")  # Sfondo del canvas Qt
-        layout.addWidget(self.canvas, 4)  # proporzione 4 (più grande)
+        self.figure.patch.set_facecolor("#1e1e1e")  # Figure Background 
+        self.canvas.setStyleSheet("background-color: #1e1e1e;")
+        layout.addWidget(self.canvas, 4)
 
-        # Collegamenti segnali
         self.coord_combo.currentIndexChanged.connect(self.on_preset_changed)
 
-        # Pannello grafico + timer
+        # Graphic pannel + timer
         plot_layout = QVBoxLayout()
         plot_layout.addWidget(self.canvas)
 
-        # Etichetta "Current time"
+        # "Current time"
         self.clock_title = QLabel("Current time")
         self.clock_title.setAlignment(Qt.AlignCenter)
         self.clock_title.setStyleSheet("""
@@ -258,6 +272,27 @@ class SatelliteSimApp(QMainWindow):
             }
         """)
 
+        # Contact time label
+        self.contact_time = QLabel("""
+            <div style='text-align: center;'>
+                <div style='font-size: 16px; font-family: Segoe UI; color: #00BFFF;'>CONTACT TIME</div>
+                <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>--:--:--</div>
+            </div>
+        """)
+        self.contact_time.setAlignment(Qt.AlignCenter)
+        self.contact_time.setStyleSheet("""
+            QLabel {
+                color: #00BFFF;
+                font-family: 'Courier New', monospace;
+                font-size: 20px;
+                border: 2px solid #00BFFF;
+                background-color: #1e1e1e;
+                padding: 10px 16px;
+                border-radius: 6px;
+                max-width: 200px;
+            }
+        """)
+
         # Countdown label (Next Contact)
         self.next_contact_label = QLabel("""
             <div style='text-align: center;'>
@@ -278,20 +313,47 @@ class SatelliteSimApp(QMainWindow):
                 max-width: 200px;
             }
         """)
+        
+        # Setting the default index for the next contact
+        self.index = 1
 
-        time_layout = QHBoxLayout()
-        time_layout.addWidget(self.clock_label, alignment=Qt.AlignLeft)
-        time_layout.addWidget(self.next_contact_label)
-        plot_layout.addLayout(time_layout)
+        # Button to set the next contact index
+        self.button1 = QPushButton("1")
+        self.button2 = QPushButton("2")
+        self.button3 = QPushButton("3")
+        self.button1.clicked.connect(lambda: self.set_next_contact_index(1))
+        self.button2.clicked.connect(lambda: self.set_next_contact_index(2))
+        self.button3.clicked.connect(lambda: self.set_next_contact_index(3))
+        for btn in (self.button1, self.button2, self.button3):
+            btn.setFixedWidth(40)
+            btn.setStyleSheet("font-size: 16px; background-color: #222; color: #DAA520; border: 2px solid #DAA520; border-radius: 6px;")
 
-        # Aggiungi al layout principale
+        # Vertical layout per i pulsanti
+        btns_layout = QVBoxLayout()
+        btns_layout.addWidget(self.button1)
+        btns_layout.addWidget(self.button2)
+        btns_layout.addWidget(self.button3)
+        # Non aggiungere stretch!
+
+        # Layout orizzontale principale
+        time_and_btns_layout = QHBoxLayout()
+        time_and_btns_layout.setSpacing(10)  # Puoi ridurre questo valore per avvicinare i widget
+        time_and_btns_layout.setContentsMargins(0, 0, 0, 0)
+        time_and_btns_layout.addWidget(self.clock_label)
+        time_and_btns_layout.addLayout(btns_layout)
+        time_and_btns_layout.addWidget(self.contact_time)
+        time_and_btns_layout.addWidget(self.next_contact_label)
+
+        plot_layout.addLayout(time_and_btns_layout)    
+        
+        # Add to main layout
         layout.addLayout(plot_layout, 4)
 
         self.clock_timer = QTimer()
         self.clock_timer.timeout.connect(self.update_clock)
         self.clock_timer.start(1000)
         self.update_clock()
-
+        
         # Error text
         self.error_label = QLabel("")
         self.error_label.setAlignment(Qt.AlignCenter)
@@ -306,13 +368,23 @@ class SatelliteSimApp(QMainWindow):
         # Hide the error label initially
         self.error_label.setVisible(False)
 
+        # Appling the function to stop the animation if any button is pressed
+        for btn in self.findChildren(QPushButton):
+            btn.clicked.connect(self.stop_animation)
+            
+    # Function to set the index of the next contact
+    def set_next_contact_index(self, number):
+        self.loading_label.setVisible(True)  # Loading message
+        self.index = number
+
     # Function to show the error message
     def show_error(self, message):
         self.figure.clear()
         self.canvas.draw()
         self.error_label.setText(message)
         self.error_label.setVisible(True)
-        
+
+    # Function to update the timer, the countdown for the next contact and the contact time
     def update_clock(self):
         global simulation_flag
         now = datetime.utcnow()
@@ -324,56 +396,131 @@ class SatelliteSimApp(QMainWindow):
                 <div style='font-size: 24px; font-family: Courier New; color: #FF6A00;'>{current_time_str}</div>
             </div>
         """)
+        
+        # Computing time of the next contact
+        if simulation_flag == False and contact_time and end_contact_time and self.index <= len(contact_time):
 
-        # Calcolo tempo al prossimo contatto
-        if simulation_flag == False:
-            next_contact = contact_time[0]
-        else: 
-            next_contact = 0
+            # Extract next contact time
+            next_contact = contact_time[self.index-1]
 
-        if next_contact != 0:
+            # Extract the next contact final time
+            next_contact_end = end_contact_time[self.index-1]
+            
+            # Computing the contact time
+            CT = next_contact_end - next_contact
+            h, remainder = divmod(int(CT.total_seconds()), 3600)
+            m, s = divmod(remainder, 60)
+            CT_str = f"{h:02}:{m:02}:{s:02}"
+
+            # Computing the countdown
             delta = next_contact - now
             h, remainder = divmod(int(delta.total_seconds()), 3600)
             m, s = divmod(remainder, 60)
             countdown_str = f"{h:02}:{m:02}:{s:02}"
+
+            # Setting the style for the contact time
+            if(int(delta.total_seconds()) > 0):
+                self.contact_time.setText(f"""
+                <div style='text-align: center;'>
+                    <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>CONTACT TIME</div>
+                    <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{CT_str}</div>
+                </div>
+            """)
+            elif(int(delta.total_seconds()) < 0 and now < next_contact_end):
+                # Computing the countdown
+                delta_contact = next_contact_end - now
+                h, remainder = divmod(int(delta.total_seconds()), 3600)
+                m, s = divmod(remainder, 60)
+                contanct_countdown_str = f"{h:02}:{m:02}:{s:02}"
+
+                self.contact_time.setText(f"""
+                <div style='text-align: center;'>
+                    <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>CONTACT COUNTDOWN</div>
+                    <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{contanct_countdown_str}</div>
+                </div>
+            """)
+            # elif(delta < 0 and now > next_contact_end):
+            #     self.contact_time_label.setText(f"""
+            #     <div style='text-align: center;'>
+            #         <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>CONTACT TIME</div>
+            #         <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{"--:--:--"}</div>
+            #     </div>
+            # """)           
+
+        elif simulation_flag == False and not contact_time and not end_contact_time or (self.index > len(contact_time) and self.lat_input.text().strip() != ""): 
+            countdown_str = "NO CONTACTS"
+            CT_str = "NO CONTACTS"
         else:
             countdown_str = "--:--:--"
+            CT_str = "--:--:--"
 
-        self.next_contact_label.setText(f"""
+        # Setting the style for the next contact label(in relation of witch contact is selected)
+        if self.index == 1:
+            self.next_contact_label.setText(f"""
+                <div style='text-align: center;'>
+                    <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>NEXT CONTACT</div>
+                    <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{countdown_str}</div>
+                </div>
+            """)
+        elif self.index == 2:
+            self.next_contact_label.setText(f"""
             <div style='text-align: center;'>
-                <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>NEXT CONTACT</div>
+                <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>SECOND CONTACT</div>
                 <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{countdown_str}</div>
             </div>
         """)
+        elif self.index == 3: 
+            self.next_contact_label.setText(f"""
+            <div style='text-align: center;'>
+                <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>THIRD CONTACT</div>
+                <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{countdown_str}</div>
+            </div>
+        """)
+                        
+        # Unset loading message
+        self.loading_label.setVisible(False)
 
+    # Function to display the simulation
     def run_simulation(self, simulation_type):
-        self.loading_label.setVisible(True)  # Mostra "Loading..."
-        QTimer.singleShot(100, lambda: self._execute_simulation(simulation_type))  # Avvia dopo 100 ms
 
+        self.loading_label.setVisible(True)  # Loading message
+
+        # Check if the simulation is static or animated
+        if(simulation_type == "full_animation"):
+            QTimer.singleShot(100, lambda: self.animate_satellite())  # Start afeter 100 ms
+        else: 
+            QTimer.singleShot(100, lambda: self._execute_simulation(simulation_type))  # Start afeter 100 ms
+
+    # Function for the projection's setting
     def set_projection(self, projection_name, simulation_type):
         self.current_projection = projection_name
-        self.run_simulation(simulation_type)  # Ricalcola la simulazione con la nuova proiezione
+        self.run_simulation(simulation_type)  # Redone the simulation with new projection
 
+    # Setting GS coordinates
     def on_preset_changed(self, index):
         preset = self.coord_combo.currentText()
         presets = {
-            "Padua GS": (gs_lats, gs_lons),
+            "Padua GS": (gs_lats, gs_lons, gs_altitude),
         }
 
         if preset == "Personalizzato":
             self.lat_input.setText("")
             self.lon_input.setText("")
+            self.elev_input.setText("")
         else:
-            lat, lon = presets.get(preset, ("", ""))
+            lat, lon, alt = presets.get(preset, ("", "", ""))
             self.lat_input.setText(str(lat))
             self.lon_input.setText(str(lon))
-        
+            self.altitude_input.setText(str(alt))
+
+    # ORBIT VISUALIZATION FUNCTION
     def _execute_simulation(self, simulation_type):
         lat_text = self.lat_input.text().strip()
         lon_text = self.lon_input.text().strip()
+        alt_text = self.altitude_input.text().strip()
         elev_text = self.elev_input.text().strip()
 
-        if not lat_text or not lon_text or not elev_text:
+        if not lat_text or not lon_text or not elev_text or not alt_text:
             self.show_error("Insert value for all fields[GS]")
             return
 
@@ -381,11 +528,12 @@ class SatelliteSimApp(QMainWindow):
             lat = float(lat_text)
             lon = float(lon_text)
             min_elev = float(elev_text)
+            alt = float(alt_text) / 1000.0  # Convert altitude from meters to kilometers
         except ValueError:
             self.show_error("Insert values must be numeric")
             return
 
-        lons, lats = self.simulate_satellite(lat, lon, min_elev)
+        lons, lats = self.simulate_satellite(lat, lon, alt, min_elev)
 
         self.figure.clear()
         
@@ -394,6 +542,8 @@ class SatelliteSimApp(QMainWindow):
 
         if self.current_projection == "Global MAP":
             ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
+            self.figure.subplots_adjust(left=0.125, right=0.9, top=0.88, bottom=0.11)
+
         elif self.current_projection == "Local MAP":
             ax = self.figure.add_subplot(111, projection=ccrs.Orthographic(central_longitude=lon, central_latitude=lat))
             self.figure.subplots_adjust(left=0.05, right=0.95, top=1.5, bottom=0.05)
@@ -429,10 +579,17 @@ class SatelliteSimApp(QMainWindow):
         self.loading_label.setVisible(False)
         self.error_label.setVisible(False)
     
+    # ORBIT SIMULATION FUNCTION
+    def simulate_satellite(self, gs_lat, gs_lon, gs_alt, min_elev):
 
-    def simulate_satellite(self, gs_lat, gs_lon, min_elev):
+        # Clearing the contact time vectors
+        contact_time.clear()
+        end_contact_time.clear()
+
         global simulation_flag
         satellite = Satrec.twoline2rv(line1, line2)
+
+        in_contact = False  # No concat at the beginning
 
         # Get the epoch time from the TLE
         jd0, fr0 = satellite.jdsatepoch, satellite.jdsatepochF
@@ -441,14 +598,13 @@ class SatelliteSimApp(QMainWindow):
         epoch_datetime = datetime(2000, 1, 1, 12) + timedelta(days=(jd0 + fr0 - 2451545.0))
         start_time = epoch_datetime
 
+        print(start_time)
         time_steps = [start_time + timedelta(minutes=i) for i in range(0, MINUTES)]
 
-        print("INITIAL TIME: " + str(start_time) + " UTC")
         latitudes = []
         longitudes = []
         altitudes = []
-        conta = 0
-        ver = True
+        #conta = 0
 
         for t in time_steps:
             jd, fr = jday(t.year, t.month, t.day, t.hour, t.minute, t.second + t.microsecond*1e-6)
@@ -471,17 +627,16 @@ class SatelliteSimApp(QMainWindow):
                 sat_ecef = np.array([x_ecef, y_ecef, z_ecef])
 
                 # Computing the elevation angle 
-                elev = elevation_angle(sat_ecef, gs_lats, gs_lons, gs_altitude)
+                elev = elevation_angle(sat_ecef, gs_lat, gs_lon, gs_alt)
 
                 # Verify the elevation angle with the minimum elevation angle setted by user
-                min_elev_deg = 10
-                if elev >= min_elev_deg and ver and simulation_flag:
+                if elev >= min_elev and not in_contact:
                     contact_time.append(t)
-                    ver = False
-                    conta += 1
-                elif elev < min_elev_deg and not ver and not simulation_flag: # --> RICORDARE DI TOGLIERE IL FLAG SE SI INSERISCONO NUOVE TLE
+                    in_contact = True
+                elif elev < min_elev and in_contact:
                     end_contact_time.append(t)
-                    ver = True
+                    in_contact = False
+
             #     # Calculate the distance from the ground station and ck if it's within range
             #     distance = distance_3d(lat, lon, np.linalg.norm(r) - R_EARTH, gs_lats, gs_lons, 0)
             #     if distance <= gs_range and ver == True:
@@ -496,34 +651,128 @@ class SatelliteSimApp(QMainWindow):
             #     latitudes.append(np.nan)
             #     longitudes.append(np.nan)
             #     altitudes.append(np.nan)
-        
+
         simulation_flag = False # Set the flag to false after the first simulation
 
         return longitudes, latitudes
 
+    # ORBIT ANIMATION FUNCTION
+    def animate_satellite(self):
+        
+        # Extract data relative to GS
+        lat_text = self.lat_input.text().strip()
+        lon_text = self.lon_input.text().strip()
+        alt_text = self.altitude_input.text().strip()
+        elev_text = self.elev_input.text().strip()
+
+        if not lat_text or not lon_text or not elev_text or not alt_text:
+            self.show_error("Insert value for all fields[GS]")
+            return
+
+        try:
+            lat = float(lat_text)
+            lon = float(lon_text)
+            min_elev = float(elev_text)
+            alt = float(alt_text) / 1000.0  # Convert altitude from meters to kilometers
+        
+        except ValueError:
+            self.show_error("Insert values must be numeric")
+            return
+            
+        # Running the simulation
+        lons, lats = self.simulate_satellite(lat, lon, alt, min_elev)
+
+        self.figure.clear()
+
+        # Selection the type of projection
+        if self.current_projection == "Global MAP":
+            ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
+        elif self.current_projection == "Local MAP":
+            ax = self.figure.add_subplot(111, projection=ccrs.Orthographic(central_longitude=lon, central_latitude=lat))
+            self.figure.subplots_adjust(left=0.05, right=0.95, top=1.5, bottom=0.05)
+        else:
+            self.current_projection = "Global MAP"
+            ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
+
+        # Setting the map style
+        ax.set_facecolor("#1e1e1e")
+        self.figure.patch.set_facecolor("#1e1e1e")
+        ax.add_feature(cfeature.LAND, facecolor="dimgray")
+        ax.add_feature(cfeature.OCEAN, facecolor="lightgray")
+        ax.add_feature(cfeature.COASTLINE, edgecolor="gray")
+        ax.add_feature(cfeature.BORDERS, edgecolor="darkred", linestyle=':')
+
+        gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+        gl.xlabel_style = {'color': 'white'}
+        gl.ylabel_style = {'color': 'white'}
+
+        ax.set_global()
+
+        # Some correction to possibile discontinuities in the longitude values(like -pi or + pi)
+        lons = np.unwrap(np.radians(lons))
+        lons = np.degrees(lons)
+
+        # To obtain a 1D array
+        lons = np.asarray(lons).flatten()
+        lats = np.asarray(lats).flatten()
+
+        # Plotting the GS position
+        ax.plot(lon, lat, marker='o', color='blue', markersize=8, transform=ccrs.Geodetic(), label='Ground Station')
+
+        # Setting the line and marker
+        satellite_path, = ax.plot([], [], '-', color='orange', linewidth=1.2, transform=ccrs.PlateCarree())
+        satellite_dot, = ax.plot([], [], 'o', color='darkred', markersize=10, transform=ccrs.PlateCarree())
+
+        # Update each frame
+        def update(frame):
+            if len(lons) == 0 or len(lats) == 0:
+                satellite_path.set_data([], [])
+                satellite_dot.set_data([], [])
+            elif frame == 0:
+                satellite_path.set_data([], [])
+                satellite_dot.set_data([lons[0]], [lats[0]])
+            else:
+                satellite_path.set_data(lons[:frame], lats[:frame])
+                satellite_dot.set_data([lons[frame-1]], [lats[frame-1]])
+            return satellite_path, satellite_dot
+
+        # # Animation time
+        interval = 50  # ms between each frame
+        self.ani = FuncAnimation(self.figure, update, frames=len(lons), interval=interval, blit=True)
+        self.canvas.draw()
+    
+        # Hide loading and error labels
+        self.loading_label.setVisible(False)
+        self.error_label.setVisible(False)
+
+    # Function to stop the animation(important to not crash the program)
+    def stop_animation(self):
+        if hasattr(self, 'ani') and self.ani is not None:
+            self.ani.event_source.stop()
+
 if __name__ == "__main__":
     dark_palette = QPalette()
 
-    # Colori di base
-    dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              # sfondo finestra
-    dark_palette.setColor(QPalette.WindowText, Qt.white)                   # testo
-    dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))               # sfondo input
-    dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))      # sfondo alternativo
+    # Setting the color palette for the graphic layout
+    dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              # window background
+    dark_palette.setColor(QPalette.WindowText, Qt.white)                   # text
+    dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))              
+    dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))      
     dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
     dark_palette.setColor(QPalette.ToolTipText, Qt.white)
     dark_palette.setColor(QPalette.Text, Qt.white)
-    dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))             # sfondo pulsanti
-    dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))        # testo pulsanti (arancione)
-    dark_palette.setColor(QPalette.BrightText, Qt.red)                     # testo evidenziato
-    dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))          # evidenziazione (rosso/arancione)
+    dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))             
+    dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))        
+    dark_palette.setColor(QPalette.BrightText, Qt.red)                     
+    dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))          
     dark_palette.setColor(QPalette.HighlightedText, Qt.black)
 
-    # Applica il tema
+    # Applaing the palette
     QApplication.setPalette(dark_palette)
 
     app = QApplication(sys.argv)
     window = SatelliteSimApp()
+
+    # Show the windows
     window.show()
     sys.exit(app.exec_())
-
-
