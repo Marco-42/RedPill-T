@@ -529,9 +529,6 @@ def clear_table(table: QTableWidget):
 
 def export_table_to_db(table: QTableWidget):
 
-	# Database initialization
-    db_conn = jdb.init_db()
-
     # TEC table: 2 columns ["TEC", "HEX"]
     # TER table: 5 columns ["TER", "RSSI", "SNR", "ΔF", "HEX"]
 	# Counting columns number to determine the table type
@@ -609,8 +606,13 @@ class MainWindow(QWidget):
 
 	# ========== LAYOUT ==========
 
-	def __init__(self):
+	def __init__(self, db_conn):
+		
 		super().__init__()
+		
+		# Initialize the database connection
+		self.db_conn = db_conn 
+
 		self.setWindowTitle("ESP32 Serial GUI")
 
 		# Core state
@@ -1620,8 +1622,16 @@ class MainWindow(QWidget):
 
 
 if __name__ == "__main__":
+
+	# Database initialization
+	db_conn = jdb.init_db()
+
+	# If the database connection failed, exit the application
+	if db_conn == None:
+		sys.exit(1)
+	
 	app = QApplication(sys.argv)
-	window = MainWindow()
+	window = MainWindow(db_conn)
 	window.resize(1000, 800)
 	window.show()
 	sys.exit(app.exec_())

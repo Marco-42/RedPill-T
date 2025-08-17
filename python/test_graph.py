@@ -56,6 +56,9 @@ def extract_snr(payload):
     snr = struct.unpack(">f", snr_bytes)[0]
     return snr
     
+def compatibility(x, y, sx, sy):
+    return np.abs(x - y)/np.sqrt(sx**2 + sy**2)
+
 # Database initialization
 db = jd.init_db()
 
@@ -444,6 +447,12 @@ axx[0].text(70, -111, r'15 db', fontsize=12, color='black', ha='center', va='cen
 axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 11}, loc='lower right', frameon=False).set_zorder(2)
 
+print("==========================================")
+print(diff)
+print("Mean DIFF Monte Ceva: ", str(np.mean(diff)), " +- ", str(statistics.stdev(diff)))
+print("Compatibility: ", str(compatibility(diff[0], diff[1], diff_std[0], diff_std[1])), " ", str(compatibility(diff[0], diff[2], diff_std[0], diff_std[2])), " ", str(compatibility(diff[1], diff[2], diff_std[1], diff_std[2])))
+print("==========================================")
+
 plt.savefig('./python/test/graph/RSSI_conf'+'.png',
             pad_inches = 1,
             transparent = True,
@@ -488,7 +497,7 @@ plt.savefig('./python/test/graph/RSSI_ag'+'.png',
             orientation='Portrait',
             dpi=100)
 
-# Computing gain
+# Computing SNR gain
 gain_SNR = np.zeros(len(SNR_mean), dtype=np.float64)
 gain_SNR_ag = np.zeros(len(SNR_mean_ag), dtype=np.float64)
 gain_SNR_std = np.zeros(len(SNR_mean), dtype=np.float64)
@@ -548,6 +557,73 @@ plt.savefig('./python/test/graph/SNR_gain'+'.png',
             edgecolor ='w',
             orientation ='Portrait',
             dpi = 100)
+
+# Computing RSSI gain
+gain_RSSI = np.zeros(len(RSSI_mean), dtype=np.float64)
+gain_RSSI_ag = np.zeros(len(RSSI_mean_ag), dtype=np.float64)
+gain_RSSI_std = np.zeros(len(RSSI_mean), dtype=np.float64)
+gain_RSSI_ag_std = np.zeros(len(RSSI_mean_ag), dtype=np.float64)
+
+for i in range(len(gain_RSSI)):
+    gain_RSSI[i] = RSSI_mean[i] - RSSI_mean[0]
+    gain_RSSI_std[i] = np.sqrt(pow(RSSI_std[0], 2) + pow(RSSI_std[i], 2))
+
+for i in range(len(gain_RSSI_ag)):
+    gain_RSSI_ag[i] = RSSI_mean_ag[i] - RSSI_mean_ag[0]
+    gain_RSSI_ag_std[i] = np.sqrt(pow(RSSI_std_ag[0], 2) + pow(RSSI_std_ag[i], 2))
+
+# Computing the difference between the gain of pico and antenna
+gain_diff = np.zeros(len(RSSI_mean), dtype=np.float64)
+gain_diff_std = np.zeros(len(RSSI_mean), dtype=np.float64)
+
+# Resetting counter
+conta = 0
+
+for i in range(len(RSSI_mean)):
+    for k in range(len(RSSI_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            gain_diff[conta] = (gain_RSSI_ag[k] - gain_RSSI[i])
+            gain_diff_std[conta] = np.sqrt(pow(gain_RSSI_ag_std[k], 2) + pow(gain_RSSI_std[i], 2))
+            conta = conta + 1
+            break
+
+# Plotting gain and gain difference
+fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM GS - M. Ceva", fontsize=13, fontweight=2)
+axx[0].errorbar(angle_mean, gain_RSSI, xerr=5, yerr=gain_RSSI_std, fmt='o', label=r'RSSI loss [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, gain_RSSI_ag, xerr=5, yerr=gain_RSSI_ag_std, fmt='o', label=r'RSSI loss [Pico - High gain]', ms=3, color='deepskyblue', zorder=1, lw=1.5)
+
+axx[0].set_ylabel(r'RSSI loss $\, [dbm]$', size=13)
+axx[0].set_xlabel(r'Inclination', size=13)
+axx[1].set_ylabel(r'$\Delta  \, [dbm]$', size=13)
+axx[1].set_xlabel(r'Inclination', size=13)
+
+axx[1].errorbar(angle_mean, gain_diff, xerr=5, yerr=gain_diff_std, fmt='o', label=r'$\Delta \, $ [P/H - P/P]', ms=3, color='darkblue', zorder=2, lw=1.5)
+
+axx[0].set_xlim(-18, 82)
+axx[0].set_ylim(-15, 3)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(-4, 12)
+
+axx[0].text(70, -8, r'15 db', fontsize=12, color='black', ha='center', va='center')
+axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+
+print("==========================================")
+print(gain_diff)
+print("Mean DIFF Monte Ceva: ", str((gain_diff[1]+gain_diff[2])/2), " +- ", str(np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2)))
+print("Compatibility with zero: ", str(compatibility((gain_diff[1]+gain_diff[2])/2, 0, np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2), 0)))
+print("==========================================")
+
+plt.savefig('./python/test/graph/RSSI_gain'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
 
 #endregion
 
@@ -622,6 +698,11 @@ axx[1].set_xlabel(r'Inclination', size=13)
 
 axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$RSSI [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
 
+print("==========================================")
+print(diff)
+print("Mean DIFF Noventa: ", str(np.mean(diff)), " +- ", str(statistics.stdev(diff)))
+print("Compatibility: ", str(compatibility(diff[0], diff[1], diff_std[0], diff_std[1])), " ", str(compatibility(diff[0], diff[2], diff_std[0], diff_std[2])), " ", str(compatibility(diff[1], diff[2], diff_std[1], diff_std[2])))
+print("==========================================")
 axx[0].set_xlim(-10, 82)
 axx[0].set_ylim(-117.5, -92.5)
 axx[1].set_xlim(-10, 82)
@@ -640,7 +721,7 @@ plt.savefig('./python/test/graph/PICO_RSSI_conf'+'.png',
             orientation='Portrait',
             dpi=100)
 
-# Computing gain
+# Computing SNR gain
 gain_PICO_SNR = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
 gain_PICO_SNR_ag = np.zeros(len(PICO_SNR_mean_ag), dtype=np.float64)
 gain_PICO_SNR_std = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
@@ -694,6 +775,73 @@ axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 
 plt.savefig('./python/test/graph/PICO_SNR_gain'+'.png',
+            pad_inches=1,
+            transparent=True,
+            facecolor="w",
+            edgecolor='w',
+            orientation='Portrait',
+            dpi=100)
+
+# Computing RSSI gain
+gain_PICO_RSSI = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
+gain_PICO_RSSI_ag = np.zeros(len(PICO_RSSI_mean_ag), dtype=np.float64)
+gain_PICO_RSSI_std = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
+gain_PICO_RSSI_ag_std = np.zeros(len(PICO_RSSI_mean_ag), dtype=np.float64)
+
+for i in range(len(gain_PICO_RSSI)):
+    gain_PICO_RSSI[i] = PICO_RSSI_mean[i] - PICO_RSSI_mean[0]
+    gain_PICO_RSSI_std[i] = np.sqrt(pow(PICO_RSSI_std[0], 2) + pow(PICO_RSSI_std[i], 2))
+
+for i in range(len(gain_PICO_RSSI_ag)):
+    gain_PICO_RSSI_ag[i] = PICO_RSSI_mean_ag[i] - PICO_RSSI_mean_ag[0]
+    gain_PICO_RSSI_ag_std[i] = np.sqrt(pow(PICO_RSSI_std_ag[0], 2) + pow(PICO_RSSI_std_ag[i], 2))
+
+# Computing the difference between the gain of pico and antenna
+gain_diff = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
+gain_diff_std = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
+
+# Resetting counter
+conta = 0
+
+for i in range(len(PICO_RSSI_mean)):
+    for k in range(len(PICO_RSSI_mean_ag)):
+        if angle_mean_ag[k] == angle_mean[i]:
+            gain_diff[conta] = (gain_PICO_RSSI_ag[k] - gain_PICO_RSSI[i])
+            gain_diff_std[conta] = np.sqrt(pow(gain_PICO_RSSI_ag_std[k], 2) + pow(gain_PICO_RSSI_std[i], 2))
+            conta = conta + 1
+            break
+
+# Plotting gain and gain difference
+fig, axx = plt.subplots(2, 1, figsize=(6, 6), sharex=True, height_ratios=[2, 1])
+fig.suptitle("DATA FROM PICO - Noventa", fontsize=13, fontweight=2)
+axx[0].errorbar(angle_mean, gain_PICO_RSSI, xerr=5, yerr=gain_PICO_RSSI_std, fmt='o', label=r'RSSI loss [Pico - Pico]', ms=3, color='black', zorder=2, lw=1.5)
+axx[0].errorbar(angle_mean_ag, gain_PICO_RSSI_ag, xerr=5, yerr=gain_PICO_RSSI_ag_std, fmt='o', label=r'RSSI loss [Pico - High gain]', ms=3, color='deepskyblue', zorder=1, lw=1.5)
+
+axx[0].set_ylabel(r'RSSI loss $\, [dbm]$', size=13)
+axx[0].set_xlabel(r'Inclination', size=13)
+axx[1].set_ylabel(r'$\Delta  \, [dbm]$', size=13)
+axx[1].set_xlabel(r'Inclination', size=13)
+
+axx[1].errorbar(angle_mean, gain_diff, xerr=5, yerr=gain_diff_std, fmt='o', label=r'$\Delta \, $ [P/H - P/P]', ms=3, color='darkblue', zorder=2, lw=1.5)
+
+axx[0].set_xlim(-18, 82)
+axx[0].set_ylim(-19, 3)
+axx[1].set_xlim(-10, 82)
+axx[1].set_ylim(-4, 9)
+
+axx[0].text(70, -9, r'15 db', fontsize=12, color='black', ha='center', va='center')
+axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='center')
+
+axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
+axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+
+print("==========================================")
+print(gain_diff)
+print("Mean DIFF Noventa: ", str((gain_diff[1]+gain_diff[2])/2), " +- ", str(np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2)))
+print("Compatibility with zero: ", str(compatibility((gain_diff[1]+gain_diff[2])/2, 0, np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2), 0)))
+print("==========================================")
+
+plt.savefig('./python/test/graph/PICO_RSSI_gain'+'.png',
             pad_inches=1,
             transparent=True,
             facecolor="w",
@@ -759,4 +907,4 @@ plt.savefig('./python/test/graph/RSSI_comp'+'.png',
 
 # endregion
 
-plt.show()
+#plt.show()

@@ -4,11 +4,14 @@ import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt, QDate
+import os
 
 DB_PATH = "./python/SatelliteDB.db"
 
 # Database initialization and packet definition
-def init_db(path=DB_PATH):
+def database_initialization(path=DB_PATH):
+    """Initialize the SQLite database and create the packets table if it doesn't exist."""
+    # If the database exists it will be opened, otherwise it will be created
     conn = sqlite3.connect(path)
     cursor = conn.cursor()
     cursor.execute('''
@@ -30,6 +33,251 @@ def init_db(path=DB_PATH):
     ''')
     conn.commit()
     return conn
+
+# Database check
+def init_db(path=DB_PATH):
+    """Initialize the database connection and check if the database file exists."""
+
+    global connection # Global variable
+
+    # Check if the database file exists
+    db_check = os.path.exists(path)
+
+    if not db_check: 
+        # If the database does not exist, show an error message and return None
+        connection = None
+        conn = show_db_not_found(path)
+    else: 
+        # If the database exists, initialize it
+        conn = database_initialization(path)
+
+    return conn
+
+# Window for database error visualization
+def show_db_not_found(path = DB_PATH):
+    """Function to show a window when the database is not found"""
+    global connection # Global variable
+
+    # Create the window for show the error message
+    app = QApplication.instance() or QApplication(sys.argv)
+    win = QWidget()
+    win.setWindowTitle("Database Error")
+
+    # Setting window style
+    win.setStyleSheet("""
+        QWidget {
+            background-color: #1e1e1e;
+        }
+        QLabel {
+            color: #ff4500;
+            font-size: 20pt;
+            font-weight: bold;
+            padding: 40px;
+        }
+        QPushButton {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            font-size: 12pt;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        QPushButton:hover {
+            background-color: #e03d00;
+        }
+    """)
+
+    # Showing main error message on the window
+    layout = QVBoxLayout()
+    label = QLabel("Database not founded")
+    label.setAlignment(Qt.AlignCenter)
+    layout.addWidget(label)
+
+    # Button layout
+    button_layout = QHBoxLayout()
+
+    btn_CD = QPushButton("Create Database")
+    btn_TA = QPushButton("Try Again")
+    btn_MA = QPushButton("Manual access")
+
+    btn_CD.clicked.connect(lambda: create_new_database(win, path))
+    btn_TA.clicked.connect(lambda: try_again_function(win))
+    btn_MA.clicked.connect(lambda: manual_access_function(win))
+
+    button_layout.addWidget(btn_CD)
+    button_layout.addWidget(btn_TA)
+    button_layout.addWidget(btn_MA)
+
+    layout.addLayout(button_layout)
+    win.setLayout(layout)
+    win.resize(400, 250)
+    win.show()
+    app.exec_()
+
+    return connection
+
+# Function to create a new database
+def create_new_database(parent, path):
+    """Function to create a new database, deleting the existing one if it exists."""
+
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("Database creation")
+
+    # Setting window style
+    dialog.setStyleSheet("""
+        QDialog {
+            background-color: #1e1e1e;
+        }
+        QLabel {
+            color: #ff4500;
+            font-size: 14pt;
+            font-weight: bold;
+            padding: 20px;
+        }
+        QPushButton {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            font-size: 11pt;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        QPushButton:hover {
+            background-color: #e03d00;
+        }
+    """)
+
+    # Checking window
+    layout = QVBoxLayout()
+    label = QLabel("Are you sure to create a new database?\nThis will delete the existing one if it exists.")
+    label.setAlignment(Qt.AlignCenter)
+    layout.addWidget(label)
+
+    button_layout = QHBoxLayout()
+    btn_cancel = QPushButton("EXIT")
+    btn_create = QPushButton("CREATE DATABASE")
+
+    # Setting the button as default
+    btn_create.setDefault(True) 
+
+    # Exit button is pressed EXIT
+    btn_cancel.clicked.connect(dialog.reject)
+
+    # Create the database if checked
+    def do_create():
+        global connection # Global variable
+        connection = database_initialization(path)
+        dialog.accept()
+        parent.close()
+
+    btn_create.clicked.connect(do_create)
+
+    button_layout.addWidget(btn_cancel)
+    button_layout.addWidget(btn_create)
+    layout.addLayout(button_layout)
+    dialog.setLayout(layout)
+    dialog.exec_()
+
+# Function to try to access again
+def try_again_function(parent, path=DB_PATH):
+    """Function to try again to connect to the database."""
+
+    global connection # Global variable
+
+    if connection == None: 
+        connection = init_db(path)
+    else: 
+        connection == None
+
+    parent.close()
+
+# Function to manually access the database
+def manual_access_function(parent):
+    """Function to manually access the database by insering the path"""
+
+    # Open a dialog to input the database path
+    dialog = QDialog(parent)
+    dialog.setWindowTitle("Manual Access")
+
+    # Setting the dialog style
+    dialog.setStyleSheet("""
+        QDialog {
+            background-color: #1e1e1e;
+        }
+        QLabel {
+            color: #ff4500;
+            font-size: 13pt;
+            font-weight: bold;
+            padding: 10px;
+        }
+        QLineEdit {
+            background-color: #2e2e2e;
+            color: white;
+            border: 1px solid #555;
+            padding: 6px;
+            font-size: 11pt;
+        }
+        QPushButton {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            font-size: 11pt;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        QPushButton:hover {
+            background-color: #e03d00;
+        }
+    """)
+
+    # Asking to insert the database path
+    layout = QVBoxLayout()
+    label = QLabel("Insert the database path:")
+    layout.addWidget(label)
+
+    text_input = QLineEdit()
+    layout.addWidget(text_input)
+
+    # Two buttons to confirm or exit
+    button_layout = QHBoxLayout()
+    btn_cancel = QPushButton("EXIT")
+    btn_ok = QPushButton("OK")
+
+    # Setting the button as default
+    btn_ok.setDefault(True) 
+
+    button_layout.addWidget(btn_cancel)
+    button_layout.addWidget(btn_ok)
+    layout.addLayout(button_layout)
+
+    dialog.setLayout(layout)
+
+    # If the text is inserted
+    def on_ok():
+
+        # Global variable
+        global connection
+        global DB_PATH 
+
+        user_text = text_input.text()
+        if connection == None:
+            connection = init_db(user_text)
+            DB_PATH = user_text  # Update the global DB_PATH variable
+            parent.close()
+        else:
+            connection == None
+        dialog.accept()
+
+    btn_ok.clicked.connect(on_ok)
+    btn_cancel.clicked.connect(dialog.reject)
+
+    dialog.exec_()
 
 # Saving function (save packet in database)
 def save_packet(conn, ground_station_id, status, mac, payload, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
@@ -65,6 +313,40 @@ def show_all_packets(conn):
 
 # Create the GUI for database visualization
 def open_database():
+    
+    # Check if the database exists
+    if not os.path.exists(DB_PATH):
+        app = QApplication(sys.argv)
+
+        # Setting the style for the error message box
+        app.setStyleSheet("""
+        QDialog {
+            background-color: #1e1e1e;
+        }
+        QLabel {
+            color: #ff4500;
+            font-size: 14pt;
+            font-weight: bold;
+            padding: 20px;
+        }
+        QPushButton {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            font-size: 11pt;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        QPushButton:hover {
+            background-color: #e03d00;
+        }
+    """)
+        QMessageBox.critical(None, "ERROR", "Database not found")
+        return
+
+    # If the database exists, show the database viewer
     class PacketViewer(QWidget):
         def __init__(self):
             super().__init__()

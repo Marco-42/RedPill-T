@@ -8,3 +8,4 @@ Next:
 - handle TLE error better ✅
 - update to new packet structure ✅
 - check packet splitting (split_payload_if_needed) ✅
+- Add checking obtions in database initialization ✅
