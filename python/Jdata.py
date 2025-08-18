@@ -280,14 +280,17 @@ def manual_access_function(parent):
     dialog.exec_()
 
 # Saving function (save packet in database)
-def save_packet(conn, ground_station_id, status, mac, payload, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
-    """conn, ground_station_id, status, mac, payload, tec, direction(F), rssi(F), snr(F), freq_offset(F), metadata [conn is the database definition --> use init_db()]"""
+def save_packet(conn, timestamp, ground_station_id, status, mac, payload, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
+    """conn, timestamp, ground_station_id, status, mac, payload, tec, direction(F), rssi(F), snr(F), freq_offset(F), metadata [conn is the database definition --> use init_db()]"""
     
     cursor = conn.cursor()
     length = len(payload)
 
-    # Get data of packet saving(UTC)
-    timestamp = datetime.utcnow().isoformat()
+    # # Get data of packet saving(UTC)
+    # timestamp = datetime.utcnow().isoformat()
+
+    # Convert timestamp to UTC datatime from UNIX
+    dt = datetime.utcfromtimestamp(timestamp)
 
     # Creation of the packet from raw data
     cursor.execute('''
@@ -295,7 +298,7 @@ def save_packet(conn, ground_station_id, status, mac, payload, tec, direction = 
             timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset,
             status, length, mac, payload, metadata
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset, status, length, mac, payload, metadata))
+    ''', (dt, direction, ground_station_id, tec, rssi, snr, freq_offset, status, length, mac, payload, metadata))
     
     # Commit packet to database
     conn.commit()
@@ -310,6 +313,10 @@ def show_all_packets(conn):
         ORDER BY timestamp
     ''')
     rows = cursor.fetchall()
+    print("ID | Timestamp           | Direction | Ground Station ID | TEC   | RSSI  | SNR   | Freq Offset | Status     | Length | MAC               | Metadata")
+    print("-" * 120)
+    for row in rows:
+        print(f"{row[0]:<3} | {row[1]:<20} | {row[2]:<9} | {row[3]:<17} | {row[4]:<5} | {row[5]:<5} | {row[6]:<5} | {row[7]:<12} | {row[8]:<10} | {row[9]:<6} | {row[10]:<17} | {row[11]}")
 
 # Create the GUI for database visualization
 def open_database():
@@ -723,5 +730,6 @@ if __name__ == "__main__":
     #     metadata="Sent from onboard source"
     # )
     
-    # show_all_packets(conn)
+    #show_all_packets(conn)
+
     open_database()

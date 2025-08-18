@@ -1,0 +1,450 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 5,
+  "links": [],
+  "panels": [
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 7,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "<div style=\"text-align: center;\">\n  <img src=\"/public/imported_images/logomissione1.png\" \n       style=\"width: 3000px; height: auto; border: none;\">\n</div>",
+        "mode": "html"
+      },
+      "pluginVersion": "12.1.1",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 7,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "queryText": "SELECT\n  COUNT(id) as total_packets\nFROM packets",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  COUNT(id) as total_packets\nFROM packets",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Total saved packets",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "description": "The graph report RSSI and SNR values acquired by the gound station in function of time.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RSSI"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "dbm"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SNR"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "db"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Time"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 13,
+        "x": 11,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "eevd06r9keyv4e"
+          },
+          "queryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  rssi AS RSSI,\n  snr AS SNR\nFROM packets\nWHERE ground_station_id = '$station'\nORDER BY time",
+          "queryType": "time series",
+          "rawQueryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  rssi AS RSSI,\n  snr AS SNR\nFROM packets\nWHERE ground_station_id = '$station'\nORDER BY time",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "RSSI and SNR",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "last_packet_unix"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsSystem"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 7,
+        "y": 6
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^last_packet_unix$/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 30
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "queryText": "SELECT\n replace(substr(MAX(timestamp), 1, 19), 'T', ' ') AS last_packet_unix\nFROM packets;",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n replace(substr(MAX(timestamp), 1, 19), 'T', ' ') AS last_packet_unix\nFROM packets;",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Last packet received UTC",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 7,
+        "x": 0,
+        "y": 9
+      },
+      "id": 5,
+      "options": {
+        "bgColor": "",
+        "clockType": "24 hour",
+        "countdownSettings": {
+          "endCountdownTime": "2025-08-18T23:12:20+02:00",
+          "endText": "00:00:00",
+          "invalidValueText": "invalid value",
+          "noValueText": "no value found",
+          "queryCalculation": "last",
+          "source": "input"
+        },
+        "countupSettings": {
+          "beginCountupTime": "2025-08-18T23:12:20+02:00",
+          "beginText": "00:00:00",
+          "invalidValueText": "invalid value",
+          "noValueText": "no value found",
+          "queryCalculation": "last",
+          "source": "input"
+        },
+        "dateSettings": {
+          "dateFormat": "YYYY-MM-DD",
+          "fontSize": "30px",
+          "fontWeight": "normal",
+          "locale": "",
+          "showDate": true
+        },
+        "descriptionSettings": {
+          "descriptionText": "",
+          "fontSize": "30px",
+          "fontWeight": "normal",
+          "noValueText": "no description found",
+          "source": "none"
+        },
+        "fontMono": false,
+        "mode": "time",
+        "refresh": "sec",
+        "timeSettings": {
+          "fontSize": "30px",
+          "fontWeight": "normal"
+        },
+        "timezone": "UTC",
+        "timezoneSettings": {
+          "fontSize": "12px",
+          "fontWeight": "normal",
+          "showTimezone": false,
+          "zoneFormat": "offsetAbbv"
+        }
+      },
+      "pluginVersion": "2.1.8",
+      "targets": [
+        {
+          "queryText": "SELECT CAST(strftime('%s', 'now', '-1 minute') as INTEGER) as time, 4 as value \nWHERE time >= 1752746678000 / 1000 and time < 1752747475000 / 1000",
+          "queryType": "table",
+          "rawQueryText": "SELECT CAST(strftime('%s', 'now', '-1 minute') as INTEGER) as time, 4 as value \nWHERE time >= $__from / 1000 and time < $__to / 1000",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Current Time UTC",
+      "type": "grafana-clock-panel"
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "1",
+          "value": "1"
+        },
+        "definition": "SELECT DISTINCT ground_station_id FROM packets",
+        "name": "station",
+        "options": [],
+        "query": "SELECT DISTINCT ground_station_id FROM packets",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "2025-07-17T10:04:38.000Z",
+    "to": "2025-07-17T10:17:55.000Z"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "RedPill Dashboard",
+  "uid": "5edbfc2c-7172-4ae5-ac02-64a8fb8d3f48",
+  "version": 15
+}
