@@ -527,7 +527,71 @@ def decode_packet(packet_bytes):
 def clear_table(table: QTableWidget):
 	table.setRowCount(0)
 
+def remove_table_row(table: QTableWidget, row_index: int):
+
+	# Remove a specific row of the table if it exists
+    if 0 <= row_index < table.rowCount():
+        table.removeRow(row_index)
+
+def ask_for_comment(parent=None, id_in_table = 0):
+
+	# Boolean variable 
+	global white_comment
+	global add_to_all_check 
+	white_comment = False # To check if the comment was insert but it is None
+	add_to_all_check = False # To check if the user wants to insert the same comment for all packets
+
+	# Create a dialog to ask for a comment
+	dialog = QDialog(parent)
+	dialog.setWindowTitle("Add a comment")
+	layout = QVBoxLayout(dialog)
+	label = QLabel("Do you want to add a comment to packet ID: " + str(id_in_table + 1) + "?")
+	layout.addWidget(label)
+	text_edit = QLineEdit()
+	layout.addWidget(text_edit)
+	btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+	custom_btn = QPushButton("Add to All")
+	custom_btn.setCheckable(True)
+	btn_box.addButton(custom_btn, QDialogButtonBox.ActionRole)
+	layout.addWidget(btn_box)
+
+	comment = {"text": None}
+
+	# Possible answers
+	def on_accept():
+		global white_comment
+
+		comment["text"] = text_edit.text()
+		
+		# Check if the comment was insert but it was None
+		if text_edit.text() == "": 
+			white_comment = True
+
+		dialog.accept()
+
+	def on_reject():
+		dialog.reject()
+	
+	def add_to_all_packet(): 
+		global add_to_all_check
+		add_to_all_check = True
+		custom_btn.setChecked(True)
+		custom_btn.setEnabled(False)
+
+	custom_btn.clicked.connect(add_to_all_packet)
+	btn_box.accepted.connect(on_accept)
+	btn_box.rejected.connect(on_reject)
+
+	dialog.exec_()
+
+	return comment["text"], white_comment, add_to_all_check
+
 def export_table_to_db(table: QTableWidget):
+
+	# Checking boolean variable 
+	check_message = False # To check if the comment insertion was cancelled
+	white_comment = False # To check if the comment was insert but it is None
+	add_to_all_check = False # To check if the user wants to add the comment to all the packets
 
 	# TEC table: 2 columns ["TEC", "HEX"]
 	# TER table: 5 columns ["TER", "RSSI", "SNR", "ΔF", "HEX"]
@@ -572,6 +636,27 @@ def export_table_to_db(table: QTableWidget):
 			ground_station_id = ""
 			tec = ""
 			mac = ""
+		
+		# Asking for comment
+		if add_to_all_check is False:
+			comment, white_comment, add_to_all_check = ask_for_comment(table.parent() if hasattr(table, 'parent') else None, row)
+		else: 
+			white_comment = False
+
+		# Different scenarios
+		if comment is None and white_comment is False:
+			# If the user cancels, skip saving this packet
+			check_message = True
+			continue 
+		elif comment == "" and white_comment is True:
+			# If the user didn't insert a comment, use a default one
+			check_message = True
+
+			# Clear the single row
+			remove_table_row(table, row)
+		elif comment is not None and comment != "":
+			# Clear the single row
+			remove_table_row(table, row)
 
 		# Save the single row in database
 		jdb.save_packet(
@@ -586,10 +671,12 @@ def export_table_to_db(table: QTableWidget):
 			rssi=rssi,
 			snr=snr,
 			freq_offset=freq_offset,
-			metadata=""
+			metadata=comment
 		)
 
-	clear_table(table)
+	# Clear all the table if the comment insertion wasn't cancelled(to delete all if some rows wasn't delete before)
+	if check_message == False:
+		clear_table(table)
 
 	# # Database initialization
 	# db_conn = jdb.init_db()
@@ -705,7 +792,7 @@ class MainWindow(QWidget):
 		self.clear_sent_button.clicked.connect(lambda: clear_table(self.sent_tec_table))
 
 		self.export_sent_button = QPushButton("Export to DB")
-		self.export_sent_button.clicked.connect(lambda: export_table_to_db(self.sent_tec_table))
+		self.export_sent_button.clicked.connect(lambda: self.add_to_db("sent"))
 
 
 		# === Assemble Left Layout ===
@@ -880,10 +967,10 @@ class MainWindow(QWidget):
 		buttons_row = QHBoxLayout()
 		self.clear_received_ter_button = QPushButton("Clear")
 		self.clear_received_ter_button.clicked.connect(lambda: clear_table(self.received_ter_table))
-		self.export_recceived_button = QPushButton("Export to DB")
-		self.export_recceived_button.clicked.connect(lambda: export_table_to_db(self.received_ter_table))
+		self.export_received_button = QPushButton("Export to DB")
+		self.export_received_button.clicked.connect(lambda: self.add_to_db("received"))
 		buttons_row.addWidget(self.clear_received_ter_button)
-		buttons_row.addWidget(self.export_recceived_button)
+		buttons_row.addWidget(self.export_received_button)
 
 		received_ter_layout.addLayout(buttons_row)
 		received_ter_group.setLayout(received_ter_layout)
@@ -1622,6 +1709,17 @@ class MainWindow(QWidget):
 
 			self.ter_content_display.append("<br>")
 
+	# ============ EXPORT TO DB ============
+	def add_to_db(self, type):
+		"""self -  type: type = sent | received"""
+		
+		# Check if the tables are empty or export to db
+		if (self.received_ter_table.rowCount() == 0 and  type == "received") or (self.sent_tec_table.rowCount() == 0 and type == "sent"):
+			self.log_status("[INFO] No packets to export")
+		elif type == "sent":
+			export_table_to_db(self.sent_tec_table)
+		elif type == "received":
+			export_table_to_db(self.received_ter_table)
 
 if __name__ == "__main__":
 

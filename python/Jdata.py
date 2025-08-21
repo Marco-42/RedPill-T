@@ -501,7 +501,7 @@ def open_database():
                     QLabel {
                         color: white;
                         font-family: Consolas, monospace;
-                        font-size: 12pt;
+                        font-size: 10pt;
                     }
                 """)
                 layout = QHBoxLayout()
@@ -565,27 +565,130 @@ def open_database():
         def show_packet_details(self, row, col):
             pkt = self.packets[row]
 
+            # Getting only the first 10 paylod's digit to visualization
+            payload_full = str(pkt[11])
+            payload_preview = payload_full[:10] + ("..." if len(payload_full) > 10 else "")
+
             rows = [
                 f"ID: {pkt[0]}    |   Direction: {pkt[2]}    |   GS id: {pkt[3]}",
                 f"Timestamp: {pkt[1].replace('T', ' ')}",
                 f"TEC: {pkt[4]}    |   RSSI: {pkt[5]}    |   SNR: {pkt[6]}",
                 f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {pkt[7]}",
                 f"MAC: {pkt[10]}",
-                f"Payload: {pkt[11]}",
+                f"Payload: {payload_preview}",
                 f"Metadata: {pkt[12]}"
             ]
 
-            for (frame, layout), text in zip(self.detail_frames, rows):
+            for i, ((frame, layout), text) in enumerate(zip(self.detail_frames, rows)):
+                
+                # Clear all before the next interaction
+                for j in reversed(range(layout.count())):
 
-                # Clear the previous content of the frame
-                for i in reversed(range(layout.count())):
-                    widget_to_remove = layout.itemAt(i).widget()
-                    layout.removeWidget(widget_to_remove)
-                    widget_to_remove.deleteLater()
+                    item = layout.itemAt(j)
+                    widget = item.widget()
 
-                # Ad the new label with packet details
-                label = QLabel(text)
-                layout.addWidget(label)
+                    # If the item is a widget delete it
+                    if widget is not None:
+                        layout.removeWidget(widget)
+                        widget.deleteLater()
+
+                    # If the item is a layout delete it and all his sub-items
+                    else:
+                        sub_layout = item.layout()
+                        if sub_layout is not None:
+
+                            # Remove all widgets from the sub-layout
+                            for k in reversed(range(sub_layout.count())):
+                                sub_item = sub_layout.itemAt(k)
+                                sub_widget = sub_item.widget()
+                                if sub_widget is not None:
+                                    sub_layout.removeWidget(sub_widget)
+                                    sub_widget.deleteLater()
+                            layout.removeItem(sub_layout)
+
+                # Adding a "Show All" button in the payload line
+                if i == 5:
+                    hbox = QHBoxLayout()
+                    label = QLabel(text)
+                    hbox.addWidget(label)
+                    if len(payload_full) > 10:
+                        btn = QPushButton("Show All")
+
+                        # Setting the button style
+                        btn.setStyleSheet("""
+                            QPushButton {
+                                background-color: #ff4500;
+                                color: white;
+                                border: none;
+                                padding: 2px 8px;
+                                font-size: 9pt;
+                                font-weight: bold;
+                                border-radius: 4px;
+                                margin-left: 10px;
+                            }
+                            QPushButton:hover {
+                                background-color: #e03d00;
+                            }
+                        """)
+                        btn.clicked.connect(lambda _, p=payload_full: self.show_full_payload(p))
+                        hbox.addWidget(btn)
+                    layout.addLayout(hbox)
+                else:
+                    label = QLabel(text)
+                    layout.addWidget(label)
+
+        # Function to show all the paylod
+        def show_full_payload(self, payload):
+
+            # Creating the window
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Full Payload")
+            dialog.setStyleSheet(self.styleSheet())
+            dialog.resize(700, 400)
+
+            vbox = QVBoxLayout()
+            label = QLabel("Full Payload:")
+            label.setStyleSheet("font-size: 12pt; font-weight: bold; color: white;")
+            vbox.addWidget(label)
+
+            text = QTextEdit()
+            text.setReadOnly(True)
+            text.setText(str(payload))
+
+            # Setting the window style
+            text.setStyleSheet("""
+                QTextEdit {
+                    background-color: #2b2b2b;
+                    color: white;
+                    font-family: Consolas, monospace;
+                    font-size: 10pt;
+                    border: 1px solid #444;
+                    border-radius: 6px;
+                }
+            """)
+            vbox.addWidget(text)
+
+            # Button to close the window
+            btn = QPushButton("Close")
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #ff4500;
+                    color: white;
+                    border: none;
+                    padding: 5px 15px;
+                    font-size: 11pt;
+                    font-weight: bold;
+                    border-radius: 4px;
+                }
+                QPushButton:hover {
+                    background-color: #e03d00;
+                }
+            """)
+            btn.clicked.connect(dialog.accept)
+            vbox.addWidget(btn, alignment=Qt.AlignRight)
+
+            dialog.setLayout(vbox)
+            dialog.exec_()
 
         # Deleting selected packet from database
         def delete_selected_packet(self):
@@ -680,7 +783,8 @@ def open_database():
     viewer = PacketViewer()
 
     # Show the windows
-    viewer.showMaximized()
+    viewer.resize(1300, 700) # Setting window dimensions
+    viewer.show()
     sys.exit(app.exec_())
 
 # Debug/test

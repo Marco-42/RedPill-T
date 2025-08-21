@@ -17,11 +17,11 @@ from matplotlib.animation import FuncAnimation
 # line1 = "1 25544U 98067A   20300.83097691  .00001534  00000-0  35580-4 0  9996"
 # line2 = "2 25544  51.6453  57.0843 0001671  64.9808  73.0513 15.49338189252428"
 
-line1 = "1 25544U 98067A   25210.16425717  .00013032  00000-0  23438-3 0  9995"
-line2 = "2 25544  51.6345  99.0171 0001921 128.7802 231.3359 15.50188201521672"
+line1 = "1 25544U 98067A   25232.46847203  .00013114  00000-0  23692-3 0  9993"
+line2 = "2 25544  51.6355 348.4629 0003387 244.7503 115.3135 15.50052228525134"
 
 R_EARTH = 6371.0  # Earth radius in kilometers
-MINUTES = 720     # Number of minutes to simulate
+MINUTES = 1440     # Number of minutes to simulate
 
 # Ground station parameters
 gs_lons = 11.893123
@@ -207,7 +207,7 @@ class SatelliteSimApp(QMainWindow):
         control_layout.addWidget(QLabel("Plot option:"))
         self.btn_only_sat = QPushButton("Satellite position zero")
         self.btn_only_gs = QPushButton("GS position")
-        self.btn_orbit = QPushButton("Orbit(12 hours)")
+        self.btn_orbit = QPushButton("Orbit(24 hours)")
 
         self.btn_only_sat.clicked.connect(lambda: self.run_simulation("only_sat"))
         self.btn_only_gs.clicked.connect(lambda: self.run_simulation("only_gs"))
@@ -216,16 +216,37 @@ class SatelliteSimApp(QMainWindow):
         control_layout.addWidget(self.btn_only_sat)
         control_layout.addWidget(self.btn_only_gs)
         control_layout.addWidget(self.btn_orbit)
-
-        control_layout.addStretch()
-        layout.addLayout(control_layout, 1) 
         
         # Animation sector
+        # Button for full animation
         control_layout.addWidget(QLabel("Animation:"))
         self.btn_full_animation = QPushButton("Complete Animation")
         self.btn_full_animation.clicked.connect(lambda: self.run_simulation("full_animation"))
         control_layout.addWidget(self.btn_full_animation)
         
+        control_layout.addStretch()
+        layout.addLayout(control_layout, 1) 
+
+        # Button for live tracking
+        self.btn_live_animation = QPushButton("Live Tracking")
+        self.btn_live_animation.clicked.connect(self.start_live_tracking)
+        control_layout.addWidget(self.btn_live_animation)
+        self.btn_live_animation.setStyleSheet("""
+            QPushButton {
+                background-color: #1e1e1e;
+                color: #FFCD00;
+                font-weight: bold;
+                font-size: 16px;
+                border: 3px solid #FFCD00;
+                border-radius: 8px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #FFCD00;
+                color: #1e1e1e;
+            }
+        """)
+
         # Graphic pannel
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
@@ -368,10 +389,14 @@ class SatelliteSimApp(QMainWindow):
         # Hide the error label initially
         self.error_label.setVisible(False)
 
-        # Appling the function to stop the animation if any button is pressed
+        # Appling the function to stop the animation or the live tracking if any button is pressed
         for btn in self.findChildren(QPushButton):
             btn.clicked.connect(self.stop_animation)
-            
+            if btn != self.btn_live_animation and btn != self.button1 and btn != self.button2 and btn != self.button3:
+                btn.clicked.connect(self.stop_live_tracking)
+    
+
+
     # Function to set the index of the next contact
     def set_next_contact_index(self, number):
         self.loading_label.setVisible(True)  # Loading message
@@ -384,6 +409,32 @@ class SatelliteSimApp(QMainWindow):
         self.error_label.setText(message)
         self.error_label.setVisible(True)
 
+        # Function to check if there is an error in the GS setup
+    
+    # Function to check if there is an error in the GS setup
+    def error_in_gs_setup(self):
+        """return the error or lat - lon - elevation angle - altitude""" 
+        # Extract data relative to GS
+        lat_text = self.lat_input.text().strip()
+        lon_text = self.lon_input.text().strip()
+        alt_text = self.altitude_input.text().strip()
+        elev_text = self.elev_input.text().strip()
+
+        if not lat_text or not lon_text or not elev_text or not alt_text:
+            self.show_error("Insert value for all fields[GS]")
+            return
+
+        try:
+            lat = float(lat_text)
+            lon = float(lon_text)
+            min_elev = float(elev_text)
+            alt = float(alt_text) / 1000.0  # Convert altitude from meters to kilometers
+            return lat, lon, min_elev, alt
+        
+        except ValueError:
+            self.show_error("Insert values must be numeric")
+            return
+        
     # Function to update the timer, the countdown for the next contact and the contact time
     def update_clock(self):
         global simulation_flag
@@ -418,6 +469,8 @@ class SatelliteSimApp(QMainWindow):
             m, s = divmod(remainder, 60)
             countdown_str = f"{h:02}:{m:02}:{s:02}"
 
+            #print(delta.total_seconds())
+
             # Setting the style for the contact time
             if(int(delta.total_seconds()) > 0):
                 self.contact_time.setText(f"""
@@ -428,7 +481,6 @@ class SatelliteSimApp(QMainWindow):
             """)
             elif(int(delta.total_seconds()) < 0 and now < next_contact_end):
                 # Computing the countdown
-                delta_contact = next_contact_end - now
                 h, remainder = divmod(int(delta.total_seconds()), 3600)
                 m, s = divmod(remainder, 60)
                 contanct_countdown_str = f"{h:02}:{m:02}:{s:02}"
@@ -439,13 +491,13 @@ class SatelliteSimApp(QMainWindow):
                     <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{contanct_countdown_str}</div>
                 </div>
             """)
-            # elif(delta < 0 and now > next_contact_end):
-            #     self.contact_time_label.setText(f"""
-            #     <div style='text-align: center;'>
-            #         <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>CONTACT TIME</div>
-            #         <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{"--:--:--"}</div>
-            #     </div>
-            # """)           
+            elif(delta.total_seconds() < 0 and now > next_contact_end):
+                self.contact_time.setText(f"""
+                <div style='text-align: center;'>
+                    <div style='font-size: 14px; font-family: Segoe UI; color: #00BFFF;'>CONTACT TIME</div>
+                    <div style='font-size: 24px; font-family: Courier New; color: #00BFFF;'>{"--:--:--"}</div>
+                </div>
+            """)           
 
         elif simulation_flag == False and not contact_time and not end_contact_time or (self.index > len(contact_time) and self.lat_input.text().strip() != ""): 
             countdown_str = "NO CONTACTS"
@@ -580,7 +632,7 @@ class SatelliteSimApp(QMainWindow):
         self.error_label.setVisible(False)
     
     # ORBIT SIMULATION FUNCTION
-    def simulate_satellite(self, gs_lat, gs_lon, gs_alt, min_elev):
+    def simulate_satellite(self, gs_lat, gs_lon, gs_alt, min_elev, return_time = False):
 
         # Clearing the contact time vectors
         contact_time.clear()
@@ -598,7 +650,6 @@ class SatelliteSimApp(QMainWindow):
         epoch_datetime = datetime(2000, 1, 1, 12) + timedelta(days=(jd0 + fr0 - 2451545.0))
         start_time = epoch_datetime
 
-        print(start_time)
         time_steps = [start_time + timedelta(minutes=i) for i in range(0, MINUTES)]
 
         latitudes = []
@@ -654,31 +705,24 @@ class SatelliteSimApp(QMainWindow):
 
         simulation_flag = False # Set the flag to false after the first simulation
 
-        return longitudes, latitudes
 
+        # If the simulation is only for the orbit, return the latitudes and longitudes
+        if return_time == False: 
+            return longitudes, latitudes
+        
+        # If the simulation is for the live animation, return the latitudes, longitudes and contact times
+        elif( return_time == True):
+            return longitudes, latitudes, time_steps
+        
     # ORBIT ANIMATION FUNCTION
     def animate_satellite(self):
         
-        # Extract data relative to GS
-        lat_text = self.lat_input.text().strip()
-        lon_text = self.lon_input.text().strip()
-        alt_text = self.altitude_input.text().strip()
-        elev_text = self.elev_input.text().strip()
-
-        if not lat_text or not lon_text or not elev_text or not alt_text:
-            self.show_error("Insert value for all fields[GS]")
+        # Check possibile errors in gs setting
+        result = self.error_in_gs_setup()
+        if result is None:
             return
+        lat, lon, min_elev, alt = result 
 
-        try:
-            lat = float(lat_text)
-            lon = float(lon_text)
-            min_elev = float(elev_text)
-            alt = float(alt_text) / 1000.0  # Convert altitude from meters to kilometers
-        
-        except ValueError:
-            self.show_error("Insert values must be numeric")
-            return
-            
         # Running the simulation
         lons, lats = self.simulate_satellite(lat, lon, alt, min_elev)
 
@@ -745,10 +789,111 @@ class SatelliteSimApp(QMainWindow):
         self.loading_label.setVisible(False)
         self.error_label.setVisible(False)
 
+    # START LIVE TRACKING
+    def start_live_tracking(self):
+        
+        self.loading_label.setVisible(True)  # Loading message
+
+        # Closed the previous timer if active
+        if hasattr(self, 'live_timer') and self.live_timer.isActive():
+            self.live_timer.stop()
+
+        # Check possibile errors in gs setting
+        result = self.error_in_gs_setup()
+        if result is None:
+            return
+        lat, lon, min_elev, alt = result 
+
+
+        if self.current_projection == "Global MAP":
+            ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
+        elif self.current_projection == "Local MAP":
+            ax = self.figure.add_subplot(111, projection=ccrs.Orthographic(central_longitude=lon, central_latitude=lat))
+            self.figure.subplots_adjust(left=0.05, right=0.95, top=1.5, bottom=0.05)
+        else:
+            self.current_projection = "Global MAP"
+            ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
+
+        # Setting the map style
+        ax.set_facecolor("#1e1e1e")
+        self.figure.patch.set_facecolor("#1e1e1e")
+        ax.add_feature(cfeature.LAND, facecolor="dimgray")
+        ax.add_feature(cfeature.OCEAN, facecolor="lightgray")
+        ax.add_feature(cfeature.COASTLINE, edgecolor="gray")
+        ax.add_feature(cfeature.BORDERS, edgecolor="darkred", linestyle=':')
+        gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+        gl.xlabel_style = {'color': 'white'}
+        gl.ylabel_style = {'color': 'white'}
+        ax.set_global()
+
+        # Plotting ground station position
+        ax.plot(lon, lat, marker='o', color='blue', markersize=8, transform=ccrs.Geodetic(), label='Ground Station')
+
+        # Create the marker for the live satellite position
+        self.live_sat_dot, = ax.plot([], [], 'o', color='darkred', markersize=10, transform=ccrs.PlateCarree(), zorder = 2)
+
+        # Create the line for the satellite path
+        self.satellite_path, = ax.plot([], [], '-', color='orange', linewidth=1.2, transform=ccrs.PlateCarree(), zorder = 1)
+        self.canvas.draw()
+
+        # Timer to update the satellite position every second
+        self.live_timer = QTimer()
+        self.live_timer.timeout.connect(self.update_live_position)
+        self.live_timer.start(1000)  # Update every second
+
+    # UPDATE THE LIVE POSITION
+    def update_live_position(self):
+
+        seconds_to_simulate = 3600
+
+        # Check possibile errors in gs setting
+        result = self.error_in_gs_setup()
+        if result is None:
+            return
+        lat, lon, min_elev, alt = result 
+
+        # Get the current time
+        now = datetime.utcnow()
+
+        # Run the simulation to get the current satellite position
+        lons_temp, lats_temp, time_temp = self.simulate_satellite(lat, lon, alt, min_elev, True)
+
+        # Hide loading and error labels
+        self.loading_label.setVisible(False)
+        self.error_label.setVisible(False)
+
+        if now > max(time_temp):
+            self.show_error("Please update TLE lines(to old)")
+            return
+        
+        # Find the index of the closest time to now
+        idx = np.argmin([abs((t - now).total_seconds()) for t in time_temp])
+        delta_t = (time_temp[idx+1] - time_temp[idx]).total_seconds()
+        sat_lat = lats_temp[idx]
+        sat_lon = lons_temp[idx]
+
+        # Extract the satellite path for the last +-30 minutes
+        sat_path_lat = lats_temp[idx-int(900/delta_t):idx+int(seconds_to_simulate/delta_t)]
+        sat_path_lon = lons_temp[idx-int(900/delta_t):idx+int(seconds_to_simulate/delta_t)]
+
+        # Some correction to possibile discontinuities in the longitude values(like -pi or + pi)
+        sat_path_lon = np.unwrap(np.radians(sat_path_lon))
+        sat_path_lon = np.degrees(sat_path_lon)
+
+        # Update the live satellite position on the map
+        self.live_sat_dot.set_data([sat_lon], [sat_lat])
+        self.satellite_path.set_data([sat_path_lon], [sat_path_lat])
+        self.canvas.draw()   
+           
     # Function to stop the animation(important to not crash the program)
     def stop_animation(self):
         if hasattr(self, 'ani') and self.ani is not None:
             self.ani.event_source.stop()
+
+    # Function to stop the live tracking
+    def stop_live_tracking(self):
+        if hasattr(self, 'live_timer') and self.live_timer.isActive():
+            self.live_timer.stop()
 
 if __name__ == "__main__":
     dark_palette = QPalette()
