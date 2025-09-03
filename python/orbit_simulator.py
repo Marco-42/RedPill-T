@@ -17,8 +17,8 @@ from matplotlib.animation import FuncAnimation
 # line1 = "1 25544U 98067A   20300.83097691  .00001534  00000-0  35580-4 0  9996"
 # line2 = "2 25544  51.6453  57.0843 0001671  64.9808  73.0513 15.49338189252428"
 
-line1 = "1 25544U 98067A   25232.46847203  .00013114  00000-0  23692-3 0  9993"
-line2 = "2 25544  51.6355 348.4629 0003387 244.7503 115.3135 15.50052228525134"
+line1 = "1 25544U 98067A   25246.19936559  .00014267  00000-0  25396-3 0  9994"
+line2 = "2 25544  51.6337 280.4082 0003342 309.8573  50.2122 15.50393129527260"
 
 R_EARTH = 6371.0  # Earth radius in kilometers
 MINUTES = 1440     # Number of minutes to simulate
@@ -28,6 +28,7 @@ gs_lons = 11.893123
 gs_lats = 45.410935
 gs_range = 1000 # Ground station range in Km
 gs_altitude = 12 # Ground station altitude in m
+minimum_elevation_angle = 10 # Minimum elevation angle in degrees
 
 # Defining vector for time contact
 contact_time = []
@@ -120,6 +121,84 @@ def distance_3d(lat1, lon1, alt1, lat2, lon2, alt2):
 
 
 class SatelliteSimApp(QMainWindow):
+
+    # Function to open the interface for GS parameters setting
+    def open_gs_dialog(self):
+
+        # Creating the interface and selecting style
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Set GS Parameters")
+        dialog.setModal(True)
+        dialog.setStyleSheet("background-color: #222; color: white;")
+        layout = QVBoxLayout(dialog)
+
+        # Preset coordinates selection
+        layout.addWidget(QLabel("Preset Coordinate:"))
+        coord_combo = QComboBox()
+        coord_combo.addItem("Saved")
+        coord_combo.addItem("Padua GS")
+        layout.addWidget(coord_combo)
+
+        # Setting GS latitude
+        layout.addWidget(QLabel("Ground Station Latitude (deg):"))
+        lat_input = QLineEdit(self.lat_input.text())
+        layout.addWidget(lat_input)
+
+        # Setting GS longitude
+        layout.addWidget(QLabel("Ground Station Longitude (deg):"))
+        lon_input = QLineEdit(self.lon_input.text())
+        layout.addWidget(lon_input)
+
+        # Setting GS altitude
+        layout.addWidget(QLabel("Ground Station Altitude (m):"))
+        altitude_input = QLineEdit(self.altitude_input.text())
+        layout.addWidget(altitude_input)
+
+        # Minimum elevation angle input
+        layout.addWidget(QLabel("Minimum Elevation Angle (deg):"))
+        elev_input = QLineEdit(self.elev_input.text())
+        layout.addWidget(elev_input)
+
+        # Saved GS parameters that can be setted(current values are setted for padua GS)
+        def on_preset_changed(idx):
+            presets = {
+                "Padua GS": (gs_lats, gs_lons, gs_altitude, minimum_elevation_angle),
+            }
+            preset = coord_combo.currentText()
+            lat, lon, alt, elev = presets.get(preset, ("", "", "", ""))
+            lat_input.setText(str(lat))
+            lon_input.setText(str(lon))
+            altitude_input.setText(str(alt))
+            elev_input.setText(str(elev))
+
+        # Connect the selection with saved parameters
+        coord_combo.currentIndexChanged.connect(on_preset_changed)
+        self.coord_combo = coord_combo
+        btn_ok = QPushButton("OK")
+        btn_ok.setStyleSheet("background-color: #ff4500; color: white; font-weight: bold;")
+        layout.addWidget(btn_ok)
+
+        # If parameters are correctly inserted, set all data
+        def accept():
+            self.coord_combo.setCurrentIndex(coord_combo.currentIndex())
+            self.lat_input.setText(lat_input.text())
+            self.lon_input.setText(lon_input.text())
+            self.altitude_input.setText(altitude_input.text())
+            self.elev_input.setText(elev_input.text())
+            dialog.accept()
+
+        # Connect button click to accept function
+        btn_ok.clicked.connect(accept)
+        
+        # Setting panel position and geometry
+        global_pos = self.mapToGlobal(self.pos())
+        x = global_pos.x() + 130
+        y = global_pos.y() - 20
+        dialog.setGeometry(x, y, 220, 190)
+
+        dialog.exec_()
+
+
     def __init__(self):
         super().__init__()
         
@@ -153,49 +232,67 @@ class SatelliteSimApp(QMainWindow):
         # Main layout
         layout = QHBoxLayout(self.main_widget)
 
-        # Controll pannel
+        # Control panel
         control_layout = QVBoxLayout()
 
-        # ComboBox preset coordinate
-        control_layout.addWidget(QLabel("Preset Coordinate:"))
-        self.coord_combo = QComboBox()
-        self.coord_combo.addItem("Saved")
-        self.coord_combo.addItem("Padua GS")
-        control_layout.addWidget(self.coord_combo)
+        # Setting selector 
+        control_layout.addWidget(QLabel("Settings"))
 
-        # Latitude input
-        control_layout.addWidget(QLabel("Ground Station Latitude (deg):"))
-        self.lat_input = QLineEdit("")
-        control_layout.addWidget(self.lat_input)
-
-        # Longitude input
-        control_layout.addWidget(QLabel("Ground Station Longitude (deg):"))
-        self.lon_input = QLineEdit("")
-        control_layout.addWidget(self.lon_input)
-
-        # Altitude input
-        control_layout.addWidget(QLabel("Ground Station Altitude (m):"))
-        self.altitude_input = QLineEdit("")
-        control_layout.addWidget(self.altitude_input)
-
-        # Minimum elevation angle input
-        control_layout.addWidget(QLabel("Minimum Elevation Angle (deg):"))
-        self.elev_input = QLineEdit("10")
-        control_layout.addWidget(self.elev_input)
+        # Button to open the GS panel
+        self.btn_set_gs = QPushButton("Set GS parameters")
+        self.btn_set_gs.clicked.connect(self.open_gs_dialog)
+        control_layout.addWidget(self.btn_set_gs)
         
         # Projection selector 
         control_layout.addWidget(QLabel("Map Projection:"))
 
-        self.btn_platecarree = QPushButton("Global MAP")
-        self.btn_orthographic = QPushButton("Local MAP")
+        # Bottoni selettori per la proiezione
+        self.radio_platecarree = QRadioButton("Global")
+        self.radio_orthographic = QRadioButton("Local")
+        self.radio_platecarree.setChecked(True)
         self.current_projection = "PlateCarree"
 
-        simulation_type = "orbit"  # Default simulation type 
-        self.btn_platecarree.clicked.connect(lambda: self.set_projection("Global MAP", simulation_type))
-        self.btn_orthographic.clicked.connect(lambda: self.set_projection("Local MAP", simulation_type))
+        # Stile quadrato e compatibile con l'interfaccia
+        radio_style = """
+            QRadioButton {
+                background-color: transparent;
+                color: #ff4500;
+                font-weight: bold;
+                font-size: 13px;
+                border: none;
+                border-radius: 0px;
+                padding: 4px 8px;
+                min-width: 48px;
+                min-height: 28px;
+            }
+            QRadioButton::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 0px;
+                border: 2px solid #ff4500;
+                background: transparent;
+            }
+            QRadioButton::indicator:checked {
+                background: #ff4500;
+                border: 2px solid #ff4500;
+            }
+        """
+        self.radio_platecarree.setStyleSheet(radio_style)
+        self.radio_orthographic.setStyleSheet(radio_style)
 
-        control_layout.addWidget(self.btn_platecarree)
-        control_layout.addWidget(self.btn_orthographic)
+        self.proj_button_group = QButtonGroup()
+        self.proj_button_group.addButton(self.radio_platecarree)
+        self.proj_button_group.addButton(self.radio_orthographic)
+
+        # Layout orizzontale per i radio
+        proj_radio_layout = QHBoxLayout()
+        proj_radio_layout.addWidget(self.radio_platecarree)
+        proj_radio_layout.addWidget(self.radio_orthographic)
+        control_layout.addLayout(proj_radio_layout)
+
+        simulation_type = "orbit"  # Default simulation type
+        self.radio_platecarree.toggled.connect(lambda checked: self.set_projection("Global MAP", simulation_type) if checked else None)
+        self.radio_orthographic.toggled.connect(lambda checked: self.set_projection("Local MAP", simulation_type) if checked else None)
 
         self.loading_label = QLabel("Loading...")
         self.loading_label.setStyleSheet("color: orange; font-size: 16px;")
@@ -254,11 +351,27 @@ class SatelliteSimApp(QMainWindow):
         self.canvas.setStyleSheet("background-color: #1e1e1e;")
         layout.addWidget(self.canvas, 4)
 
-        self.coord_combo.currentIndexChanged.connect(self.on_preset_changed)
-
         # Graphic pannel + timer
         plot_layout = QVBoxLayout()
         plot_layout.addWidget(self.canvas)
+
+        # Labels for satellite info
+        self.sat_lat_label = QLabel("Lat: --")
+        self.sat_lon_label = QLabel("Lon: --")
+        self.sat_alt_label = QLabel("Alt: --")
+        self.sat_vel_label = QLabel("Vel: --")
+
+        for lbl in (self.sat_lat_label, self.sat_lon_label, self.sat_alt_label, self.sat_vel_label):
+            lbl.setStyleSheet("color: #00BFFF; font-size: 14px; font-family: 'Courier New'; padding: 4px;")
+
+        sat_info_layout = QHBoxLayout()
+        sat_info_layout.addWidget(self.sat_lat_label)
+        sat_info_layout.addWidget(self.sat_lon_label)
+        sat_info_layout.addWidget(self.sat_alt_label)
+        sat_info_layout.addWidget(self.sat_vel_label)
+        sat_info_layout.addStretch()
+
+        plot_layout.addLayout(sat_info_layout)
 
         # "Current time"
         self.clock_title = QLabel("Current time")
@@ -322,6 +435,11 @@ class SatelliteSimApp(QMainWindow):
             </div>
         """)
         self.next_contact_label.setAlignment(Qt.AlignCenter)
+        # Campi input per GS
+        self.lat_input = QLineEdit("")
+        self.lon_input = QLineEdit("")
+        self.altitude_input = QLineEdit("")
+        self.elev_input = QLineEdit("")
         self.next_contact_label.setStyleSheet("""
             QLabel {
                 color: #00BFFF;
@@ -369,7 +487,7 @@ class SatelliteSimApp(QMainWindow):
         
         # Add to main layout
         layout.addLayout(plot_layout, 4)
-
+        
         self.clock_timer = QTimer()
         self.clock_timer.timeout.connect(self.update_clock)
         self.clock_timer.start(1000)
@@ -546,24 +664,26 @@ class SatelliteSimApp(QMainWindow):
     # Function for the projection's setting
     def set_projection(self, projection_name, simulation_type):
         self.current_projection = projection_name
-        self.run_simulation(simulation_type)  # Redone the simulation with new projection
+        #self.run_simulation(simulation_type)  # Redone the simulation with new projection
 
     # Setting GS coordinates
     def on_preset_changed(self, index):
         preset = self.coord_combo.currentText()
         presets = {
-            "Padua GS": (gs_lats, gs_lons, gs_altitude),
+            "Padua GS": (gs_lats, gs_lons, gs_altitude, minimum_elevation_angle),
         }
 
         if preset == "Personalizzato":
             self.lat_input.setText("")
             self.lon_input.setText("")
+            self.altitude_input.setText("")
             self.elev_input.setText("")
         else:
-            lat, lon, alt = presets.get(preset, ("", "", ""))
+            lat, lon, alt, elev = presets.get(preset, ("", "", "", ""))
             self.lat_input.setText(str(lat))
             self.lon_input.setText(str(lon))
             self.altitude_input.setText(str(alt))
+            self.elev_input.setText(str(elev))
 
     # ORBIT VISUALIZATION FUNCTION
     def _execute_simulation(self, simulation_type):
@@ -632,7 +752,7 @@ class SatelliteSimApp(QMainWindow):
         self.error_label.setVisible(False)
     
     # ORBIT SIMULATION FUNCTION
-    def simulate_satellite(self, gs_lat, gs_lon, gs_alt, min_elev, return_time = False):
+    def simulate_satellite(self, gs_lat, gs_lon, gs_alt, min_elev, return_time = False, return_velocity_module = False, return_altitude = False, one_second_time_step = False):
 
         # Clearing the contact time vectors
         contact_time.clear()
@@ -650,11 +770,15 @@ class SatelliteSimApp(QMainWindow):
         epoch_datetime = datetime(2000, 1, 1, 12) + timedelta(days=(jd0 + fr0 - 2451545.0))
         start_time = epoch_datetime
 
-        time_steps = [start_time + timedelta(minutes=i) for i in range(0, MINUTES)]
+        if one_second_time_step:
+            time_steps = [start_time + timedelta(seconds=i) for i in range(0, MINUTES*60)]
+        else:
+            time_steps = [start_time + timedelta(minutes=i) for i in range(0, MINUTES)]
 
         latitudes = []
         longitudes = []
         altitudes = []
+        velocities_module = []
         #conta = 0
 
         for t in time_steps:
@@ -669,7 +793,7 @@ class SatelliteSimApp(QMainWindow):
                 latitudes.append(lat)
                 longitudes.append(lon)
                 altitudes.append(np.linalg.norm(r) - R_EARTH)
-
+                velocities_module.append(np.linalg.norm(v))
                 # Convert the satellite position in ECEF coordinates 
                 x_eci, y_eci, z_eci = r
                 x_ecef = x_eci * np.cos(gmst) + y_eci * np.sin(gmst)
@@ -706,14 +830,21 @@ class SatelliteSimApp(QMainWindow):
         simulation_flag = False # Set the flag to false after the first simulation
 
 
-        # If the simulation is only for the orbit, return the latitudes and longitudes
-        if return_time == False: 
-            return longitudes, latitudes
-        
+        # General return
+        result = [longitudes, latitudes]
+
         # If the simulation is for the live animation, return the latitudes, longitudes and contact times
-        elif( return_time == True):
-            return longitudes, latitudes, time_steps
-        
+        if return_time:
+            result.append(time_steps)
+        # If the simulation is for plot live data, return the latitudes, longitudes, time steps and velocities
+        if return_velocity_module:
+            result.append(velocities_module)
+        # If the simulation is for plot live data, return the latitudes, longitudes, time steps, velocities and altitudes
+        if return_altitude:
+            result.append(altitudes)
+
+        return tuple(result)
+    
     # ORBIT ANIMATION FUNCTION
     def animate_satellite(self):
         
@@ -724,20 +855,24 @@ class SatelliteSimApp(QMainWindow):
         lat, lon, min_elev, alt = result 
 
         # Running the simulation
-        lons, lats = self.simulate_satellite(lat, lon, alt, min_elev)
-
-        self.figure.clear()
+        lons, lats, sat_vel, sat_alt = self.simulate_satellite(lat, lon, alt, min_elev, False, True, True)
 
         # Selection the type of projection
+        self.figure.clear()
+
+        self.loading_label.setVisible(True)
+
+        if self.current_projection != "Global MAP" and self.current_projection != "Local MAP":
+            self.current_projection = "Global MAP"  # Default projection if not set
+
         if self.current_projection == "Global MAP":
             ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
+            self.figure.subplots_adjust(left=0.125, right=0.9, top=0.88, bottom=0.11)
+
         elif self.current_projection == "Local MAP":
             ax = self.figure.add_subplot(111, projection=ccrs.Orthographic(central_longitude=lon, central_latitude=lat))
             self.figure.subplots_adjust(left=0.05, right=0.95, top=1.5, bottom=0.05)
-        else:
-            self.current_projection = "Global MAP"
-            ax = self.figure.add_subplot(111, projection=ccrs.PlateCarree())
-
+            
         # Setting the map style
         ax.set_facecolor("#1e1e1e")
         self.figure.patch.set_facecolor("#1e1e1e")
@@ -775,9 +910,11 @@ class SatelliteSimApp(QMainWindow):
             elif frame == 0:
                 satellite_path.set_data([], [])
                 satellite_dot.set_data([lons[0]], [lats[0]])
+                self.show_sat_params(lats[0], lons[0], sat_alt[0], sat_vel[0])
             else:
                 satellite_path.set_data(lons[:frame], lats[:frame])
                 satellite_dot.set_data([lons[frame-1]], [lats[frame-1]])
+                self.show_sat_params(lats[frame-1], lons[frame-1], sat_alt[frame-1], sat_vel[frame-1])
             return satellite_path, satellite_dot
 
         # # Animation time
@@ -793,6 +930,7 @@ class SatelliteSimApp(QMainWindow):
     def start_live_tracking(self):
         
         self.loading_label.setVisible(True)  # Loading message
+        QApplication.processEvents() # Forcing GUI update
 
         # Closed the previous timer if active
         if hasattr(self, 'live_timer') and self.live_timer.isActive():
@@ -836,30 +974,27 @@ class SatelliteSimApp(QMainWindow):
         self.satellite_path, = ax.plot([], [], '-', color='orange', linewidth=1.2, transform=ccrs.PlateCarree(), zorder = 1)
         self.canvas.draw()
 
-        # Timer to update the satellite position every second
-        self.live_timer = QTimer()
-        self.live_timer.timeout.connect(self.update_live_position)
-        self.live_timer.start(1000)  # Update every second
+        simulation_vector = self.simulate_satellite(lat, lon, alt, min_elev, True, True, True, True)
 
+        # Timer to update the satellite position every second
+        self.clock_timer.timeout.connect(lambda: self.update_live_position(simulation_vector))
+
+        
+        # Hide loading label
+        self.loading_label.setVisible(False)
+    
     # UPDATE THE LIVE POSITION
-    def update_live_position(self):
+    def update_live_position(self, simulation_vector):
 
         seconds_to_simulate = 3600
-
-        # Check possibile errors in gs setting
-        result = self.error_in_gs_setup()
-        if result is None:
-            return
-        lat, lon, min_elev, alt = result 
 
         # Get the current time
         now = datetime.utcnow()
 
         # Run the simulation to get the current satellite position
-        lons_temp, lats_temp, time_temp = self.simulate_satellite(lat, lon, alt, min_elev, True)
+        lons_temp, lats_temp, time_temp, velocities_module, altitudes = simulation_vector
 
         # Hide loading and error labels
-        self.loading_label.setVisible(False)
         self.error_label.setVisible(False)
 
         if now > max(time_temp):
@@ -871,6 +1006,11 @@ class SatelliteSimApp(QMainWindow):
         delta_t = (time_temp[idx+1] - time_temp[idx]).total_seconds()
         sat_lat = lats_temp[idx]
         sat_lon = lons_temp[idx]
+        sat_velocity = velocities_module[idx]
+        sat_altitude = altitudes[idx]
+
+        # Update sat position, velocity and altitude
+        self.show_sat_params(sat_lat, sat_lon, sat_altitude, sat_velocity)
 
         # Extract the satellite path for the last +-30 minutes
         sat_path_lat = lats_temp[idx-int(900/delta_t):idx+int(seconds_to_simulate/delta_t)]
@@ -884,7 +1024,14 @@ class SatelliteSimApp(QMainWindow):
         self.live_sat_dot.set_data([sat_lon], [sat_lat])
         self.satellite_path.set_data([sat_path_lon], [sat_path_lat])
         self.canvas.draw()   
-           
+    
+    # Function to show satellite parameters
+    def show_sat_params(self, lat, lon, alt, vel):
+        self.sat_lat_label.setText(f"Lat: {lat:.2f}°")
+        self.sat_lon_label.setText(f"Lon: {lon:.2f}°")
+        self.sat_alt_label.setText(f"Alt: {alt:.2f} km")
+        self.sat_vel_label.setText(f"Vel: {vel:.2f} km/s")
+
     # Function to stop the animation(important to not crash the program)
     def stop_animation(self):
         if hasattr(self, 'ani') and self.ani is not None:

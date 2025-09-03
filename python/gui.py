@@ -575,8 +575,9 @@ def ask_for_comment(parent=None, id_in_table = 0):
 	def add_to_all_packet(): 
 		global add_to_all_check
 		add_to_all_check = True
-		custom_btn.setChecked(True)
-		custom_btn.setEnabled(False)
+		on_accept()
+		# custom_btn.setChecked(True)
+		# custom_btn.setEnabled(False)
 
 	custom_btn.clicked.connect(add_to_all_packet)
 	btn_box.accepted.connect(on_accept)
@@ -675,7 +676,7 @@ def export_table_to_db(table: QTableWidget):
 		)
 
 	# Clear all the table if the comment insertion wasn't cancelled(to delete all if some rows wasn't delete before)
-	if check_message == False:
+	if check_message == False or add_to_all_check == True:
 		clear_table(table)
 
 	# # Database initialization
