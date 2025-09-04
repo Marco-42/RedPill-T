@@ -27,7 +27,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
+        "h": 6,
         "w": 7,
         "x": 0,
         "y": 0
@@ -75,7 +75,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 4,
         "w": 4,
         "x": 7,
         "y": 0
@@ -144,6 +144,9 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -184,6 +187,13 @@
               {
                 "id": "custom.axisLabel",
                 "value": "dbm"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "shades"
+                }
               }
             ]
           },
@@ -196,6 +206,13 @@
               {
                 "id": "custom.axisLabel",
                 "value": "db"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-yellow",
+                  "mode": "shades"
+                }
               }
             ]
           },
@@ -214,7 +231,7 @@
         ]
       },
       "gridPos": {
-        "h": 11,
+        "h": 8,
         "w": 13,
         "x": 11,
         "y": 0
@@ -240,7 +257,7 @@
             "type": "frser-sqlite-datasource",
             "uid": "eevd06r9keyv4e"
           },
-          "queryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  rssi AS RSSI,\n  snr AS SNR\nFROM packets\nWHERE ground_station_id = '$station'\nORDER BY time",
+          "queryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  rssi AS RSSI,\n  snr AS SNR\nFROM packets\nWHERE ground_station_id = '1'\nORDER BY time",
           "queryType": "time series",
           "rawQueryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  rssi AS RSSI,\n  snr AS SNR\nFROM packets\nWHERE ground_station_id = '$station'\nORDER BY time",
           "refId": "A",
@@ -294,10 +311,10 @@
         ]
       },
       "gridPos": {
-        "h": 5,
+        "h": 4,
         "w": 4,
         "x": 7,
-        "y": 6
+        "y": 4
       },
       "id": 4,
       "options": {
@@ -315,7 +332,7 @@
         },
         "showPercentChange": false,
         "text": {
-          "valueSize": 30
+          "valueSize": 20
         },
         "textMode": "auto",
         "wideLayout": true
@@ -349,7 +366,7 @@
         "h": 2,
         "w": 7,
         "x": 0,
-        "y": 9
+        "y": 6
       },
       "id": 5,
       "options": {
@@ -373,14 +390,14 @@
         },
         "dateSettings": {
           "dateFormat": "YYYY-MM-DD",
-          "fontSize": "30px",
+          "fontSize": "22px",
           "fontWeight": "normal",
           "locale": "",
           "showDate": true
         },
         "descriptionSettings": {
           "descriptionText": "",
-          "fontSize": "30px",
+          "fontSize": "22px",
           "fontWeight": "normal",
           "noValueText": "no description found",
           "source": "none"
@@ -389,7 +406,7 @@
         "mode": "time",
         "refresh": "sec",
         "timeSettings": {
-          "fontSize": "30px",
+          "fontSize": "22px",
           "fontWeight": "normal"
         },
         "timezone": "UTC",
@@ -415,6 +432,543 @@
       ],
       "title": "Current Time UTC",
       "type": "grafana-clock-panel"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "shades"
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "dBm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 8
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^rssi$/",
+          "limit": 1,
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "queryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  RSSI\nFROM packets\nORDER BY time ASC;",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  RSSI\nFROM packets\nORDER BY time ASC;",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Last RSSI value",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "semi-dark-yellow",
+            "mode": "shades"
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "dB"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 8
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^snr$/",
+          "limit": 1,
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "queryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  SNR\nFROM packets\nORDER BY time ASC;",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  SNR\nFROM packets\nORDER BY time ASC;",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Last SNR value",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "semi-dark-orange",
+            "mode": "shades"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "rothz"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "freq_offset"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Freq. offset"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Time"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 14,
+        "x": 10,
+        "y": 8
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "eevd06r9keyv4e"
+          },
+          "queryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  freq_offset\nFROM packets\nWHERE ground_station_id = '1'\nORDER BY time",
+          "queryType": "time series",
+          "rawQueryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  freq_offset\nFROM packets\nWHERE ground_station_id = '$station'\nORDER BY time",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Frequency offset",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "semi-dark-red",
+                "value": 0
+              },
+              {
+                "color": "dark-red",
+                "value": 70
+              },
+              {
+                "color": "dark-purple",
+                "value": 85
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 13
+      },
+      "id": 9,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^tec$/",
+          "limit": 1,
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "queryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  TEC\nFROM packets\nORDER BY time ASC;",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  TEC\nFROM packets\nORDER BY time ASC;",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Last TEC value",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "semi-dark-orange",
+            "mode": "shades"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "rothz"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 13
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "queryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  freq_offset\nFROM packets\nORDER BY time ASC;",
+          "queryType": "table",
+          "rawQueryText": "SELECT\n  strftime('%s', substr(timestamp,1,19)) AS time,  -- time in secondi\n  freq_offset\nFROM packets\nORDER BY time ASC;",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Last frequency offset value",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "eevd06r9keyv4e"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "semi-dark-red",
+            "mode": "shades"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "freq_offset"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Freq. offset"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Time"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 14,
+        "x": 10,
+        "y": 13
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "eevd06r9keyv4e"
+          },
+          "queryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  tec\nFROM packets\nWHERE ground_station_id = '1'\nORDER BY time",
+          "queryType": "time series",
+          "rawQueryText": "SELECT \n  strftime('%s', substr(timestamp,1,19)) AS time, -- numero di secondi da 1970\n  tec\nFROM packets\nWHERE ground_station_id = '$station'\nORDER BY time",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "TEC",
+      "type": "timeseries"
     }
   ],
   "preload": false,
@@ -446,5 +1000,5 @@
   "timezone": "browser",
   "title": "RedPill Dashboard",
   "uid": "5edbfc2c-7172-4ae5-ac02-64a8fb8d3f48",
-  "version": 15
+  "version": 17
 }

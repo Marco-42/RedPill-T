@@ -17,8 +17,8 @@ from matplotlib.animation import FuncAnimation
 # line1 = "1 25544U 98067A   20300.83097691  .00001534  00000-0  35580-4 0  9996"
 # line2 = "2 25544  51.6453  57.0843 0001671  64.9808  73.0513 15.49338189252428"
 
-line1 = "1 25544U 98067A   25246.19936559  .00014267  00000-0  25396-3 0  9994"
-line2 = "2 25544  51.6337 280.4082 0003342 309.8573  50.2122 15.50393129527260"
+line1 = ""
+line2 = ""
 
 R_EARTH = 6371.0  # Earth radius in kilometers
 MINUTES = 1440     # Number of minutes to simulate
@@ -198,7 +198,111 @@ class SatelliteSimApp(QMainWindow):
 
         dialog.exec_()
 
+    # Function to ask for TLE lines
+    def open_tle_dialog(self):
+        def is_tle_valid(line1, line2):
+            # Controllo base: lunghezza e formato
+            if not line1 or not line2:
+                return False
+            if not line1.startswith('1 ') or not line2.startswith('2 '):
+                return False
+            if len(line1) < 68 or len(line2) < 68:
+                return False
+            return True
 
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Insert TLE lines")
+        dialog.setModal(True)
+        dialog.setStyleSheet("background-color: #222; color: white;")
+        layout = QVBoxLayout(dialog)
+
+        # Ask for TLE lines
+        layout.addWidget(QLabel("TLE Lines:"))
+        tle_input = QTextEdit()
+        tle_input.setFixedHeight(60)
+        tle_input.setStyleSheet("font-size: 12px; background-color: #2e2e2e; color: white; border: 1px solid #555;")
+        
+        # Precompile if line1 and line2 are not empty
+        if line1 and line2:
+            tle_input.setPlainText(f"{line1}\n{line2}")
+        layout.addWidget(tle_input)
+
+        # Get TLE examples from web
+        satellites = {
+            "ISS (ARISS)": "https://live.ariss.org/iss.txt",
+            # "NOAA 18 (Celestrak)": "https://www.celestrak.com/NORAD/elements/noaa.txt",
+            # "METEOR-M2 (Celestrak)": "https://www.celestrak.com/NORAD/elements/weather.txt"
+        }
+        sat_combo = QComboBox()
+        sat_combo.addItem("Select satellite")
+
+        # Selection menu to choose the satellite and download the TLE
+        for name in satellites:
+            sat_combo.addItem(name)
+        sat_combo.setStyleSheet("background-color: #444; color: #FFCD00; font-weight: bold;")
+        layout.addWidget(sat_combo)
+
+        # Function to get TLE lines from web and check if the satellite is correctly selected
+        def fetch_tle_from_url(url):
+            import requests
+            try:
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    lines = response.text.strip().splitlines()
+                    # Getting TLE lines from the web page content
+                    l1 = next((l for l in lines if l.startswith('1 ')), None)
+                    l2 = next((l for l in lines if l.startswith('2 ')), None)
+                    if l1 and l2:
+                        tle_input.setPlainText(f"{l1}\n{l2}")
+                    else:
+                        self.show_error("TLE not found")
+                else:
+                    self.show_error(f"HTTP error: {response.status_code}")
+            except Exception as e:
+                self.show_error(f"Error downloading TLE: {e}")
+
+        def on_satellite_changed(idx):
+            if idx == 0:
+                return
+            name = sat_combo.currentText()
+            url = satellites.get(name)
+            if url:
+                fetch_tle_from_url(url)
+
+        sat_combo.currentIndexChanged.connect(on_satellite_changed)
+        btn_ok = QPushButton("OK")
+        btn_ok.setStyleSheet("background-color: #ff4500; color: white; font-weight: bold;")
+        layout.addWidget(btn_ok)
+
+        def accept():
+            global line1, line2
+            lines = tle_input.toPlainText().strip().splitlines()
+            if len(lines) >= 2:
+                l1 = lines[0].strip()
+                l2 = lines[1].strip()
+                if is_tle_valid(l1, l2):
+                    line1 = l1
+                    line2 = l2
+                    dialog.accept()
+                    print(line1)
+                    print(line2)
+                else: 
+                    self.show_error("TLE lines not valid")
+                    return
+            else:
+                self.show_error("Please enter both TLE lines.")
+                return
+
+        btn_ok.clicked.connect(accept)
+
+        global_pos = self.mapToGlobal(self.pos())
+        x = global_pos.x() + 130
+        y = global_pos.y() - 20
+        dialog.setGeometry(x, y, 500, 150)
+
+        dialog.exec_()
+
+    # Constructor of the main window
     def __init__(self):
         super().__init__()
         
@@ -243,16 +347,21 @@ class SatelliteSimApp(QMainWindow):
         self.btn_set_gs.clicked.connect(self.open_gs_dialog)
         control_layout.addWidget(self.btn_set_gs)
         
+        # Button to open the TLE panel
+        self.btn_set_tle = QPushButton("Set TLE lines")
+        self.btn_set_tle.clicked.connect(self.open_tle_dialog)
+        control_layout.addWidget(self.btn_set_tle)
+
         # Projection selector 
         control_layout.addWidget(QLabel("Map Projection:"))
 
-        # Bottoni selettori per la proiezione
+        # Buttons for projection selection
         self.radio_platecarree = QRadioButton("Global")
         self.radio_orthographic = QRadioButton("Local")
         self.radio_platecarree.setChecked(True)
         self.current_projection = "PlateCarree"
 
-        # Stile quadrato e compatibile con l'interfaccia
+        # Style settings for radio buttons
         radio_style = """
             QRadioButton {
                 background-color: transparent;
@@ -435,7 +544,7 @@ class SatelliteSimApp(QMainWindow):
             </div>
         """)
         self.next_contact_label.setAlignment(Qt.AlignCenter)
-        # Campi input per GS
+        # Input fields for GS
         self.lat_input = QLineEdit("")
         self.lon_input = QLineEdit("")
         self.altitude_input = QLineEdit("")
@@ -467,16 +576,16 @@ class SatelliteSimApp(QMainWindow):
             btn.setFixedWidth(40)
             btn.setStyleSheet("font-size: 16px; background-color: #222; color: #DAA520; border: 2px solid #DAA520; border-radius: 6px;")
 
-        # Vertical layout per i pulsanti
+        # Vertical layout for the buttons
         btns_layout = QVBoxLayout()
         btns_layout.addWidget(self.button1)
         btns_layout.addWidget(self.button2)
         btns_layout.addWidget(self.button3)
-        # Non aggiungere stretch!
+        # Do not add stretch!
 
-        # Layout orizzontale principale
+        # Main horizontal layout
         time_and_btns_layout = QHBoxLayout()
-        time_and_btns_layout.setSpacing(10)  # Puoi ridurre questo valore per avvicinare i widget
+        time_and_btns_layout.setSpacing(10)  # You can reduce this value if want a more compact design
         time_and_btns_layout.setContentsMargins(0, 0, 0, 0)
         time_and_btns_layout.addWidget(self.clock_label)
         time_and_btns_layout.addLayout(btns_layout)
@@ -652,7 +761,12 @@ class SatelliteSimApp(QMainWindow):
 
     # Function to display the simulation
     def run_simulation(self, simulation_type):
-
+        
+        # Check if TLE lines are setted
+        if not line1 or not line2 or line1 == " " or line2 == " ":
+            self.show_error("Insert TLE lines")
+            return
+        
         self.loading_label.setVisible(True)  # Loading message
 
         # Check if the simulation is static or animated
@@ -692,10 +806,16 @@ class SatelliteSimApp(QMainWindow):
         alt_text = self.altitude_input.text().strip()
         elev_text = self.elev_input.text().strip()
 
+        # Check if GS parameters are setted
         if not lat_text or not lon_text or not elev_text or not alt_text:
             self.show_error("Insert value for all fields[GS]")
             return
 
+        # Check if TLE lines are setted
+        if not line1 or not line2 or line1 == " " or line2 == " ":
+            self.show_error("Insert TLE lines")
+            return
+        
         try:
             lat = float(lat_text)
             lon = float(lon_text)
@@ -757,11 +877,11 @@ class SatelliteSimApp(QMainWindow):
         # Clearing the contact time vectors
         contact_time.clear()
         end_contact_time.clear()
-
+        
         global simulation_flag
         satellite = Satrec.twoline2rv(line1, line2)
 
-        in_contact = False  # No concat at the beginning
+        in_contact = False  # No contact at the beginning
 
         # Get the epoch time from the TLE
         jd0, fr0 = satellite.jdsatepoch, satellite.jdsatepochF
@@ -929,6 +1049,11 @@ class SatelliteSimApp(QMainWindow):
     # START LIVE TRACKING
     def start_live_tracking(self):
         
+        # Check if TLE lines are setted
+        if not line1 or not line2 or line1 == " " or line2 == " ":
+            self.show_error("Insert TLE lines")
+            return
+        
         self.loading_label.setVisible(True)  # Loading message
         QApplication.processEvents() # Forcing GUI update
 
@@ -974,8 +1099,14 @@ class SatelliteSimApp(QMainWindow):
         self.satellite_path, = ax.plot([], [], '-', color='orange', linewidth=1.2, transform=ccrs.PlateCarree(), zorder = 1)
         self.canvas.draw()
 
+        # Run the simulation to get the data for live tracking
         simulation_vector = self.simulate_satellite(lat, lon, alt, min_elev, True, True, True, True)
 
+        # Check if the TLE are not too old
+        if datetime.utcnow() > max(simulation_vector[2]):
+            self.show_error("Please update TLE lines(to old)")
+            return
+        
         # Timer to update the satellite position every second
         self.clock_timer.timeout.connect(lambda: self.update_live_position(simulation_vector))
 
@@ -996,10 +1127,6 @@ class SatelliteSimApp(QMainWindow):
 
         # Hide loading and error labels
         self.error_label.setVisible(False)
-
-        if now > max(time_temp):
-            self.show_error("Please update TLE lines(to old)")
-            return
         
         # Find the index of the closest time to now
         idx = np.argmin([abs((t - now).total_seconds()) for t in time_temp])
