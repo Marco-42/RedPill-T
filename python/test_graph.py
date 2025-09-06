@@ -160,7 +160,7 @@ for i in range(0, len(RSSI_ag)):
         PICO_SNR_mean_ag.append(np.mean(PICO_SNR_ag[i:i+5]))
         PICO_SNR_std_ag.append(statistics.stdev(PICO_SNR_ag[i:i+5]))
 
-print(PICO_RSSI_mean_ag)
+# print(PICO_RSSI_mean_ag)
 
 # Converting array in vectors
 SNR_std = np.array(SNR_std)
@@ -202,77 +202,90 @@ plt.savefig('./python/test/graph/SNR'+'.png',
             orientation ='Portrait',
             dpi = 100)
 
-# Fitting SNR means with a linear function
-# Create a model for fitting - Function the fitting method is able to read
-function_model = Model(fitf)
+# Printing graph's data
+print("SNR.png")
+print("Angle - SNR")
+for i in range(len(SNR)):
+    print(str(angle[i]) + " " + str(SNR[i]))
 
-# Create a RealData object using our initiated data from above
-graph_data = RealData(angle_mean, SNR_mean, sx=5, sy=SNR_std)
+# # Fitting SNR means with a linear function
+# # Create a model for fitting - Function the fitting method is able to read
+# function_model = Model(fitf)
 
-# Set up ODR with the model and data - ODR is the fitting method used to consider the errors both in x and y
-# beta0 are the input parameters
-odr = ODR(graph_data, function_model, beta0=[1, -2])
+# # Create a RealData object using our initiated data from above
+# graph_data = RealData(angle_mean, SNR_mean, sx=5, sy=SNR_std)
 
-# Start the fitting method
-out = odr.run()
+# # Set up ODR with the model and data - ODR is the fitting method used to consider the errors both in x and y
+# # beta0 are the input parameters
+# odr = ODR(graph_data, function_model, beta0=[1, -2])
 
-# Output of result
-out.pprint()
+# # Start the fitting method
+# out = odr.run()
 
-# get parameters and parameters errors from fit 
-params = out.beta
-params_err = out.sd_beta
+# # Output of result
+# out.pprint()
 
-# get chi square from fit
-chi = out.sum_square
+# # get parameters and parameters errors from fit 
+# params = out.beta
+# params_err = out.sd_beta
 
-# get the x_distance and y_distance point - fit_function
-x_residual = out.delta
-y_residual = out.delta
+# # get chi square from fit
+# chi = out.sum_square
 
-# calculate the residuals error by quadratic sum using the variance theorem
-y_residual_err = np.sqrt(pow(SNR_std, 2) + pow(params_err[1], 2) + pow(angle_mean*params_err[0], 2))
-x_residual_err = np.sqrt(pow(5, 2) + pow((SNR_mean-params[1])*params_err[1]/(params[0]**2), 2) + pow(params_err[1]/params[0], 2))
+# # get the x_distance and y_distance point - fit_function
+# x_residual = out.delta
+# y_residual = out.delta
 
-# Computing the weighted mean of the residuals
-weighted_mean_y_residual = np.average(y_residual, weights=1/y_residual_err**2)
-weighted_mean_y_residual_std = np.sqrt(1 / np.sum(1/y_residual_err**2))
+# # calculate the residuals error by quadratic sum using the variance theorem
+# y_residual_err = np.sqrt(pow(SNR_std, 2) + pow(params_err[1], 2) + pow(angle_mean*params_err[0], 2))
+# x_residual_err = np.sqrt(pow(5, 2) + pow((SNR_mean-params[1])*params_err[1]/(params[0]**2), 2) + pow(params_err[1]/params[0], 2))
 
-# computing compatibility between weighted mean of residuals and 0
-r_residual = np.abs(weighted_mean_y_residual)/weighted_mean_y_residual_std
+# # Computing the weighted mean of the residuals
+# weighted_mean_y_residual = np.average(y_residual, weights=1/y_residual_err**2)
+# weighted_mean_y_residual_std = np.sqrt(1 / np.sum(1/y_residual_err**2))
 
-# print the chi square value 
-print("CHI SUQARE: " + str(chi))
+# # computing compatibility between weighted mean of residuals and 0
+# r_residual = np.abs(weighted_mean_y_residual)/weighted_mean_y_residual_std
 
-# Print the weighted mean of residuals
-print("Weighted mean of residuals: " + str(weighted_mean_y_residual))
+# # # print the chi square value 
+# # print("CHI SUQARE: " + str(chi))
 
-# Array of element for plotting the wheigted mean of residuals
-y_residual_array = np.zeros(len(angle_mean), dtype=np.float64)
-for i in range(len(angle_mean)):
-    y_residual_array[i] = weighted_mean_y_residual
+# # # Print the weighted mean of residuals
+# # print("Weighted mean of residuals: " + str(weighted_mean_y_residual))
 
-# Getting fit points to plot
-x_fit = np.linspace(angle_mean[0]-10, angle_mean[-1]+10, 1000)
-y_fit = fitf(params, x_fit)
+# # Array of element for plotting the wheigted mean of residuals
+# y_residual_array = np.zeros(len(angle_mean), dtype=np.float64)
+# for i in range(len(angle_mean)):
+#     y_residual_array[i] = weighted_mean_y_residual
 
-# Plotting SNR mean points
-fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
-ax.errorbar(angle_mean,SNR_mean,xerr = 5, yerr = SNR_std, fmt='o', label=r'SNR data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
-ax.plot(x_fit, y_fit, label=r'SNR linear fit', color='red', lw=1.5, zorder=1)
-ax.set_ylabel(r'$SNR \, [db]$', size = 13)
-ax.set_xlabel(r'Inclination', size = 13)
-ax.set_xlim(-10, 55)
-ax.set_ylim(-13, 0)
-ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+# # Getting fit points to plot
+# x_fit = np.linspace(angle_mean[0]-10, angle_mean[-1]+10, 1000)
+# y_fit = fitf(params, x_fit)
 
-plt.savefig('./python/test/graph/SNR_mean'+'.png',
-            pad_inches = 1,
-            transparent = True,
-            facecolor ="w",
-            edgecolor ='w',
-            orientation ='Portrait',
-            dpi = 100)
+# # Plotting SNR mean points
+# fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+# ax.errorbar(angle_mean,SNR_mean,xerr = 5, yerr = SNR_std, fmt='o', label=r'SNR data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
+# ax.plot(x_fit, y_fit, label=r'SNR linear fit', color='red', lw=1.5, zorder=1)
+# ax.set_ylabel(r'$SNR \, [db]$', size = 13)
+# ax.set_xlabel(r'Inclination', size = 13)
+# ax.set_xlim(-10, 55)
+# ax.set_ylim(-13, 0)
+# ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+
+# plt.savefig('./python/test/graph/SNR_mean'+'.png',
+#             pad_inches = 1,
+#             transparent = True,
+#             facecolor ="w",
+#             edgecolor ='w',
+#             orientation ='Portrait',
+#             dpi = 100)
+
+# # Printing graph's data
+# print("==========================================")
+# print("SNR_mean.png")
+# print("Angle - Mean SNR - Std")
+# for i in range(len(SNR_mean)):
+#     print(str(angle_mean[i]) + " " + str(SNR_mean[i]) + " +- " + str(SNR_std[i]))
 
 # Plotting RSSI single points
 fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
@@ -292,78 +305,92 @@ plt.savefig('./python/test/graph/RSSI'+'.png',
             orientation ='Portrait',
             dpi = 100)
 
-# Fitting RSSI means with a linear function
-# Create a model for fitting - Function the fitting method is able to read
-function_model = Model(fitf)
+# Printing graph's data
+print("==========================================")
+print("RSSI.png")
+print("Angle - RSSI")
+for i in range(len(RSSI)):
+    print(str(angle[i]) + " " + str(RSSI[i]))
 
-# Create a RealData object using our initiated data from above
-graph_data = RealData(angle_mean, RSSI_mean, sx=5, sy=RSSI_std)
+# # Fitting RSSI means with a linear function
+# # Create a model for fitting - Function the fitting method is able to read
+# function_model = Model(fitf)
 
-# Set up ODR with the model and data - ODR is the fitting method used to consider the errors both in x and y
-# beta0 are the input parameters
-odr = ODR(graph_data, function_model, beta0=[-10, -104])
+# # Create a RealData object using our initiated data from above
+# graph_data = RealData(angle_mean, RSSI_mean, sx=5, sy=RSSI_std)
 
-# Start the fitting method
-out = odr.run()
+# # Set up ODR with the model and data - ODR is the fitting method used to consider the errors both in x and y
+# # beta0 are the input parameters
+# odr = ODR(graph_data, function_model, beta0=[-10, -104])
 
-# Output of result
-out.pprint()
+# # Start the fitting method
+# out = odr.run()
 
-# get parameters and parameters errors from fit 
-params = out.beta
-params_err = out.sd_beta
+# # Output of result
+# out.pprint()
 
-# get chi square from fit
-chi = out.sum_square
+# # get parameters and parameters errors from fit 
+# params = out.beta
+# params_err = out.sd_beta
 
-# get the x_distance and y_distance point - fit_function
-x_residual = out.delta
-y_residual = out.delta
+# # get chi square from fit
+# chi = out.sum_square
 
-# calculate the residuals error by quadratic sum using the variance theorem
-y_residual_err = np.sqrt(pow(RSSI_std, 2) + pow(params_err[1], 2) + pow(angle_mean*params_err[0], 2))
-x_residual_err = np.sqrt(pow(5, 2) + pow((RSSI_mean-params[1])*params_err[1]/(params[0]**2), 2) + pow(params_err[1]/params[0], 2))
+# # get the x_distance and y_distance point - fit_function
+# x_residual = out.delta
+# y_residual = out.delta
 
-# Computing the weighted mean of the residuals
-weighted_mean_y_residual = np.average(y_residual, weights=1/y_residual_err**2)
-weighted_mean_y_residual_std = np.sqrt(1 / np.sum(1/y_residual_err**2))
+# # calculate the residuals error by quadratic sum using the variance theorem
+# y_residual_err = np.sqrt(pow(RSSI_std, 2) + pow(params_err[1], 2) + pow(angle_mean*params_err[0], 2))
+# x_residual_err = np.sqrt(pow(5, 2) + pow((RSSI_mean-params[1])*params_err[1]/(params[0]**2), 2) + pow(params_err[1]/params[0], 2))
 
-# computing compatibility between weighted mean of residuals and 0
-r_residual = np.abs(weighted_mean_y_residual)/weighted_mean_y_residual_std
+# # Computing the weighted mean of the residuals
+# weighted_mean_y_residual = np.average(y_residual, weights=1/y_residual_err**2)
+# weighted_mean_y_residual_std = np.sqrt(1 / np.sum(1/y_residual_err**2))
 
-# print the chi square value 
-print("CHI SUQARE: " + str(chi))
+# # computing compatibility between weighted mean of residuals and 0
+# r_residual = np.abs(weighted_mean_y_residual)/weighted_mean_y_residual_std
 
-# Print the weighted mean of residuals
-print("Weighted mean of residuals: " + str(weighted_mean_y_residual))
+# # print the chi square value 
+# # print("CHI SUQARE: " + str(chi))
 
-# Array of element for plotting the wheigted mean of residuals
-y_residual_array = np.zeros(len(angle_mean), dtype=np.float64)
-for i in range(len(angle_mean)):
-    y_residual_array[i] = weighted_mean_y_residual
+# # Print the weighted mean of residuals
+# # print("Weighted mean of residuals: " + str(weighted_mean_y_residual))
 
-# Getting fit points to plot
-x_fit = np.linspace(angle_mean[0]-10, angle_mean[-1]+10, 1000)
-y_fit = fitf(params, x_fit)
+# # Array of element for plotting the wheigted mean of residuals
+# y_residual_array = np.zeros(len(angle_mean), dtype=np.float64)
+# for i in range(len(angle_mean)):
+#     y_residual_array[i] = weighted_mean_y_residual
 
-# Plotting RSSI mean points
-fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
-ax.errorbar(angle_mean,RSSI_mean,xerr = 5, yerr = RSSI_std, fmt='o', label=r'RSSI data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
-ax.plot(x_fit, y_fit, label=r'RSSI linear fit', color='darkorange', lw=1.5, zorder=1)
+# # Getting fit points to plot
+# x_fit = np.linspace(angle_mean[0]-10, angle_mean[-1]+10, 1000)
+# y_fit = fitf(params, x_fit)
 
-ax.set_ylabel(r'$RSSI \,\, [db]$', size = 13)
-ax.set_xlabel(r'Inclination', size = 13)
-# ax.set_xlim(-10, 55)
-# ax.set_ylim(-13, 0)
-ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+# # Plotting RSSI mean points
+# fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+# ax.errorbar(angle_mean,RSSI_mean,xerr = 5, yerr = RSSI_std, fmt='o', label=r'RSSI data [Pico - Pico]',ms=3,color='black', zorder = 2, lw = 1.5)
+# ax.plot(x_fit, y_fit, label=r'RSSI linear fit', color='darkorange', lw=1.5, zorder=1)
 
-plt.savefig('./python/test/graph/RSSI_mean'+'.png',
-            pad_inches = 1,
-            transparent = True,
-            facecolor ="w",
-            edgecolor ='w',
-            orientation ='Portrait',
-            dpi = 100)
+# ax.set_ylabel(r'$RSSI \,\, [db]$', size = 13)
+# ax.set_xlabel(r'Inclination', size = 13)
+# # ax.set_xlim(-10, 55)
+# # ax.set_ylim(-13, 0)
+# ax.legend(prop={'size': 14}, loc='upper right', frameon=False).set_zorder(2)
+
+# plt.savefig('./python/test/graph/RSSI_mean'+'.png',
+#             pad_inches = 1,
+#             transparent = True,
+#             facecolor ="w",
+#             edgecolor ='w',
+#             orientation ='Portrait',
+#             dpi = 100)
+
+# # Printing graph's data
+# print("===========================================")
+# print("RSSI_mean.png")
+# print("Angle - Mean RSSI - Std")
+# for i in range(len(RSSI_mean)):
+#     print(str(angle_mean[i]) + " " + str(RSSI_mean[i]) + " +- " + str(RSSI_std[i]))
 
 # endregion
 
@@ -411,6 +438,24 @@ plt.savefig('./python/test/graph/SNR_conf'+'.png',
             orientation ='Portrait',
             dpi = 100)
 
+# Printing graph's data
+print("===========================================")
+print("SNR_conf.png")
+print("Angle - Mean SNR - Std")
+print("SNR data [Pico - Pico]")
+for i in range(len(SNR_mean)):
+    print(str(angle_mean[i]) + " " + str(SNR_mean[i]) + " +- " + str(SNR_std[i]))
+
+print(" ")
+print("SNR data [Pico - High gain]")
+for i in range(len(SNR_mean_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(SNR_mean_ag[i]) + " +- " + str(SNR_std_ag[i]))
+
+print(" ")
+print("Differences")
+print("Angle - Diff SNR [P/H - P/P] - Std")
+for i in range(len(diff)):
+    print(str(angle_mean[i]) + " " + str(diff[i]) + " +- " + str(diff_std[i]))
 
 diff = np.zeros(len(RSSI_mean), dtype=np.float64)
 diff_std = np.zeros(len(RSSI_mean), dtype=np.float64)
@@ -447,11 +492,11 @@ axx[0].text(70, -111, r'15 db', fontsize=12, color='black', ha='center', va='cen
 axx[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 11}, loc='lower right', frameon=False).set_zorder(2)
 
-print("==========================================")
-print(diff)
-print("Mean DIFF Monte Ceva: ", str(np.mean(diff)), " +- ", str(statistics.stdev(diff)))
-print("Compatibility: ", str(compatibility(diff[0], diff[1], diff_std[0], diff_std[1])), " ", str(compatibility(diff[0], diff[2], diff_std[0], diff_std[2])), " ", str(compatibility(diff[1], diff[2], diff_std[1], diff_std[2])))
-print("==========================================")
+# print("==========================================")
+# print(diff)
+# print("Mean DIFF Monte Ceva: ", str(np.mean(diff)), " +- ", str(statistics.stdev(diff)))
+# print("Compatibility: ", str(compatibility(diff[0], diff[1], diff_std[0], diff_std[1])), " ", str(compatibility(diff[0], diff[2], diff_std[0], diff_std[2])), " ", str(compatibility(diff[1], diff[2], diff_std[1], diff_std[2])))
+# print("==========================================")
 
 plt.savefig('./python/test/graph/RSSI_conf'+'.png',
             pad_inches = 1,
@@ -460,6 +505,24 @@ plt.savefig('./python/test/graph/RSSI_conf'+'.png',
             edgecolor ='w',
             orientation ='Portrait',
             dpi = 100)
+
+# Printing graph's data
+print("===========================================")
+print("RSSI_conf.png")
+print("Angle - Mean RSSI - Std")
+print("RSSI data [Pico - Pico]")
+for i in range(len(RSSI_mean)):
+    print(str(angle_mean[i]) + " " + str(RSSI_mean[i]) + " +- " + str(RSSI_std[i]))
+print(" ")
+print("RSSI data [Pico - High gain]")
+for i in range(len(RSSI_mean_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(RSSI_mean_ag[i]) + " +- " + str(RSSI_std_ag[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff RSSI [P/H - P/P] - Std")
+for i in range(len(diff)):
+    print(str(angle_mean[i]) + " " + str(diff[i]) + " +- " + str(diff_std[i]))
+
 
 # Plotting SNR_ag single points
 fig, ax = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
@@ -479,6 +542,13 @@ plt.savefig('./python/test/graph/SNR_ag'+'.png',
             orientation='Portrait',
             dpi=100)
 
+# Printing graph's data
+print("===========================================")
+print("SNR_ag.png")
+print("Angle - SNR")
+for i in range(len(SNR_ag)):
+    print(str(angle_ag[i]) + " " + str(SNR_ag[i]))
+
 # Plotting RSSI_ag single points
 fig, ax = plt.subplots(1, 1, figsize=(6, 6), sharex=True)
 ax.errorbar(angle_ag, RSSI_ag, xerr=5, fmt='o', label=r'RSSI data [Pico - High gain]', ms=3, color='darkorange', zorder=2, lw=1.5)
@@ -496,6 +566,13 @@ plt.savefig('./python/test/graph/RSSI_ag'+'.png',
             edgecolor='w',
             orientation='Portrait',
             dpi=100)
+
+# Printing graph's data
+print("===========================================")
+print("RSSI_ag.png")
+print("Angle - RSSI")
+for i in range(len(RSSI_ag)):
+    print(str(angle_ag[i]) + " " + str(RSSI_ag[i]))
 
 # Computing SNR gain
 gain_SNR = np.zeros(len(SNR_mean), dtype=np.float64)
@@ -558,6 +635,23 @@ plt.savefig('./python/test/graph/SNR_gain'+'.png',
             orientation ='Portrait',
             dpi = 100)
 
+# Printing graph's data
+print("==========================================")
+print("SNR_gain.png")
+print("Angle - Gain SNR - Std")
+print("SNR gain [Pico - Pico]")
+for i in range(len(gain_SNR)):
+    print(str(angle_mean[i]) + " " + str(gain_SNR[i]) + " +- " + str(gain_SNR_std[i]))
+print(" ")
+print("SNR gain [Pico - High gain]")
+for i in range(len(gain_SNR_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(gain_SNR_ag[i]) + " +- " + str(gain_SNR_ag_std[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff Gain SNR [P/H - P/P] - Std")
+for i in range(len(gain_diff)):
+    print(str(angle_mean[i]) + " " + str(gain_diff[i]) + " +- " + str(gain_diff_std[i]))
+
 # Computing RSSI gain
 gain_RSSI = np.zeros(len(RSSI_mean), dtype=np.float64)
 gain_RSSI_ag = np.zeros(len(RSSI_mean_ag), dtype=np.float64)
@@ -611,11 +705,11 @@ axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='cente
 axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 
-print("==========================================")
-print(gain_diff)
-print("Mean DIFF Monte Ceva: ", str((gain_diff[1]+gain_diff[2])/2), " +- ", str(np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2)))
-print("Compatibility with zero: ", str(compatibility((gain_diff[1]+gain_diff[2])/2, 0, np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2), 0)))
-print("==========================================")
+# print("==========================================")
+# print(gain_diff)
+# print("Mean DIFF Monte Ceva: ", str((gain_diff[1]+gain_diff[2])/2), " +- ", str(np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2)))
+# print("Compatibility with zero: ", str(compatibility((gain_diff[1]+gain_diff[2])/2, 0, np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2), 0)))
+# print("==========================================")
 
 plt.savefig('./python/test/graph/RSSI_gain'+'.png',
             pad_inches=1,
@@ -624,6 +718,23 @@ plt.savefig('./python/test/graph/RSSI_gain'+'.png',
             edgecolor='w',
             orientation='Portrait',
             dpi=100)
+
+# Printing graph's data
+print("==========================================")
+print("RSSI_gain.png")
+print("Angle - Gain RSSI - Std")
+print("RSSI loss [Pico - Pico]")
+for i in range(len(gain_RSSI)):
+    print(str(angle_mean[i]) + " " + str(gain_RSSI[i]) + " +- " + str(gain_RSSI_std[i]))
+print(" ")
+print("RSSI loss [Pico - High gain]")
+for i in range(len(gain_RSSI_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(gain_RSSI_ag[i]) + " +- " + str(gain_RSSI_ag_std[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff Gain RSSI [P/H - P/P] - Std")
+for i in range(len(gain_diff)):
+    print(str(angle_mean[i]) + " " + str(gain_diff[i]) + " +- " + str(gain_diff_std[i]))
 
 #endregion
 
@@ -673,6 +784,23 @@ plt.savefig('./python/test/graph/PICO_SNR_conf'+'.png',
             orientation='Portrait',
             dpi=100)
 
+# Printing graph's data
+print("==========================================")
+print("PICO_SNR_conf.png")
+print("Angle - Mean SNR - Std")
+print("SNR data [Pico - Pico]")
+for i in range(len(PICO_SNR_mean)):
+    print(str(angle_mean[i]) + " " + str(PICO_SNR_mean[i]) + " +- " + str(PICO_SNR_std[i]))
+print(" ")
+print("SNR data [Pico - High gain]")
+for i in range(len(PICO_SNR_mean_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(PICO_SNR_mean_ag[i]) + " +- " + str(PICO_SNR_std_ag[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff SNR [P/H - P/P] - Std")
+for i in range(len(diff)):
+    print(str(angle_mean[i]) + " " + str(diff[i]) + " +- " + str(diff_std[i]))
+
 diff = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
 diff_std = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
 conta = 0
@@ -698,11 +826,11 @@ axx[1].set_xlabel(r'Inclination', size=13)
 
 axx[1].errorbar(angle_mean, diff, xerr=5, yerr=diff_std, fmt='o', label=r'$\Delta \,$RSSI [P/H - P/P]', ms=3, color='darkred', zorder=2, lw=1.5)
 
-print("==========================================")
-print(diff)
-print("Mean DIFF Noventa: ", str(np.mean(diff)), " +- ", str(statistics.stdev(diff)))
-print("Compatibility: ", str(compatibility(diff[0], diff[1], diff_std[0], diff_std[1])), " ", str(compatibility(diff[0], diff[2], diff_std[0], diff_std[2])), " ", str(compatibility(diff[1], diff[2], diff_std[1], diff_std[2])))
-print("==========================================")
+# print("==========================================")
+# print(diff)
+# print("Mean DIFF Noventa: ", str(np.mean(diff)), " +- ", str(statistics.stdev(diff)))
+# print("Compatibility: ", str(compatibility(diff[0], diff[1], diff_std[0], diff_std[1])), " ", str(compatibility(diff[0], diff[2], diff_std[0], diff_std[2])), " ", str(compatibility(diff[1], diff[2], diff_std[1], diff_std[2])))
+# print("==========================================")
 axx[0].set_xlim(-10, 82)
 axx[0].set_ylim(-117.5, -92.5)
 axx[1].set_xlim(-10, 82)
@@ -720,6 +848,23 @@ plt.savefig('./python/test/graph/PICO_RSSI_conf'+'.png',
             edgecolor='w',
             orientation='Portrait',
             dpi=100)
+
+# Printing graph's data
+print("===========================================")
+print("PICO_RSSI_conf.png")
+print("Angle - Mean RSSI - Std")
+print("RSSI data [Pico - Pico]")
+for i in range(len(PICO_RSSI_mean)):
+    print(str(angle_mean[i]) + " " + str(PICO_RSSI_mean[i]) + " +- " + str(PICO_RSSI_std[i]))
+print(" ")
+print("RSSI data [Pico - High gain]")
+for i in range(len(PICO_RSSI_mean_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(PICO_RSSI_mean_ag[i]) + " +- " + str(PICO_RSSI_std_ag[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff RSSI [P/H - P/P] - Std")
+for i in range(len(diff)):
+    print(str(angle_mean[i]) + " " + str(diff[i]) + " +- " + str(diff_std[i]))
 
 # Computing SNR gain
 gain_PICO_SNR = np.zeros(len(PICO_SNR_mean), dtype=np.float64)
@@ -782,6 +927,23 @@ plt.savefig('./python/test/graph/PICO_SNR_gain'+'.png',
             orientation='Portrait',
             dpi=100)
 
+# Printing graph's data
+print("==========================================")
+print("PICO_SNR_gain.png")
+print("Angle - Gain SNR - Std")
+print("SNR gain [Pico - Pico]")
+for i in range(len(gain_PICO_SNR)):
+    print(str(angle_mean[i]) + " " + str(gain_PICO_SNR[i]) + " +- " + str(gain_PICO_SNR_std[i]))
+print(" ")
+print("SNR gain [Pico - High gain]")
+for i in range(len(gain_PICO_SNR_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(gain_PICO_SNR_ag[i]) + " +- " + str(gain_PICO_SNR_ag_std[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff Gain SNR [P/H - P/P] - Std")
+for i in range(len(gain_diff)):
+    print(str(angle_mean[i]) + " " + str(gain_diff[i]) + " +- " + str(gain_diff_std[i]))
+
 # Computing RSSI gain
 gain_PICO_RSSI = np.zeros(len(PICO_RSSI_mean), dtype=np.float64)
 gain_PICO_RSSI_ag = np.zeros(len(PICO_RSSI_mean_ag), dtype=np.float64)
@@ -835,11 +997,11 @@ axx[0].text(0, -2.5, r'Same', fontsize=12, color='black', ha='center', va='cente
 axx[0].legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
 axx[1].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 
-print("==========================================")
-print(gain_diff)
-print("Mean DIFF Noventa: ", str((gain_diff[1]+gain_diff[2])/2), " +- ", str(np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2)))
-print("Compatibility with zero: ", str(compatibility((gain_diff[1]+gain_diff[2])/2, 0, np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2), 0)))
-print("==========================================")
+# print("==========================================")
+# print(gain_diff)
+# print("Mean DIFF Noventa: ", str((gain_diff[1]+gain_diff[2])/2), " +- ", str(np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2)))
+# print("Compatibility with zero: ", str(compatibility((gain_diff[1]+gain_diff[2])/2, 0, np.sqrt(gain_diff_std[1]**2 + gain_diff_std[2]**2), 0)))
+# print("==========================================")
 
 plt.savefig('./python/test/graph/PICO_RSSI_gain'+'.png',
             pad_inches=1,
@@ -848,6 +1010,23 @@ plt.savefig('./python/test/graph/PICO_RSSI_gain'+'.png',
             edgecolor='w',
             orientation='Portrait',
             dpi=100)
+
+# Printing graph's data
+print("==========================================")
+print("PICO_RSSI_gain.png")
+print("Angle - Gain RSSI - Std")
+print("RSSI loss [Pico - Pico]")
+for i in range(len(gain_PICO_RSSI)):
+    print(str(angle_mean[i]) + " " + str(gain_PICO_RSSI[i]) + " +- " + str(gain_PICO_RSSI_std[i]))
+print(" ")
+print("RSSI loss [Pico - High gain]")
+for i in range(len(gain_PICO_RSSI_ag)):
+    print(str(angle_mean_ag[i]) + " " + str(gain_PICO_RSSI_ag[i]) + " +- " + str(gain_PICO_RSSI_ag_std[i]))
+print(" ")
+print("Differences")
+print("Angle - Diff Gain RSSI [P/H - P/P] - Std")
+for i in range(len(gain_diff)):
+    print(str(angle_mean[i]) + " " + str(gain_diff[i]) + " +- " + str(gain_diff_std[i]))
 
 #endregion
 

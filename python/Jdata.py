@@ -64,19 +64,43 @@ def show_db_not_found(path = DB_PATH):
     win.setWindowTitle("Database Error")
 
     # Setting window style
+    # win.setStyleSheet("""
+    #     QWidget {
+    #         background-color: #1e1e1e;
+    #     }
+    #     QLabel {
+    #         color: #ff4500;
+    #         font-size: 20pt;
+    #         font-weight: bold;
+    #         padding: 40px;
+    #     }
+    #     QPushButton {
+    #         background-color: #ff4500;
+    #         color: white;
+    #         border: none;
+    #         padding: 8px 24px;
+    #         font-size: 12pt;
+    #         font-weight: bold;
+    #         border-radius: 4px;
+    #         margin: 0 10px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #e03d00;
+    #     }
+    # """) # Dark mode
     win.setStyleSheet("""
         QWidget {
-            background-color: #1e1e1e;
+            background-color: #f5f5f5;
         }
         QLabel {
-            color: #ff4500;
+            color: #d35400;
             font-size: 20pt;
             font-weight: bold;
             padding: 40px;
         }
         QPushButton {
-            background-color: #ff4500;
-            color: white;
+            background-color: #f39c12;
+            color: #333;
             border: none;
             padding: 8px 24px;
             font-size: 12pt;
@@ -85,7 +109,7 @@ def show_db_not_found(path = DB_PATH):
             margin: 0 10px;
         }
         QPushButton:hover {
-            background-color: #e03d00;
+            background-color: #e67e22;
         }
     """)
 
@@ -126,19 +150,43 @@ def create_new_database(parent, path):
     dialog.setWindowTitle("Database creation")
 
     # Setting window style
+    # dialog.setStyleSheet("""
+    #     QDialog {
+    #         background-color: #1e1e1e;
+    #     }
+    #     QLabel {
+    #         color: #ff4500;
+    #         font-size: 14pt;
+    #         font-weight: bold;
+    #         padding: 20px;
+    #     }
+    #     QPushButton {
+    #         background-color: #ff4500;
+    #         color: white;
+    #         border: none;
+    #         padding: 8px 24px;
+    #         font-size: 11pt;
+    #         font-weight: bold;
+    #         border-radius: 4px;
+    #         margin: 0 10px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #e03d00;
+    #     }
+    # """) # Dark mode
     dialog.setStyleSheet("""
         QDialog {
-            background-color: #1e1e1e;
+            background-color: #f5f5f5;
         }
         QLabel {
-            color: #ff4500;
+            color: #d35400;
             font-size: 14pt;
             font-weight: bold;
             padding: 20px;
         }
         QPushButton {
-            background-color: #ff4500;
-            color: white;
+            background-color: #f39c12;
+            color: #333;
             border: none;
             padding: 8px 24px;
             font-size: 11pt;
@@ -147,7 +195,7 @@ def create_new_database(parent, path):
             margin: 0 10px;
         }
         QPushButton:hover {
-            background-color: #e03d00;
+            background-color: #e67e22;
         }
     """)
 
@@ -204,26 +252,57 @@ def manual_access_function(parent):
     dialog.setWindowTitle("Manual Access")
 
     # Setting the dialog style
+    # dialog.setStyleSheet("""
+    #     QDialog {
+    #         background-color: #1e1e1e;
+    #     }
+    #     QLabel {
+    #         color: #ff4500;
+    #         font-size: 13pt;
+    #         font-weight: bold;
+    #         padding: 10px;
+    #     }
+    #     QLineEdit {
+    #         background-color: #2e2e2e;
+    #         color: white;
+    #         border: 1px solid #555;
+    #         padding: 6px;
+    #         font-size: 11pt;
+    #     }
+    #     QPushButton {
+    #         background-color: #ff4500;
+    #         color: white;
+    #         border: none;
+    #         padding: 8px 24px;
+    #         font-size: 11pt;
+    #         font-weight: bold;
+    #         border-radius: 4px;
+    #         margin: 0 10px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #e03d00;
+    #     }
+    # """) # Dark mode
     dialog.setStyleSheet("""
         QDialog {
-            background-color: #1e1e1e;
+            background-color: #f5f5f5;
         }
         QLabel {
-            color: #ff4500;
+            color: #d35400;
             font-size: 13pt;
             font-weight: bold;
             padding: 10px;
         }
         QLineEdit {
-            background-color: #2e2e2e;
-            color: white;
-            border: 1px solid #555;
+            background-color: #fff;
+            color: #333;
+            border: 1px solid #bbb;
             padding: 6px;
             font-size: 11pt;
         }
         QPushButton {
-            background-color: #ff4500;
-            color: white;
+            background-color: #f39c12;
+            color: #333;
             border: none;
             padding: 8px 24px;
             font-size: 11pt;
@@ -232,7 +311,7 @@ def manual_access_function(parent):
             margin: 0 10px;
         }
         QPushButton:hover {
-            background-color: #e03d00;
+            background-color: #e67e22;
         }
     """)
 
@@ -324,21 +403,19 @@ def open_database():
     # Check if the database exists
     if not os.path.exists(DB_PATH):
         app = QApplication(sys.argv)
-
-        # Setting the style for the error message box
         app.setStyleSheet("""
         QDialog {
-            background-color: #1e1e1e;
+            background-color: #f5f5f5;
         }
         QLabel {
-            color: #ff4500;
+            color: #d35400;
             font-size: 14pt;
             font-weight: bold;
             padding: 20px;
         }
         QPushButton {
-            background-color: #ff4500;
-            color: white;
+            background-color: #f39c12;
+            color: #333;
             border: none;
             padding: 8px 24px;
             font-size: 11pt;
@@ -347,7 +424,7 @@ def open_database():
             margin: 0 10px;
         }
         QPushButton:hover {
-            background-color: #e03d00;
+            background-color: #e67e22;
         }
     """)
         QMessageBox.critical(None, "ERROR", "Database not found")
@@ -361,21 +438,21 @@ def open_database():
             # Set the dark theme for GUI
             self.setStyleSheet("""
             QPushButton {
-                background-color: #ff4500;
-                color: white;
+                background-color: #f39c12;
+                color: #333;
                 border: none;
                 padding: 5px 10px;
             }
             QPushButton:hover {
-                background-color: #e03d00;
+                background-color: #e67e22;
             }
             QLineEdit, QComboBox, QDateEdit {
-                background-color: #2e2e2e;
-                color: white;
-                border: 1px solid #555;
+                background-color: #fff;
+                color: #333;
+                border: 1px solid #bbb;
             }
             QLabel {
-                color: white;
+                color: #333;
             }
         """)
             
@@ -434,15 +511,15 @@ def open_database():
             self.table.setHorizontalHeaderLabels(["ID", "Timestamp", "Direction"])
             self.table.setStyleSheet("""
                 QTableWidget {
-                    background-color: #1e1e1e;
-                    color: white;
-                    gridline-color: #555;
+                    background-color: #fff;
+                    color: #333;
+                    gridline-color: #bbb;
                 }
                 QHeaderView::section {
-                    background-color: #2e2e2e;
-                    color: white;
+                    background-color: #f5f5f5;
+                    color: #333;
                     font-weight: bold;
-                    border: 1px solid #555;
+                    border: 1px solid #bbb;
                 }
             """)
             self.table.horizontalHeader().setStretchLastSection(True)
@@ -458,13 +535,13 @@ def open_database():
 
             # Setting the header for the right panel
             details_label = QLabel("PACKET DETAILS:")
-            details_label.setStyleSheet("font-size: 12pt; font-weight: bold; color: white;")
+            details_label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
 
             # Setting the delete button layout
             self.delete_btn = QPushButton("DELETE PACKET")
             self.delete_btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #8b0000;
+                    background-color: #e74c3c;
                     color: white;
                     border: none;
                     padding: 4px 10px;
@@ -472,7 +549,7 @@ def open_database():
                     font-size: 11pt;
                 }
                 QPushButton:hover {
-                    background-color: #a30000;
+                    background-color: #c0392b;
                 }
             """)
 
@@ -492,14 +569,14 @@ def open_database():
                 frame = QFrame()
                 frame.setStyleSheet("""
                     QFrame {
-                        background-color: #2b2b2b;
-                        border: 1px solid #444;
+                        background-color: #f9f9f9;
+                        border: 1px solid #ddd;
                         border-radius: 6px;
                         padding: 8px;
                         margin-bottom: 6px;
                     }
                     QLabel {
-                        color: white;
+                        color: #333;
                         font-family: Consolas, monospace;
                         font-size: 10pt;
                     }
@@ -617,8 +694,8 @@ def open_database():
                         # Setting the button style
                         btn.setStyleSheet("""
                             QPushButton {
-                                background-color: #ff4500;
-                                color: white;
+                                background-color: #f39c12;
+                                color: #333;
                                 border: none;
                                 padding: 2px 8px;
                                 font-size: 9pt;
@@ -627,7 +704,7 @@ def open_database():
                                 margin-left: 10px;
                             }
                             QPushButton:hover {
-                                background-color: #e03d00;
+                                background-color: #e67e22;
                             }
                         """)
                         btn.clicked.connect(lambda _, p=payload_full: self.show_full_payload(p))
@@ -648,7 +725,7 @@ def open_database():
 
             vbox = QVBoxLayout()
             label = QLabel("Full Payload:")
-            label.setStyleSheet("font-size: 12pt; font-weight: bold; color: white;")
+            label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
             vbox.addWidget(label)
 
             text = QTextEdit()
@@ -658,11 +735,11 @@ def open_database():
             # Setting the window style
             text.setStyleSheet("""
                 QTextEdit {
-                    background-color: #2b2b2b;
-                    color: white;
+                    background-color: #fff;
+                    color: #333;
                     font-family: Consolas, monospace;
                     font-size: 10pt;
-                    border: 1px solid #444;
+                    border: 1px solid #bbb;
                     border-radius: 6px;
                 }
             """)
@@ -672,8 +749,8 @@ def open_database():
             btn = QPushButton("Close")
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #ff4500;
-                    color: white;
+                    background-color: #f39c12;
+                    color: #333;
                     border: none;
                     padding: 5px 15px;
                     font-size: 11pt;
@@ -681,7 +758,7 @@ def open_database():
                     border-radius: 4px;
                 }
                 QPushButton:hover {
-                    background-color: #e03d00;
+                    background-color: #e67e22;
                 }
             """)
             btn.clicked.connect(dialog.accept)
@@ -704,18 +781,18 @@ def open_database():
                 # Setting the style of message box
                 msg.setStyleSheet("""
                     QMessageBox {
-                        background-color: #2e2e2e;
-                        color: white;
+                        background-color: #f5f5f5;
+                        color: #333;
                         font-size: 11pt;
                     }
                     QPushButton {
-                        background-color: #ff4500;
-                        color: white;
+                        background-color: #f39c12;
+                        color: #333;
                         border: none;
                         padding: 5px 10px;
                     }
                     QPushButton:hover {
-                        background-color: #555;
+                        background-color: #e67e22;
                     }
                 """)
 
@@ -732,18 +809,18 @@ def open_database():
             # Setting the style of message box
             msgbox.setStyleSheet("""
                 QMessageBox {
-                    background-color: #2e2e2e;
-                    color: white;
+                    background-color: #f5f5f5;
+                    color: #333;
                     font-size: 11pt;
                 }
                 QPushButton {
-                    background-color: #ff4500;
-                    color: white;
+                    background-color: #f39c12;
+                    color: #333;
                     border: none;
                     padding: 5px 10px;
                 }
                 QPushButton:hover {
-                    background-color: #555;
+                    background-color: #e67e22;
                 }
             """)
 
@@ -760,24 +837,44 @@ def open_database():
                 # Refresh the left table after elimination
                 self.load_data()
 
-    dark_palette = QPalette()
+    light_palette = QPalette()
 
-    # Color for dark theme of layout
-    dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              
-    dark_palette.setColor(QPalette.WindowText, Qt.white)                   
-    dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))               
-    dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))   
-    dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
-    dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-    dark_palette.setColor(QPalette.Text, Qt.white)
-    dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))            
-    dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))       
-    dark_palette.setColor(QPalette.BrightText, Qt.red)                    
-    dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))         
-    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+    # DARK MODE
+    # dark_palette = QPalette()
 
-    # Apply dark theme
-    QApplication.setPalette(dark_palette)
+    # # Color for dark theme of layout
+    # dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              
+    # dark_palette.setColor(QPalette.WindowText, Qt.white)                   
+    # dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))               
+    # dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))   
+    # dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+    # dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+    # dark_palette.setColor(QPalette.Text, Qt.white)
+    # dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))            
+    # dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))       
+    # dark_palette.setColor(QPalette.BrightText, Qt.red)                    
+    # dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))         
+    # dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+
+    # # Apply dark theme
+    # QApplication.setPalette(dark_palette)
+
+    # White theme
+    light_palette.setColor(QPalette.Window, QColor(245, 245, 245))
+    light_palette.setColor(QPalette.WindowText, QColor(51, 51, 51))
+    light_palette.setColor(QPalette.Base, QColor(255, 255, 255))
+    light_palette.setColor(QPalette.AlternateBase, QColor(240, 240, 240))
+    light_palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 220))
+    light_palette.setColor(QPalette.ToolTipText, QColor(51, 51, 51))
+    light_palette.setColor(QPalette.Text, QColor(51, 51, 51))
+    light_palette.setColor(QPalette.Button, QColor(240, 240, 240))
+    light_palette.setColor(QPalette.ButtonText, QColor(51, 51, 51))
+    light_palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+    light_palette.setColor(QPalette.Highlight, QColor(243, 156, 18))
+    light_palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
+
+    # Apply light theme
+    QApplication.setPalette(light_palette)
 
     app = QApplication(sys.argv)
     viewer = PacketViewer()
