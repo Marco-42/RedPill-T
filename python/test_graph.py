@@ -8,6 +8,7 @@ from cycler import cycler
 import statistics
 from scipy.odr import *
 import struct
+import pandas as pd
 
 # settaggio globale grafici
 plt.style.use(hep.style.ROOT)
@@ -112,6 +113,30 @@ for pkt_id, rssi, snr, payload in rows:
 # Debug
 # for i in range(len(PICO_RSSI)):
 #     print(PICO_SNR_ag[i], " ", SNR_ag[i])
+
+
+# Custom output for data export
+# Table 1: RSSI, SNR, PICO_RSSI, PICO_SNR vs angle
+df_main = pd.DataFrame({
+    'angle': angle,
+    'RSSI': RSSI,
+    'SNR': SNR,
+    'PICO_RSSI': PICO_RSSI,
+    'PICO_SNR': PICO_SNR
+})
+df_main.to_csv('./python/test/graph/data_table.csv', index=False)
+print("Exported data_table.csv with columns: angle, RSSI, SNR, PICO_RSSI, PICO_SNR")
+
+# Table 2: RSSI_ag, SNR_ag, PICO_RSSI_ag, PICO_SNR_ag vs angle_ag
+df_ag = pd.DataFrame({
+    'angle_ag': angle_ag,
+    'RSSI_ag': RSSI_ag,
+    'SNR_ag': SNR_ag,
+    'PICO_RSSI_ag': PICO_RSSI_ag,
+    'PICO_SNR_ag': PICO_SNR_ag
+})
+df_ag.to_csv('./python/test/graph/data_table_ag.csv', index=False)
+print("Exported data_table_ag.csv with columns: angle_ag, RSSI_ag, SNR_ag, PICO_RSSI_ag, PICO_SNR_ag")
 
 # Computing the mean of RSSI and SNR every five packets
 RSSI_mean = []
