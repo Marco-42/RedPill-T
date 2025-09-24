@@ -1,0 +1,20 @@
+Not urgent: ✅
+- add password for GS selection
+    --> Passowrd uniPd gs: j2050uniPD
+    --> Password mobile gs: j2050mobile
+Next:
+- check issue with command execution ✅
+- add TLE selector ✅
+- handle TLE error better ✅
+- update to new packet structure ✅
+- check packet splitting (split_payload_if_needed) ✅
+- add checking obtions in database initialization ✅
+- check timestamp in data saving(gui) TODO --> maybe is better to save the timestap when the packet is sent
+	(currently the time is saved when the packet is added to the queue)
+
+Notes: 
+- TX_SOURCES:
+	"RedPill": 0x01 --> 1
+	"None": 0x10 --> 16
+	"UniPD": 0x11 --> 17
+	"Mobile": 0x12 --> 18

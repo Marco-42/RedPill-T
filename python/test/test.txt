@@ -1,0 +1,719 @@
+---------------------------------
+0 GRADI
+
+PACKET > 01 AA 33 0C 67 74 85 8E 22 9D AF 6A C2 CC 80 00 C0 50 00 00 42 B2 42 07 00 00 00 00
+RSSI: -105.75 dBm
+SNR: -6.75 dB
+Frequency Shift: -99.61 Hz
+HEADER > 01 AA 33 0C 67 74 85 8E 22 9D AF 6A 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:14
+MAC: 580759402
+Payload Length: 12
+PAYLOAD > C2 CC 80 00 C0 50 00 00 42 B2 42 07 00 00 00 00
+RSSI: -102.25 dBm
+SNR: -3.25 dB
+Frequency Shift: 89.13 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 8A F2 5E ED 33 C2 CD 00 00 C0 90 00 00 42 AE 10 49 00 00 00 00
+RSSI: -104.00 dBm
+SNR: -7.00 dB
+Frequency Shift: -95.42 Hz
+HEADER > 01 AA 33 0C 67 74 85 8A F2 5E ED 33 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:10
+MAC: 4066307379
+Payload Length: 12
+PAYLOAD > C2 CD 00 00 C0 90 00 00 42 AE 10 49 00 00 00 00
+RSSI: -102.50 dBm
+SNR: -4.50 dB
+Frequency Shift: 87.03 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 86 8F 33 8E 04 C2 CE 00 00 3F 00 00 00 42 B2 42 07 00 00 00 00
+RSSI: -110.25 dBm
+SNR: -10.25 dB
+Frequency Shift: -103.81 Hz
+HEADER > 01 AA 33 0C 67 74 85 86 8F 33 8E 04 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:06
+MAC: 2402520580
+Payload Length: 12
+PAYLOAD > C2 CE 00 00 3F 00 00 00 42 B2 42 07 00 00 00 00
+RSSI: -103.00 dBm
+SNR: 0.50 dB
+Frequency Shift: 89.13 Hz
+
+
+PACKET > 01 AA 33 0C A7 74 85 82 0B 36 17 7C C2 D2 80 00 C0 A8 00 00 42 BA A5 83 00 00 00 00
+RSSI: -112.50 dBm
+SNR: -16.50 dB
+Frequency Shift: -30.41 Hz
+HEADER > 01 AA 33 0C A7 74 85 82 0B 36 17 7C 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2059-01-10 14:37:06
+MAC: 188094332
+Payload Length: 12
+PAYLOAD > C2 D2 80 00 C0 A8 00 00 42 BA A5 83 00 00 00 00
+RSSI: -105.25 dBm
+SNR: -5.25 dB
+Frequency Shift: 93.32 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 8E 44 49 52 CF C2 CE 80 00 BF A0 00 00 42 F9 8F A3 00 00 00 00
+RSSI: -110.00 dBm
+SNR: -10.00 dB
+Frequency Shift: -122.68 Hz
+HEADER > 01 AA 33 0C 67 74 85 8E 44 49 52 CF 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:14
+MAC: 1145656015
+Payload Length: 12
+PAYLOAD > C2 CE 80 00 BF A0 00 00 42 F9 8F A3 00 00 00 00
+RSSI: -103.25 dBm
+SNR: -1.25 dB
+Frequency Shift: 124.78 Hz
+
+
+-------------------------------------------
+0 GRADI ALTO GAIN
+
+
+0 ANTENNA ALTA
+
+
+45 (275 da 230)
+ID 17 --> to collocate in db
+PACKET > 01 55 33 0C 67 74 86 7E 0C C5 DE 00 C2 C8 00 00 00 00 00 00 C3 AE 96 81
+RSSI: -103.50 dBm
+SNR: -6.50 dB
+Frequency Shift: 342.88 Hz
+HEADER > 01 55 33 0C 67 74 86 7E 0C C5 DE 00 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:04:14
+MAC: 214294016
+Payload Length: 12
+PAYLOAD > C2 C8 00 00 00 00 00 00 C3 AE 96 81
+RSSI: -100.00 dBm
+SNR: 0.00 dB
+Frequency Shift: -349.18 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 7B 1B 2F 15 6D C2 CB 00 00 BF 00 00 00 C3 BC 38 2A
+RSSI: -104.75 dBm
+SNR: -7.75 dB
+Frequency Shift: 365.95 Hz
+HEADER > 01 55 33 0C 67 74 86 7B 1B 2F 15 6D 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:04:11
+MAC: 456070509
+Payload Length: 12
+PAYLOAD > C2 CB 00 00 BF 00 00 00 C3 BC 38 2A
+RSSI: -101.50 dBm
+SNR: -0.50 dB
+Frequency Shift: -376.44 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 78 54 89 CF 76 C2 CC 80 00 BF A0 00 00 C3 BF 5D 79
+RSSI: -108.75 dBm
+SNR: -10.75 dB
+Frequency Shift: 376.44 Hz
+HEADER > 01 55 33 0C 67 74 86 78 54 89 CF 76 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:04:08
+MAC: 1418317686
+Payload Length: 12
+PAYLOAD > C2 CC 80 00 BF A0 00 00 C3 BF 5D 79
+RSSI: -102.25 dBm
+SNR: -1.25 dB
+Frequency Shift: -382.73 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 75 01 F7 1D 3B C2 CF 80 00 BF E0 00 00 C3 C5 A8 15
+RSSI: -108.50 dBm
+SNR: -10.50 dB
+Frequency Shift: 384.83 Hz
+HEADER > 01 55 33 0C 67 74 86 75 01 F7 1D 3B 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:04:05
+MAC: 32972091
+Payload Length: 12
+PAYLOAD > C2 CF 80 00 BF E0 00 00 C3 C5 A8 15
+RSSI: -103.75 dBm
+SNR: -1.75 dB
+Frequency Shift: -395.31 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 72 30 A2 61 0F C2 D9 00 00 C0 F0 00 00 C3 C8 CD 64
+RSSI: -110.75 dBm
+SNR: -12.75 dB
+Frequency Shift: 393.22 Hz
+HEADER > 01 55 33 0C 67 74 86 72 30 A2 61 0F 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:04:02
+MAC: 815948047
+Payload Length: 12
+PAYLOAD > C2 D9 00 00 C0 F0 00 00 C3 C8 CD 64
+RSSI: -108.50 dBm
+SNR: -7.50 dB
+Frequency Shift: -401.60 Hz
+
+---------------------
+60 gradi
+
+ID 22 --> to collocate in db
+PACKET > 01 55 33 0C 67 74 86 BA 5D 04 AC 01 C2 D4 00 00 C0 80 00 00 C3 AE 96 81
+RSSI: -108.25 dBm
+SNR: -12.25 dB
+Frequency Shift: 344.98 Hz
+HEADER > 01 55 33 0C 67 74 86 BA 5D 04 AC 01 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:05:14
+MAC: 1560587265
+Payload Length: 12
+PAYLOAD > C2 D4 00 00 C0 80 00 00 C3 AE 96 81
+RSSI: -106.00 dBm
+SNR: -4.00 dB
+Frequency Shift: -349.18 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 B7 84 D3 95 C4 C2 D5 80 00 C0 70 00 00 C3 AF A2 F0
+RSSI: -110.25 dBm
+SNR: -13.25 dB
+Frequency Shift: 344.98 Hz
+HEADER > 01 55 33 0C 67 74 86 B7 84 D3 95 C4 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:05:11
+MAC: 2228458948
+Payload Length: 12
+PAYLOAD > C2 D5 80 00 C0 70 00 00 C3 AF A2 F0
+RSSI: -106.75 dBm
+SNR: -3.75 dB
+Frequency Shift: -351.27 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 B5 F2 F9 46 46 C2 D1 00 00 C0 20 00 00 C3 AE 96 81
+RSSI: -109.25 dBm
+SNR: -12.25 dB
+Frequency Shift: 344.98 Hz
+HEADER > 01 55 33 0C 67 74 86 B5 F2 F9 46 46 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:05:09
+MAC: 4076422726
+Payload Length: 12
+PAYLOAD > C2 D1 00 00 C0 20 00 00 C3 AE 96 81
+RSSI: -104.50 dBm
+SNR: -2.50 dB
+Frequency Shift: -349.18 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 B2 1C E6 54 C8 C2 D3 00 00 C0 20 00 00 C3 AB 71 32
+RSSI: -109.25 dBm
+SNR: -12.25 dB
+Frequency Shift: 332.40 Hz
+HEADER > 01 55 33 0C 67 74 86 B2 1C E6 54 C8 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:05:06
+MAC: 484857032
+Payload Length: 12
+PAYLOAD > C2 D3 00 00 C0 20 00 00 C3 AB 71 32
+RSSI: -105.50 dBm
+SNR: -2.50 dB
+Frequency Shift: -342.88 Hz
+
+
+PACKET > 01 55 33 0C 67 74 86 B0 24 5F 89 01 C2 D4 00 00 C0 40 00 00 C3 A7 3F 75
+RSSI: -109.25 dBm
+SNR: -12.25 dB
+Frequency Shift: 326.11 Hz
+HEADER > 01 55 33 0C 67 74 86 B0 24 5F 89 01 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:05:04
+MAC: 610240769
+Payload Length: 12
+PAYLOAD > C2 D4 00 00 C0 40 00 00 C3 A7 3F 75
+RSSI: -106.00 dBm
+SNR: -3.00 dB
+Frequency Shift: -334.50 Hz
+
+
+----------------------------------
+70 gradi con 15 dbm
+ID 27 --> to collocate in db
+PACKET > 01 AA 33 0C 67 74 87 40 BD D1 FA 2E C2 DF 80 00 C0 B8 00 00 C3 ED 80 A1 00 00 00 00
+RSSI: -111.75 dBm
+SNR: -14.75 dB
+Frequency Shift: 460.32 Hz
+HEADER > 01 AA 33 0C 67 74 87 40 BD D1 FA 2E 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:07:28
+MAC: 3184654894
+Payload Length: 12
+PAYLOAD > C2 DF 80 00 C0 B8 00 00 C3 ED 80 A1 00 00 00 00
+RSSI: -111.75 dBm
+SNR: -5.75 dB
+Frequency Shift: -475.00 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 87 3D CF 0B D4 82 C2 E9 00 00 C1 08 00 00 C3 F2 BE CF 00 00 00 00
+RSSI: -113.50 dBm
+SNR: -17.50 dB
+Frequency Shift: 481.30 Hz
+HEADER > 01 AA 33 0C 67 74 87 3D CF 0B D4 82 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:07:25
+MAC: 3473659010
+Payload Length: 12
+PAYLOAD > C2 E9 00 00 C1 08 00 00 C3 F2 BE CF 00 00 00 00
+RSSI: -116.50 dBm
+SNR: -8.50 dB
+Frequency Shift: -485.49 Hz
+
+
+PACKET > 01 55 33 0C 67 74 87 35 D2 EE CC B5 C2 E1 80 00 C0 70 00 00 C3 EB 67 C3
+RSSI: -113.25 dBm
+SNR: -16.25 dB
+Frequency Shift: 460.32 Hz
+HEADER > 01 55 33 0C 67 74 87 35 D2 EE CC B5 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:07:17
+MAC: 3538865333
+Payload Length: 12
+PAYLOAD > C2 E1 80 00 C0 70 00 00 C3 EB 67 C3
+RSSI: -112.75 dBm
+SNR: -3.75 dB
+Frequency Shift: -470.81 Hz
+
+
+PACKET > 01 55 33 0C 67 74 87 28 49 BA 7B FF C2 DB 80 00 BF E0 00 00 C3 EB 67 C3
+RSSI: -112.50 dBm
+SNR: -15.50 dB
+Frequency Shift: 460.32 Hz
+HEADER > 01 55 33 0C 67 74 87 28 49 BA 7B FF 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:07:04
+MAC: 1236958207
+Payload Length: 12
+PAYLOAD > C2 DB 80 00 BF E0 00 00 C3 EB 67 C3
+RSSI: -109.75 dBm
+SNR: -1.75 dB
+Frequency Shift: -470.81 Hz
+
+
+PACKET > 01 55 33 0C 67 74 87 23 78 CD 30 B5 C2 DE 00 00 C0 80 00 00 C3 E7 36 05
+RSSI: -112.25 dBm
+SNR: -15.25 dB
+Frequency Shift: 454.03 Hz
+HEADER > 01 55 33 0C 67 74 87 23 78 CD 30 B5 
+Source: RedPill
+ECC: Disabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:06:59
+MAC: 2026713269
+Payload Length: 12
+PAYLOAD > C2 DE 00 00 C0 80 00 00 C3 E7 36 05
+RSSI: -111.00 dBm
+SNR: -4.00 dB
+Frequency Shift: -462.42 Hz
+
+
+
+
+
+
+---------------------
+30 gradi 10 dbm
+ID 32 --> to collocate in db
+PACKET > 01 AA 33 0C 67 74 87 A4 FD 20 89 68 C2 C8 00 00 3F C0 00 00 C3 D4 56 2E 00 00 00 00
+RSSI: -106.00 dBm
+SNR: -11.00 dB
+Frequency Shift: 420.48 Hz
+HEADER > 01 AA 33 0C 67 74 87 A4 FD 20 89 68 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:09:08
+MAC: 4246767976
+Payload Length: 12
+PAYLOAD > C2 C8 00 00 3F C0 00 00 C3 D4 56 2E 00 00 00 00
+RSSI: -100.00 dBm
+SNR: 1.50 dB
+Frequency Shift: -424.67 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 87 A1 79 60 C8 24 C2 C8 00 00 3F E0 00 00 C3 D5 62 9E 00 00 00 00
+RSSI: -104.50 dBm
+SNR: -10.50 dB
+Frequency Shift: 416.28 Hz
+HEADER > 01 AA 33 0C 67 74 87 A1 79 60 C8 24 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:09:05
+MAC: 2036385828
+Payload Length: 12
+PAYLOAD > C2 C8 00 00 3F E0 00 00 C3 D5 62 9E 00 00 00 00
+RSSI: -100.00 dBm
+SNR: 1.75 dB
+Frequency Shift: -426.77 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 87 9E C0 78 AF 05 C2 C8 00 00 40 20 00 00 C3 D6 6F 0D 00 00 00 00
+RSSI: -107.75 dBm
+SNR: -11.75 dB
+Frequency Shift: 420.48 Hz
+HEADER > 01 AA 33 0C 67 74 87 9E C0 78 AF 05 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:09:02
+MAC: 3229134597
+Payload Length: 12
+PAYLOAD > C2 C8 00 00 40 20 00 00 C3 D6 6F 0D 00 00 00 00
+RSSI: -100.00 dBm
+SNR: 2.50 dB
+Frequency Shift: -428.87 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 87 9B A9 01 E9 3A C2 C8 00 00 3F C0 00 00 C3 D7 7B 7C 00 00 00 00
+RSSI: -105.00 dBm
+SNR: -10.00 dB
+Frequency Shift: 420.48 Hz
+HEADER > 01 AA 33 0C 67 74 87 9B A9 01 E9 3A 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:08:59
+MAC: 2835474746
+Payload Length: 12
+PAYLOAD > C2 C8 00 00 3F C0 00 00 C3 D7 7B 7C 00 00 00 00
+RSSI: -100.00 dBm
+SNR: 1.50 dB
+Frequency Shift: -430.96 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 87 98 9D EC 3B B2 C2 CA 00 00 3F 00 00 00 C3 D6 6F 0D 00 00 00 00
+RSSI: -106.25 dBm
+SNR: -11.25 dB
+Frequency Shift: 420.48 Hz
+HEADER > 01 AA 33 0C 67 74 87 98 9D EC 3B B2 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:08:56
+MAC: 2649504690
+Payload Length: 12
+PAYLOAD > C2 CA 00 00 3F 00 00 00 C3 D6 6F 0D 00 00 00 00
+RSSI: -101.00 dBm
+SNR: 0.50 dB
+Frequency Shift: -428.87 Hz
+
+
+
+-----------------------
+antenna pico
+0 gradi
+
+ID PACKET: 37 --> for locate in db
+PACKET > 01 AA 33 0C 67 74 85 A0 BC AB 66 28 C2 D7 00 00 C0 60 00 00 43 97 84 EC 00 00 00 00
+RSSI: -103.25 dBm
+SNR: -1.25 dB
+Frequency Shift: -305.14 Hz
+HEADER > 01 AA 33 0C 67 74 85 A0 BC AB 66 28 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:32
+MAC: 3165349416
+Payload Length: 12
+PAYLOAD > C2 D7 00 00 C0 60 00 00 43 97 84 EC 00 00 00 00
+RSSI: -107.50 dBm
+SNR: -3.50 dB
+Frequency Shift: 303.04 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 9C 6D AD FF 6D C2 D6 00 00 C0 80 00 00 43 93 53 2E 00 00 00 00
+RSSI: -105.00 dBm
+SNR: -2.00 dB
+Frequency Shift: -305.14 Hz
+HEADER > 01 AA 33 0C 67 74 85 9C 6D AD FF 6D 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:28
+MAC: 1840119661
+Payload Length: 12
+PAYLOAD > C2 D6 00 00 C0 80 00 00 43 93 53 2E 00 00 00 00
+RSSI: -107.00 dBm
+SNR: -4.00 dB
+Frequency Shift: 294.65 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 99 13 FE F4 53 C2 D7 00 00 C0 90 00 00 43 8F 21 71 00 00 00 00
+RSSI: -104.00 dBm
+SNR: -2.00 dB
+Frequency Shift: -298.84 Hz
+HEADER > 01 AA 33 0C 67 74 85 99 13 FE F4 53 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:25
+MAC: 335475795
+Payload Length: 12
+PAYLOAD > C2 D7 00 00 C0 90 00 00 43 8F 21 71 00 00 00 00
+RSSI: -107.50 dBm
+SNR: -4.50 dB
+Frequency Shift: 286.26 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 96 FC 7D 42 1E C2 D9 80 00 C0 B8 00 00 43 8B FC 22 00 00 00 00
+RSSI: -104.25 dBm
+SNR: -2.25 dB
+Frequency Shift: -288.36 Hz
+HEADER > 01 AA 33 0C 67 74 85 96 FC 7D 42 1E 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:22
+MAC: 4236067358
+Payload Length: 12
+PAYLOAD > C2 D9 80 00 C0 B8 00 00 43 8B FC 22 00 00 00 00
+RSSI: -108.75 dBm
+SNR: -5.75 dB
+Frequency Shift: 279.97 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 93 DC 38 5E A5 C2 DA 80 00 C0 A8 00 00 43 81 7F C7 00 00 00 00
+RSSI: -103.00 dBm
+SNR: -1.00 dB
+Frequency Shift: -271.58 Hz
+HEADER > 01 AA 33 0C 67 74 85 93 DC 38 5E A5 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:00:19
+MAC: 3694681765
+Payload Length: 12
+PAYLOAD > C2 DA 80 00 C0 A8 00 00 43 81 7F C7 00 00 00 00
+RSSI: -109.25 dBm
+SNR: -5.25 dB
+Frequency Shift: 259.00 Hz
+
+
+
+----------------
+30 gradi
+
+PACKET > 01 AA 33 0C 67 74 85 E1 13 CB 25 DC C2 E8 80 00 C1 34 00 00 43 94 5F 9E 00 00 00 00
+RSSI: -111.25 dBm
+SNR: -7.25 dB
+Frequency Shift: -305.14 Hz
+HEADER > 01 AA 33 0C 67 74 85 E1 13 CB 25 DC 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:01:37
+MAC: 332080604
+Payload Length: 12
+PAYLOAD > C2 E8 80 00 C1 34 00 00 43 94 5F 9E 00 00 00 00
+RSSI: -116.25 dBm
+SNR: -11.25 dB
+Frequency Shift: 296.75 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 DD FF AE 1E D5 C2 E0 80 00 C1 24 00 00 43 91 3A 50 00 00 00 00
+RSSI: -110.75 dBm
+SNR: -7.75 dB
+Frequency Shift: -305.14 Hz
+HEADER > 01 AA 33 0C 67 74 85 DD FF AE 1E D5 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:01:33
+MAC: 4289601237
+Payload Length: 12
+PAYLOAD > C2 E0 80 00 C1 24 00 00 43 91 3A 50 00 00 00 00
+RSSI: -112.25 dBm
+SNR: -10.25 dB
+Frequency Shift: 290.46 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 DA D2 EA 8B 07 C2 DF 00 00 C1 28 00 00 43 8D 08 92 00 00 00 00
+RSSI: -107.50 dBm
+SNR: -6.50 dB
+Frequency Shift: -286.26 Hz
+HEADER > 01 AA 33 0C 67 74 85 DA D2 EA 8B 07 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:01:30
+MAC: 3538586375
+Payload Length: 12
+PAYLOAD > C2 DF 00 00 C1 28 00 00 43 8D 08 92 00 00 00 00
+RSSI: -111.50 dBm
+SNR: -10.50 dB
+Frequency Shift: 282.07 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 D7 30 30 98 B8 C2 DD 00 00 C1 08 00 00 43 8E 15 01 00 00 00 00
+RSSI: -106.75 dBm
+SNR: -6.75 dB
+Frequency Shift: -290.46 Hz
+HEADER > 01 AA 33 0C 67 74 85 D7 30 30 98 B8 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:01:27
+MAC: 808491192
+Payload Length: 12
+PAYLOAD > C2 DD 00 00 C1 08 00 00 43 8E 15 01 00 00 00 00
+RSSI: -110.50 dBm
+SNR: -8.50 dB
+Frequency Shift: 284.16 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 D4 34 8B 46 F0 C2 DA 80 00 C1 04 00 00 43 90 2D E0 00 00 00 00
+RSSI: -105.25 dBm
+SNR: -6.25 dB
+Frequency Shift: -292.55 Hz
+HEADER > 01 AA 33 0C 67 74 85 D4 34 8B 46 F0 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:01:24
+MAC: 881542896
+Payload Length: 12
+PAYLOAD > C2 DA 80 00 C1 04 00 00 43 90 2D E0 00 00 00 00
+RSSI: -109.25 dBm
+SNR: -8.25 dB
+Frequency Shift: 288.36 Hz
+
+
+-----------------------
+45 gradi
+
+PACKET > 01 AA 33 0C 67 74 86 03 AB 78 D9 2A C2 E5 80 00 C1 0C 00 00 43 97 84 EC 00 00 00 00
+RSSI: -112.00 dBm
+SNR: -9.00 dB
+Frequency Shift: -309.33 Hz
+HEADER > 01 AA 33 0C 67 74 86 03 AB 78 D9 2A 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:02:11
+MAC: 2876823850
+Payload Length: 12
+PAYLOAD > C2 E5 80 00 C1 0C 00 00 43 97 84 EC 00 00 00 00
+RSSI: -114.75 dBm
+SNR: -8.75 dB
+Frequency Shift: 303.04 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 86 01 C4 14 18 5B C2 E1 80 00 C0 F8 00 00 43 97 84 EC 00 00 00 00
+RSSI: -111.75 dBm
+SNR: -10.75 dB
+Frequency Shift: -313.52 Hz
+HEADER > 01 AA 33 0C 67 74 86 01 C4 14 18 5B 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:02:09
+MAC: 3289651291
+Payload Length: 12
+PAYLOAD > C2 E1 80 00 C0 F8 00 00 43 97 84 EC 00 00 00 00
+RSSI: -112.75 dBm
+SNR: -7.75 dB
+Frequency Shift: 303.04 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 FE 25 2F 51 DE C2 E6 00 00 C1 30 00 00 43 9A AA 3B 00 00 00 00
+RSSI: -111.00 dBm
+SNR: -12.00 dB
+Frequency Shift: -311.43 Hz
+HEADER > 01 AA 33 0C 67 74 85 FE 25 2F 51 DE 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:02:06
+MAC: 623858142
+Payload Length: 12
+PAYLOAD > C2 E6 00 00 C1 30 00 00 43 9A AA 3B 00 00 00 00
+RSSI: -115.00 dBm
+SNR: -11.00 dB
+Frequency Shift: 309.33 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 FB 44 2A 31 05 C2 E7 00 00 C1 28 00 00 43 95 6C 0D 00 00 00 00
+RSSI: -112.00 dBm
+SNR: -11.00 dB
+Frequency Shift: -313.52 Hz
+HEADER > 01 AA 33 0C 67 74 85 FB 44 2A 31 05 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:02:03
+MAC: 1143615749
+Payload Length: 12
+PAYLOAD > C2 E7 00 00 C1 28 00 00 43 95 6C 0D 00 00 00 00
+RSSI: -115.50 dBm
+SNR: -10.50 dB
+Frequency Shift: 298.84 Hz
+
+
+PACKET > 01 AA 33 0C 67 74 85 F8 CB BE 04 1E C2 E3 80 00 C0 F8 00 00 43 9A AA 3B 00 00 00 00
+RSSI: -110.50 dBm
+SNR: -9.50 dB
+Frequency Shift: -315.62 Hz
+HEADER > 01 AA 33 0C 67 74 85 F8 CB BE 04 1E 
+Source: RedPill
+ECC: Enabled
+TER: [HK] LoRa ping
+Timestamp: 2025-01-01 01:02:00
+MAC: 3418227742
+Payload Length: 12
+PAYLOAD > C2 E3 80 00 C0 F8 00 00 43 9A AA 3B 00 00 00 00
+RSSI: -113.75 dBm
+SNR: -7.75 dB
+Frequency Shift: 309.33 Hz
+
+
+
