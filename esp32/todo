@@ -1,0 +1,20 @@
+Next:
+- unify packet structures ✅
+- check serial read character addition ✅
+- update packet to new structure ✅
+- implement ACK ✅
+- implement ECC ✅
+- distinguish bewteen TEC and TRC ✅
+- implement NACK ✅
+- add command execution ✅
+- remove ack from commands that have reply ✅
+- require ecc for selected commands
+- implement new commands
+
+
+
+
+
+- ceck ecc state for ack and nack
+
+

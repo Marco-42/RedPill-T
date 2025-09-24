@@ -35,6 +35,11 @@ void setup()
 	Serial.println("");
 	printStartupMessage("SETUP");
 
+	// Initialize system
+	setUNIX(); // set system time to default UNIX timestamp
+		
+	Serial.println(" ok");
+
 	// FreeRTOS task creation
 
 	// xTaskCreate(
@@ -53,11 +58,11 @@ void setup()
 
 
 	// COMMS_stateMachine task
-	xTaskCreate(COMMS_stateMachine, "COMMS_stateMachine", 2000, NULL, 2, &RTOS_handle_COMMS_StateMachine);
+	xTaskCreate(COMMS_stateMachine, "COMMS_stateMachine", 8192, NULL, 2, &RTOS_handle_COMMS_StateMachine);
 }
 
 // ---------------------------------
-// LOOP (leaving empty for freeRTOS)
+// LOOP (leaving empty for freeRTOS)  
 // ---------------------------------
 
 void loop()

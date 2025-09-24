@@ -12,7 +12,7 @@ void COMMS_StateMachine( void )
     RadioEvents.RxError = OnRxError;
     RadioEvents.CadDone = OnCadDone;
 
-    /* Timer used to restart the CAD */
+    /* Timer used to restart the CAD --> check if the channel is free for transmission*/
     TimerInit(&CADTimeoutTimer, CADTimeoutTimeoutIrq);
     TimerSetValue(&CADTimeoutTimer, CAD_TIMER_TIMEOUT);
 
@@ -28,24 +28,24 @@ void COMMS_StateMachine( void )
         Radio.IrqProcess(); //Checks the interruptions
         switch(State)
         {
-            case RX_TIMEOUT:
+            case RX_TIMEOUT: //--> Timeout in reception
                 RxTimeoutCnt++;
                 Radio.Standby();
                 State = LOWPOWER;
                 break;
 
-            case RX_ERROR:
+            case RX_ERROR: //--> Error in reception
                 RxErrorCnt++;
                 PacketReceived = false;
                 Radio.Standby();
                 State = LOWPOWER;
                 break;
 
-            case RX:
+            case RX: //The reception is valid
             {
                 if(PacketReceived == true)
                 {
-                    if(Buffer[0] == 0xC8)
+                    if(Buffer[0] == 0xC8) //if first byte of received buffer is 200 decimal
                     {
                         // DEINTERLEAVE
                         unsigned char codeword_deinterleaved[127];
@@ -64,9 +64,11 @@ void COMMS_StateMachine( void )
                             // Attempt to correct errors
                             int result = correct_errors_erasures(codeword_deinterleaved, index, nerasures, erasures);
                         }
-
+                        
+                        // Copy the decoded data
                         memcpy(decoded, codeword_deinterleaved, decoded_size);
-
+                        
+                        // The pin code in the first two bytes of the decoded data(if not correct give an error message)
                         if (pin_correct(decoded[0], decoded[1]))
                         {
                             State = LOWPOWER;
@@ -77,6 +79,7 @@ void COMMS_StateMachine( void )
                                 {
                                     State = RX;
                                     telecommand_rx = true;
+                                    //QEST: tle_conter = 3 is used for? 
                                     if (tle_counter == 3){
                                         tle_telecommand = true;
                                     }
