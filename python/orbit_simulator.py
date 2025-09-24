@@ -1186,7 +1186,7 @@ if __name__ == "__main__":
     dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))          
     dark_palette.setColor(QPalette.HighlightedText, Qt.black)
 
-    # Applaing the palette
+    # Applying the palette
     QApplication.setPalette(dark_palette)
 
     app = QApplication(sys.argv)
