@@ -245,7 +245,7 @@ def try_again_function(parent, path=DB_PATH):
 
 # Function to manually access the database
 def manual_access_function(parent):
-    """Function to manually access the database by insering the path"""
+    """Function to manually access the database by inserting the path"""
 
     # Open a dialog to input the database path
     dialog = QDialog(parent)
