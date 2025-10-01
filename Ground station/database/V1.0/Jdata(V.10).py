@@ -5,80 +5,15 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt, QDate
 import os
-import struct
 
-DB_PATH = "./Ground station/database/SatelliteDB.db"
-PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
-BYTE_RS_ON = 0xAA
-BYTE_RS_OFF = 0x55
-TER_LORA_PING = 0x33 # LoRa ping state reply
+DB_PATH = "./Ground station/database/V1.0/SatelliteDB.db"
 
-# PACKET MANAGEMENT FUNCTIONS
-
-# Function to decode the packet
-def decode_packet(packet_bytes):
-	if len(packet_bytes) < PACKET_HEADER_LENGTH:
-		raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < {PACKET_HEADER_LENGTH}")
-
-	# Byte 0: Station ID (raw int)
-	station_id = packet_bytes[0]
-
-	# Byte 1: ECC Flag (bool)
-	byte_ecc = packet_bytes[1]
-	if byte_ecc == BYTE_RS_ON:
-		ecc_enabled = True
-	elif byte_ecc == BYTE_RS_OFF:
-		ecc_enabled = False
-	else:
-		raise ValueError(f"Invalid ECC flag: 0x{byte_ecc:02X}")
-
-	# Byte 2: TER (raw int)
-	ter = packet_bytes[2]
-
-	# Byte 3: Payload length
-	payload_length = packet_bytes[3]
-
-	# Ensure entire packet is present
-	expected_len = PACKET_HEADER_LENGTH + payload_length
-	if len(packet_bytes) < expected_len:
-		raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
-
-	# Bytes 4-7: Timestamp (int)
-	bytes_time = packet_bytes[4:8]
-	timestamp = int.from_bytes(bytes_time, byteorder='big')
-
-	# Bytes 8–11: MAC (int)
-	bytes_mac = packet_bytes[8:12]
-	mac = int.from_bytes(bytes_mac, byteorder='big')
-
-	# Payload: list of ints
-	if payload_length > 0:
-		payload_bytes = list(packet_bytes[12:12 + payload_length])
-	else:
-		payload_bytes = []
-
-	return {
-		"station_id": station_id,
-		"ecc_enabled": ecc_enabled,
-		"ter": ter,
-		"payload_length": payload_length,
-		"mac": mac,
-		"timestamp": timestamp,
-		"payload_bytes": payload_bytes  # always a list of ints
-	}
-
-#DATABASE FUNCTIONS 
 # Database initialization and packet definition
 def database_initialization(path=DB_PATH):
     """Initialize the SQLite database and create the packets table if it doesn't exist."""
-    
-    # A common table is defined for all the packets, specific tables are connected with the ID
-    
     # If the database exists it will be opened, otherwise it will be created
     conn = sqlite3.connect(path)
     cursor = conn.cursor()
-    
-    # Packet table definition
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS packets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,35 +27,10 @@ def database_initialization(path=DB_PATH):
             status TEXT,
             length INTEGER,
             mac TEXT,
-            packet BLOB,
+            payload BLOB,
             metadata TEXT
         )
     ''')
-    
-    # Decoded TER table definition
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS TER_decoded (
-            id INTEGER PRIMARY KEY,
-            rssi REAL,
-            snr REAL,
-            freq_offset REAL
-        )
-    ''')
-
-    # Telemetry table definition
-    # cursor.execute('''
-    #     CREATE TABLE IF NOT EXISTS telemetry_packets (
-    #         id INTEGER PRIMARY KEY,
-    #         temperature REAL,
-    #         voltage REAL,
-    #         FOREIGN KEY(id) REFERENCES packets(id) ON DELETE CASCADE
-    #     )
-    # ''')
-    
-    # OTHER TABLE DEFINITION HERE
-    # NOTE: everytime a table is imported inside the database, his structure change,
-    # so it has to be re-created(attention to not lose data)
-    
     conn.commit()
     return conn
 
@@ -153,6 +63,31 @@ def show_db_not_found(path = DB_PATH):
     win = QWidget()
     win.setWindowTitle("Database Error")
 
+    # Setting window style
+    # win.setStyleSheet("""
+    #     QWidget {
+    #         background-color: #1e1e1e;
+    #     }
+    #     QLabel {
+    #         color: #ff4500;
+    #         font-size: 20pt;
+    #         font-weight: bold;
+    #         padding: 40px;
+    #     }
+    #     QPushButton {
+    #         background-color: #ff4500;
+    #         color: white;
+    #         border: none;
+    #         padding: 8px 24px;
+    #         font-size: 12pt;
+    #         font-weight: bold;
+    #         border-radius: 4px;
+    #         margin: 0 10px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #e03d00;
+    #     }
+    # """) # Dark mode
     win.setStyleSheet("""
         QWidget {
             background-color: #f5f5f5;
@@ -214,6 +149,31 @@ def create_new_database(parent, path):
     dialog = QDialog(parent)
     dialog.setWindowTitle("Database creation")
 
+    # Setting window style
+    # dialog.setStyleSheet("""
+    #     QDialog {
+    #         background-color: #1e1e1e;
+    #     }
+    #     QLabel {
+    #         color: #ff4500;
+    #         font-size: 14pt;
+    #         font-weight: bold;
+    #         padding: 20px;
+    #     }
+    #     QPushButton {
+    #         background-color: #ff4500;
+    #         color: white;
+    #         border: none;
+    #         padding: 8px 24px;
+    #         font-size: 11pt;
+    #         font-weight: bold;
+    #         border-radius: 4px;
+    #         margin: 0 10px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #e03d00;
+    #     }
+    # """) # Dark mode
     dialog.setStyleSheet("""
         QDialog {
             background-color: #f5f5f5;
@@ -285,12 +245,44 @@ def try_again_function(parent, path=DB_PATH):
 
 # Function to manually access the database
 def manual_access_function(parent):
-    """Function to manually access the database by insering the path"""
+    """Function to manually access the database by inserting the path"""
 
     # Open a dialog to input the database path
     dialog = QDialog(parent)
     dialog.setWindowTitle("Manual Access")
 
+    # Setting the dialog style
+    # dialog.setStyleSheet("""
+    #     QDialog {
+    #         background-color: #1e1e1e;
+    #     }
+    #     QLabel {
+    #         color: #ff4500;
+    #         font-size: 13pt;
+    #         font-weight: bold;
+    #         padding: 10px;
+    #     }
+    #     QLineEdit {
+    #         background-color: #2e2e2e;
+    #         color: white;
+    #         border: 1px solid #555;
+    #         padding: 6px;
+    #         font-size: 11pt;
+    #     }
+    #     QPushButton {
+    #         background-color: #ff4500;
+    #         color: white;
+    #         border: none;
+    #         padding: 8px 24px;
+    #         font-size: 11pt;
+    #         font-weight: bold;
+    #         border-radius: 4px;
+    #         margin: 0 10px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #e03d00;
+    #     }
+    # """) # Dark mode
     dialog.setStyleSheet("""
         QDialog {
             background-color: #f5f5f5;
@@ -367,11 +359,11 @@ def manual_access_function(parent):
     dialog.exec_()
 
 # Saving function (save packet in database)
-def save_packet(conn, timestamp, ground_station_id, status, mac, packet, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
-    """conn, timestamp, ground_station_id, status, mac, packet, tec, direction(F), rssi(F), snr(F), freq_offset(F), metadata [conn is the database definition --> use init_db()]"""
-
+def save_packet(conn, timestamp, ground_station_id, status, mac, payload, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
+    """conn, timestamp, ground_station_id, status, mac, payload, tec, direction(F), rssi(F), snr(F), freq_offset(F), metadata [conn is the database definition --> use init_db()]"""
+    
     cursor = conn.cursor()
-    length = len(packet)
+    length = len(payload)
 
     # # Get data of packet saving(UTC)
     # timestamp = datetime.utcnow().isoformat()
@@ -379,43 +371,14 @@ def save_packet(conn, timestamp, ground_station_id, status, mac, packet, tec, di
     # Convert timestamp to UTC datatime from UNIX
     dt = datetime.utcfromtimestamp(timestamp)
 
-    # Packet decoding
-    # Getting TER decoding from packet
-    ter_decoded = decode_packet(packet)
-
-    # Getting payload bytes from decoded data 
-    payload_bytes = ter_decoded['payload_bytes']
-
-    # Getting TER value from decoded data
-    ter = ter_decoded['ter']
-
     # Creation of the packet from raw data
     cursor.execute('''
         INSERT INTO packets (
             timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset,
-            status, length, mac, packet, metadata
+            status, length, mac, payload, metadata
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (dt, direction, ground_station_id, tec, rssi, snr, freq_offset, status, length, mac, packet, metadata))
-
-    # Getting the packet ID
-    packet_id = cursor.lastrowid
-
-    # Saving the specific packet data
-    # Saving data from TER LoRa ping
-    if ter == TER_LORA_PING:
-        rssi_bytes_TER = bytes(payload_bytes[0:4])
-        rssi_TER = struct.unpack(">f", rssi_bytes_TER)[0]
-        snr_bytes_TER = bytes(payload_bytes[4:8])
-        snr_TER = struct.unpack(">f", snr_bytes_TER)[0]
-        freq_shift_bytes_TER = bytes(payload_bytes[8:12])
-        freq_shift_TER = struct.unpack(">f", freq_shift_bytes_TER)[0]
-
-        # Insert data in the TER_decoded table
-        cursor.execute('''
-            INSERT INTO TER_decoded (id, rssi, snr, freq_offset)
-            VALUES (?, ?, ?, ?)
-        ''', (packet_id, rssi_TER, snr_TER, freq_shift_TER))
-
+    ''', (dt, direction, ground_station_id, tec, rssi, snr, freq_offset, status, length, mac, payload, metadata))
+    
     # Commit packet to database
     conn.commit()
 
@@ -472,9 +435,7 @@ def open_database():
         def __init__(self):
             super().__init__()
 
-            self.show_ter_decoded = False  # Flag to toggle TER_decoded display
-            
-            # Set the theme for GUI
+            # Set the dark theme for GUI
             self.setStyleSheet("""
             QPushButton {
                 background-color: #f39c12;
@@ -580,7 +541,7 @@ def open_database():
             self.delete_btn = QPushButton("DELETE PACKET")
             self.delete_btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #b30000;
+                    background-color: #e74c3c;
                     color: white;
                     border: none;
                     padding: 4px 10px;
@@ -591,30 +552,12 @@ def open_database():
                     background-color: #c0392b;
                 }
             """)
-            self.delete_btn.clicked.connect(self.delete_selected_packet)
 
-            # Button to toggle TER_decoded display
-            self.ter_toggle_btn = QPushButton("TER DATA")
-            self.ter_toggle_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #27ae60;
-                    color: white;
-                    border: none;
-                    padding: 4px 10px;
-                    font-weight: bold;
-                    font-size: 11pt;
-                    border-radius: 4px;
-                    margin-left: 10px;
-                }
-                QPushButton:hover {
-                    background-color: #229954;
-                }
-            """)
-            self.ter_toggle_btn.clicked.connect(self.toggle_ter_decoded)
+            # Connect the delete button to the function
+            self.delete_btn.clicked.connect(self.delete_selected_packet)
 
             header_layout.addWidget(details_label)
             header_layout.addStretch()
-            header_layout.addWidget(self.ter_toggle_btn) # TER toggle button
             header_layout.addWidget(self.delete_btn)
 
             right_panel.addLayout(header_layout)
@@ -695,36 +638,21 @@ def open_database():
 
             conn.close()
 
-        # Function to show the packet details when a row is clicked
+        # Function to show packet details when selected
         def show_packet_details(self, row, col):
             pkt = self.packets[row]
-            packet_full = str(pkt[11])
-            packet_preview = packet_full[:10] + ("..." if len(packet_full) > 10 else "")
 
-            # Showing TER decoded data if available
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT rssi, snr, freq_offset FROM TER_decoded WHERE id = ?", (pkt[0],))
-            ter_row = cursor.fetchone()
-            conn.close()
-            self.ter_decoded_data = ter_row
-
-            # Preparing the rows to show
-            if self.show_ter_decoded and self.ter_decoded_data:
-                rssi, snr, freq_offset = self.ter_decoded_data
-                snr_row = f"TEC: {pkt[4]}    |   RSSI: {rssi}    |   SNR: {snr}"
-                freq_row = f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {freq_offset}"
-            else:
-                snr_row = f"TEC: {pkt[4]}    |   RSSI: {pkt[5]}    |   SNR: {pkt[6]}"
-                freq_row = f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {pkt[7]}"
+            # Getting only the first 10 paylod's digit to visualization
+            payload_full = str(pkt[11])
+            payload_preview = payload_full[:10] + ("..." if len(payload_full) > 10 else "")
 
             rows = [
                 f"ID: {pkt[0]}    |   Direction: {pkt[2]}    |   GS id: {pkt[3]}",
                 f"Timestamp: {pkt[1].replace('T', ' ')}",
-                snr_row,
-                freq_row,
+                f"TEC: {pkt[4]}    |   RSSI: {pkt[5]}    |   SNR: {pkt[6]}",
+                f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {pkt[7]}",
                 f"MAC: {pkt[10]}",
-                f"Packet: {packet_preview}",
+                f"Payload: {payload_preview}",
                 f"Metadata: {pkt[12]}"
             ]
 
@@ -732,14 +660,21 @@ def open_database():
                 
                 # Clear all before the next interaction
                 for j in reversed(range(layout.count())):
+
                     item = layout.itemAt(j)
                     widget = item.widget()
+
+                    # If the item is a widget delete it
                     if widget is not None:
                         layout.removeWidget(widget)
                         widget.deleteLater()
+
+                    # If the item is a layout delete it and all his sub-items
                     else:
                         sub_layout = item.layout()
                         if sub_layout is not None:
+
+                            # Remove all widgets from the sub-layout
                             for k in reversed(range(sub_layout.count())):
                                 sub_item = sub_layout.itemAt(k)
                                 sub_widget = sub_item.widget()
@@ -748,47 +683,38 @@ def open_database():
                                     sub_widget.deleteLater()
                             layout.removeItem(sub_layout)
 
-                # Packet preview row (index 5): aggiungi pulsante Show All
+                # Adding a "Show All" button in the payload line
                 if i == 5:
                     hbox = QHBoxLayout()
                     label = QLabel(text)
                     hbox.addWidget(label)
-                    btn = QPushButton("Show All")
-                    btn.setStyleSheet("""
-                        QPushButton {
-                            background-color: #f39c12;
-                            color: #333;
-                            border: none;
-                            padding: 2px 8px;
-                            font-size: 9pt;
-                            font-weight: bold;
-                            border-radius: 4px;
-                            margin-left: 10px;
-                        }
-                        QPushButton:hover {
-                            background-color: #e67e22;
-                        }
-                    """)
-                    btn.clicked.connect(lambda _, p=packet_full: self.show_full_packet(p))
-                    hbox.addWidget(btn)
+                    if len(payload_full) > 10:
+                        btn = QPushButton("Show All")
+
+                        # Setting the button style
+                        btn.setStyleSheet("""
+                            QPushButton {
+                                background-color: #f39c12;
+                                color: #333;
+                                border: none;
+                                padding: 2px 8px;
+                                font-size: 9pt;
+                                font-weight: bold;
+                                border-radius: 4px;
+                                margin-left: 10px;
+                            }
+                            QPushButton:hover {
+                                background-color: #e67e22;
+                            }
+                        """)
+                        btn.clicked.connect(lambda _, p=payload_full: self.show_full_payload(p))
+                        hbox.addWidget(btn)
                     layout.addLayout(hbox)
                 else:
                     label = QLabel(text)
                     layout.addWidget(label)
-        
-        # Function to toggle between normal and TER_decoded values
-        def toggle_ter_decoded(self):
-            self.show_ter_decoded = not self.show_ter_decoded
-            # Update button text
-            if self.show_ter_decoded:
-                self.ter_toggle_btn.setText("GS DATA")
-            else:
-                self.ter_toggle_btn.setText("TER DATA")
-            selected_row = self.table.currentRow()
-            if selected_row >= 0:
-                self.show_packet_details(selected_row, 0)
 
-        # Function to show all the payload
+        # Function to show all the paylod
         def show_full_payload(self, payload):
 
             # Creating the window
@@ -805,59 +731,6 @@ def open_database():
             text = QTextEdit()
             text.setReadOnly(True)
             text.setText(str(payload))
-
-            # Setting the window style
-            text.setStyleSheet("""
-                QTextEdit {
-                    background-color: #fff;
-                    color: #333;
-                    font-family: Consolas, monospace;
-                    font-size: 10pt;
-                    border: 1px solid #bbb;
-                    border-radius: 6px;
-                }
-            """)
-            vbox.addWidget(text)
-
-            # Button to close the window
-            btn = QPushButton("Close")
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #f39c12;
-                    color: #333;
-                    border: none;
-                    padding: 5px 15px;
-                    font-size: 11pt;
-                    font-weight: bold;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #e67e22;
-                }
-            """)
-            btn.clicked.connect(dialog.accept)
-            vbox.addWidget(btn, alignment=Qt.AlignRight)
-
-            dialog.setLayout(vbox)
-            dialog.exec_()
-            
-        # Function to show the full packet in a new window
-        def show_full_packet(self, packet):
-
-            # Creating the window
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Full Packet")
-            dialog.setStyleSheet(self.styleSheet())
-            dialog.resize(700, 400)
-
-            vbox = QVBoxLayout()
-            label = QLabel("Full Packet:")
-            label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
-            vbox.addWidget(label)
-
-            text = QTextEdit()
-            text.setReadOnly(True)
-            text.setText(str(packet))
 
             # Setting the window style
             text.setStyleSheet("""
@@ -964,8 +837,29 @@ def open_database():
                 # Refresh the left table after elimination
                 self.load_data()
 
-    # White theme
     light_palette = QPalette()
+
+    # DARK MODE
+    # dark_palette = QPalette()
+
+    # # Color for dark theme of layout
+    # dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))              
+    # dark_palette.setColor(QPalette.WindowText, Qt.white)                   
+    # dark_palette.setColor(QPalette.Base, QColor(45, 45, 45))               
+    # dark_palette.setColor(QPalette.AlternateBase, QColor(60, 60, 60))   
+    # dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+    # dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+    # dark_palette.setColor(QPalette.Text, Qt.white)
+    # dark_palette.setColor(QPalette.Button, QColor(60, 60, 60))            
+    # dark_palette.setColor(QPalette.ButtonText, QColor(255, 100, 0))       
+    # dark_palette.setColor(QPalette.BrightText, Qt.red)                    
+    # dark_palette.setColor(QPalette.Highlight, QColor(255, 69, 0))         
+    # dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+
+    # # Apply dark theme
+    # QApplication.setPalette(dark_palette)
+
+    # White theme
     light_palette.setColor(QPalette.Window, QColor(245, 245, 245))
     light_palette.setColor(QPalette.WindowText, QColor(51, 51, 51))
     light_palette.setColor(QPalette.Base, QColor(255, 255, 255))
@@ -994,29 +888,13 @@ def open_database():
 if __name__ == "__main__":
     conn = init_db()
 
-    # Example of telemetry packet saving
-    # save_packet(
-    #     conn,
-    #     timestamp=datetime.utcnow().timestamp(),  # timestamp UNIX
-    #     ground_station_id="GS-ITA-01",
-    #     status="telemetry",
-    #     mac="RP:00:00:00",
-    #     packet=b'\x01\xaa3\x0cgt\x85\xda\xd2\xea\x8b\x07\xc2\xdf\x00\x00\xc1(\x00\x00C\x8d\x08\x92\x00\x00\x00\x00',
-    #     tec=13.77,
-    #     direction="source",
-    #     rssi=-70.0,
-    #     snr=10.1,
-    #     freq_offset=0.0,
-    #     metadata="Dati telemetria",
-    # )
-
     # Example of packet saving
     # save_packet(
     #     conn,
     #     ground_station_id="GS-ITA-01",
     #     status="transmit",
     #     mac="00:1A:C2:7B:00:47",
-    #     packet=b"CMD:RESET",
+    #     payload=b"CMD:RESET",
     #     tec=12.34,
     #     direction="uplink",
     #     rssi=-85.3,
@@ -1024,5 +902,35 @@ if __name__ == "__main__":
     #     freq_offset=0.5,
     #     metadata="Initial uplink reset command"
     # )
+
+    # save_packet(
+    #     conn,
+    #     ground_station_id="GS-ITA-01",
+    #     status="received",
+    #     mac="00:1A:C2:7B:00:47",
+    #     payload=b"ACK:RESET",
+    #     tec=11.88,
+    #     direction="downlink",
+    #     rssi=-72.6,
+    #     snr=12.4,
+    #     freq_offset=0.2,
+    #     metadata="Response from satellite"
+    # )
+
+    # save_packet(
+    #     conn,
+    #     ground_station_id="RedPill",
+    #     status="telemetry",
+    #     mac="RP:00:00:00",
+    #     payload=b"Telemetry: Temp=33.4",
+    #     tec=13.77,
+    #     direction="source",
+    #     rssi=-70.0,
+    #     snr=10.1,
+    #     freq_offset=0.0,
+    #     metadata="Sent from onboard source"
+    # )
+    
+    #show_all_packets(conn)
 
     open_database()

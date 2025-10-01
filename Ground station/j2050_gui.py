@@ -14,7 +14,7 @@ import hmac
 import hashlib
 import traceback
 
-import Jdata as jdb
+from database import Jdata as jdb
 
 # ========== CONSTANTS AND CONFIGURATION ==========
 
@@ -622,13 +622,13 @@ def export_table_to_db(table: QTableWidget):
 
 		# Extract payload bytes from hex string
 		try:
-			payload_bytes = bytes(int(b, 16) for b in hex_str.split())
+			packet_bytes = bytes(int(b, 16) for b in hex_str.split())
 		except Exception:
-			payload_bytes = b""
+			packet_bytes = b""
 
 		# Extract the other datas from hex string
 		try:
-			decoded = decode_packet(payload_bytes)
+			decoded = decode_packet(packet_bytes)
 			ground_station_id = str(decoded.get("station_id", ""))
 			tec = decoded.get("ter", "")
 			mac = str(decoded.get("mac", ""))
@@ -666,7 +666,7 @@ def export_table_to_db(table: QTableWidget):
 			ground_station_id,
 			status,
 			mac,
-			payload_bytes,
+			packet_bytes,
 			tec,
 			direction="Receiver", # --> TO CHECK(TODO)
 			rssi=rssi,
