@@ -331,16 +331,22 @@ def manual_access_function(parent):
     dialog.exec_()
 
 # Saving function (save packet in database)
-def save_packet(conn, timestamp, HEX, rssi, snr, deltaf, comment = ""):
+def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment = ""):
     """conn, timestamp, HEX, rssi, snr, deltaf, comment [conn is the database definition --> use init_db()]"""
 
     cursor = conn.cursor()
 
-    # # Get data of packet saving(UTC)
-    # timestamp = datetime.utcnow().isoformat()
+    # Convert HEX string to bytes
+    if isinstance(HEX_str, str):
+        HEX = bytes.fromhex(HEX_str)
+
+    # Convert str data in float
+    rssi = float(rssi_str) if rssi_str else None
+    snr = float(snr_str) if snr_str else None
+    deltaf = float(deltaf_str) if deltaf_str else None
 
     # Convert timestamp to UTC datatime from UNIX
-    dt = datetime.utcfromtimestamp(timestamp)
+    dt = datetime.utcfromtimestamp(int(timestamp))
 
     # Packet decoding
     # Getting TER_TEC value from HEX

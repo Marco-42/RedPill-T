@@ -223,305 +223,6 @@ def get_task_label(tasks_dict, code):
 
 # ========== PACKET HANDLING FUNCTIONS ==========
 
-# Build the payload based on type index and task name
-def build_payload(tec_code, input_widgets):
-	
-	if tec_code == TEC_OBC_REBOOT:
-		payload = b''
-
-	elif tec_code == TEC_EXIT_STATE:
-		from_state = input_widgets["From state:"].value() & 0x0F
-		to_state = input_widgets["To state:"].value() & 0x0F
-		byte_val = (from_state << 4) | to_state
-		payload = bytes([byte_val])
-
-	elif tec_code == TEC_VAR_CHANGE:
-		address = input_widgets["Address:"].value() & 0xFF
-		value = input_widgets["Value:"].value() & 0xFF
-		payload = bytes([address, value])
-
-	elif tec_code == TEC_SET_TIME:
-		dt_widget = input_widgets["Date and Time:"]
-		qdt = dt_widget.dateTime()  # QDateTime object
-		unix_time = int(qdt.toSecsSinceEpoch())  # convert to UNIX timestamp (int)
-		payload = unix_time.to_bytes(4, byteorder='big')
-	
-	elif tec_code == TEC_EPS_REBOOT:
-		payload = b''
-
-	elif tec_code == TEC_ADCS_REBOOT:
-		payload = b''
-
-	elif tec_code == TEC_ADCS_TLE:
-		tle_data = input_widgets["TLE Data:"].toPlainText().strip()
-		tle_lines = tle_data.splitlines()
-		if len(tle_lines) < 2:
-			raise ValueError("TLE Data must contain two lines")
-
-		tle_line1 = tle_lines[0]
-		tle_line2 = tle_lines[1]
-
-		# Validate TLE lengths
-		if len(tle_line1) != 69 or len(tle_line2) != 69:
-			raise ValueError("TLE lines must be 69 characters long")
-
-		try:
-			epoch_year = int(tle_line1[18:20])
-			epoch_year += 2000 if epoch_year < 57 else 1900
-			epoch_day = float(tle_line1[20:32])
-			mm_dot = float(tle_line1[33:43])
-			mm_ddot = float(f"{tle_line1[44:50].strip()}e{tle_line1[50:52]}")
-			bstar = float(f"{tle_line1[53:59].strip()}e{tle_line1[59:61]}")
-			inclination = float(tle_line2[8:16])
-			raan = float(tle_line2[17:25])
-			eccentricity = float(f"0.{tle_line2[26:33].strip()}")
-			arg_perigee = float(tle_line2[34:42])
-			mean_anomaly = float(tle_line2[43:51])
-			mean_motion = float(tle_line2[52:63])
-			rev_number = int(tle_line2[63:68])
-		except Exception as e:
-			raise ValueError(f"Invalid TLE format: {e}")
-
-		# Pack into 43 bytes, big-endian
-		payload = struct.pack(
-			">HffffffffffI",  # > = big endian
-			epoch_year,
-			epoch_day,
-			mm_dot,
-			mm_ddot,
-			bstar,
-			inclination,
-			raan,
-			eccentricity,
-			arg_perigee,
-			mean_anomaly,
-			mean_motion,
-			rev_number
-		)
-
-	elif tec_code == TEC_LORA_STATE:
-		# TX State (1 byte)
-		tx_state = input_widgets["TX State:"].currentText()
-		if tx_state == "On":
-			tx_state_val = BYTE_TX_ON & 0b1111
-		elif tx_state == "Beacon off":
-			tx_state_val = BYTE_TX_NOBEACON & 0b1111
-		elif tx_state == "Off":
-			tx_state_val = BYTE_TX_OFF & 0b11
-		else:
-			raise ValueError(f"Invalid TX State: {tx_state}")
-		tx_state_byte = (tx_state_val << 4) |  tx_state_val
-
-		# Duration (3 bytes)
-		days = input_widgets["Days:"].value()
-		hours = input_widgets["Hours:"].value()
-		minutes = input_widgets["Minutes:"].value()
-		seconds = input_widgets["Seconds:"].value()
-		duration_total = (days * 86400) + (hours * 3600) + (minutes * 60) + seconds
-		duration_bytes = duration_total.to_bytes(3, 'big')  # 3 bytes
-
-		# Combine all into one payload
-		payload = bytes([tx_state_byte]) + duration_bytes
-
-	elif tec_code == TEC_LORA_CONFIG:
-		frequency_khz = int(input_widgets["Frequency:"].value() * 1000)
-		frequency_bytes = frequency_khz.to_bytes(3, 'big')
-
-		bandwidth = input_widgets["Bandwidth:"].currentText()
-		if bandwidth.endswith(" kHz"):
-			bandwidth = bandwidth[:-4]
-		if bandwidth == "62.5":
-			bandwidth_bits = 0b00
-		elif bandwidth == "125":
-			bandwidth_bits = 0b01
-		elif bandwidth == "250":
-			bandwidth_bits = 0b10
-		elif bandwidth == "500":
-			bandwidth_bits = 0b11
-		else:
-			raise ValueError(f"Invalid bandwidth value: {bandwidth}")
-		
-		sf = input_widgets["SF:"].value()
-		sf_bits = (sf - 6) & 0b111  # SF 6-12 maps to bits 0-6, 3 bits total
-
-		cr = input_widgets["CR:"].value()
-		cr_bits = (cr - 5) & 0b111  # CR 5-8 maps to bits 0-3, 3 bits total
-
-		sf_cr_byte = bytes([(bandwidth_bits << 6) | (sf_bits << 3) | cr_bits])
-
-		power = input_widgets["Power:"].value()
-		power_bits = (power + 9) & 0b11111 # Power -9 to +22 maps to bits 0-31, 5 bits total
-
-		reserved_bits = 0b000
-		power_byte = bytes([(power_bits << 3) | reserved_bits])
-
-		duration = input_widgets["Seconds:"].value()
-		duration_byte = bytes([duration & 0xFF])  # 1 byte for duration
-
-		payload = frequency_bytes + sf_cr_byte + power_byte + duration_byte
-
-	elif tec_code == TEC_LORA_PING:
-		payload = b''
-
-	elif tec_code == TEC_CRY_EXP:
-		# Glass state: Off, Dark, Light (3 bits)
-		glass_state = input_widgets["Glass:"].currentText()
-		if glass_state == "Off":
-			glass_val = 0b000
-		elif glass_state == "Dark":
-			glass_val = 0b001
-		elif glass_state == "Light":
-			glass_val = 0b010
-		else:
-			raise ValueError(f"Invalid Glass state: {glass_state}")
-
-		# Repeat glass_val twice (6 bits total)
-		glass_bits = (glass_val << 3) | glass_val
-
-		activation_time = input_widgets["Activation delay:"].time()
-		activation_secs = (activation_time.hour() * 3600 + activation_time.minute() * 60 + activation_time.second())
-
-		# Combine: 6 bits glass_bits + 18 bits activation_secs
-		glass_and_delay = (glass_bits << 18) | activation_secs
-		glass_and_delay_bytes = glass_and_delay.to_bytes(3, 'big')
-
-		# Photodiode: Yes/No (3 bits for future expansion)
-		photodiode = input_widgets["Photodiode:"].currentText()
-		if photodiode == "No":
-			diode_val = 0b000
-		elif photodiode == "Yes":
-			diode_val = 0b001
-		else:
-			raise ValueError(f"Invalid Photodiode state: {photodiode}")
-
-		# Picture: Yes/No (3 bits for future expansion)
-		picture = input_widgets["Picture:"].currentText()
-		if picture == "No":
-			picture_val = 0b000
-		elif picture == "Yes":
-			picture_val = 0b001
-		else:
-			raise ValueError(f"Invalid Picture state: {picture}")
-
-		# Combine: 3 bits diode + 3 bits picture
-		state_bits = (diode_val << 3) | picture_val
-
-		observation_time = input_widgets["Observation delay:"].time()
-		observation_secs = (observation_time.hour() * 3600 + observation_time.minute() * 60 + observation_time.second())
-
-		# Combine: 6 bits state_bits + 18 bits observation_secs
-		state_and_delay = (state_bits << 18) | observation_secs
-		state_and_delay_bytes = state_and_delay.to_bytes(3, 'big')
-
-		# Final payload: 6 bytes
-		payload = glass_and_delay_bytes + state_and_delay_bytes
-
-	else:
-		payload = b''
-
-	return payload
-
-# Compute HMAC-SHA256 and return first 4 bytes as uint32
-def hmac_mac(key_int, message: bytes) -> int:
-	# Convert 32-bit integer key to bytes
-	key_bytes = key_int.to_bytes(4, byteorder='big')
-
-	# Compute HMAC-SHA256 and return first 4 bytes as uint32
-	mac = hmac.new(key_bytes, message, hashlib.sha256).digest()
-	return int.from_bytes(mac[:4], byteorder='big')
-
-# Build the full packet with header, payload, and ECC(for transmission)
-def build_packet(gs_text, tec_code, payload_bytes, ecc_enabled):
-	# === Byte 0: Station ID ===
-	if gs_text in TX_SOURCES:
-		station = TX_SOURCES[gs_text]
-	else:
-		raise ValueError(f"Invalid Ground Station: {gs_text}")
-
-	# === Byte 1: ECC Flag ===
-	ecc = BYTE_RS_ON if ecc_enabled else BYTE_RS_OFF
-
-	# === Byte 2: TEC
-	tec = tec_code
-
-	# === Byte 3: Payload length ===
-	payload_length = len(payload_bytes)
-	if payload_length > PACKET_PAYLOAD_MAX:
-		raise ValueError(f"Payload too long (max {PACKET_PAYLOAD_MAX} bytes)")
-
-	# === Byte 4-7: UNIX timestamp ===
-	unix_time = int(datetime.now().timestamp())
-	bytes_time = unix_time.to_bytes(4, byteorder='big')
-
-	# === Byte 8-11: MAC ===
-	mac_placeholder = b'\x00\x00\x00\x00'
-	header_partial = bytes([
-		station,
-		ecc,
-		tec,
-		payload_length
-	])
-	packet_placeholder = header_partial + bytes_time + mac_placeholder + payload_bytes
-
-	# Compute MAC over the whole packet
-	mac = hmac_mac(SECRET_KEY, packet_placeholder)
-	bytes_mac = mac.to_bytes(4, byteorder='big')
-
-	# Build final packet
-	return header_partial + bytes_time + bytes_mac + payload_bytes
-
-# Decode a packet from bytes (for reception)
-def decode_packet(packet_bytes):
-	if len(packet_bytes) < PACKET_HEADER_LENGTH:
-		raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < {PACKET_HEADER_LENGTH}")
-
-	# Byte 0: Station ID (raw int)
-	station_id = packet_bytes[0]
-
-	# Byte 1: ECC Flag (bool)
-	byte_ecc = packet_bytes[1]
-	if byte_ecc == BYTE_RS_ON:
-		ecc_enabled = True
-	elif byte_ecc == BYTE_RS_OFF:
-		ecc_enabled = False
-	else:
-		raise ValueError(f"Invalid ECC flag: 0x{byte_ecc:02X}")
-
-	# Byte 2: TER (raw int)
-	ter = packet_bytes[2]
-
-	# Byte 3: Payload length
-	payload_length = packet_bytes[3]
-
-	# Ensure entire packet is present
-	expected_len = PACKET_HEADER_LENGTH + payload_length
-	if len(packet_bytes) < expected_len:
-		raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
-
-	# Bytes 4-7: Timestamp (int)
-	bytes_time = packet_bytes[4:8]
-	timestamp = int.from_bytes(bytes_time, byteorder='big')
-
-	# Bytes 8–11: MAC (int)
-	bytes_mac = packet_bytes[8:12]
-	mac = int.from_bytes(bytes_mac, byteorder='big')
-
-	# Payload: list of ints
-	if payload_length > 0:
-		payload_bytes = list(packet_bytes[12:12 + payload_length])
-	else:
-		payload_bytes = []
-
-	return {
-		"station_id": station_id,
-		"ecc_enabled": ecc_enabled,
-		"ter": ter,
-		"payload_length": payload_length,
-		"mac": mac,
-		"timestamp": timestamp,
-		"payload_bytes": payload_bytes  # always a list of ints
-	}
-
 
 # =========== TABLE FUNCTIONS AND DATABASE MANAGEMENT ==========
 
@@ -608,7 +309,7 @@ def export_table_to_db(table: QTableWidget):
 			# tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
 			time = table.item(row, 1).text() if table.item(row, 1) else "0"
 			hex_str = table.item(row, 2).text() if table.item(row, 2) else ""
-			rssi = snr = deltaf = "0"
+			rssi = snr = deltaf = None
 
 		# TER table
 		elif col_count == 6:
@@ -1119,7 +820,7 @@ class MainWindow(QWidget):
 
 						try:
 							packet_bytes = bytes(int(h, 16) for h in hex_parts)
-							decoded_packet = decode_packet(packet_bytes)
+							decoded_packet = gt.decode_packet(packet_bytes)
 
 							# Show decoded info for debug in status_console
 							self.log_status(f"[INFO] Packet decoded: {decoded_packet}")
@@ -1399,14 +1100,14 @@ class MainWindow(QWidget):
 						break
 
 		try:
-			payload = build_payload(tec_code, input_widgets)
+			payload = gt.build_payload(tec_code, input_widgets)
 		except Exception as e:
 			self.log_status(f"[ERROR] Failed to build payload: {e}")
 			return
 
 		try:
 			ecc_enabled = self.ecc_enable_radio.isChecked()
-			packet_bytes = build_packet(
+			packet_bytes = gt.build_packet(
 			self.gs_selector.currentText(),
 			tec_code,
 			payload,
@@ -1629,7 +1330,7 @@ class MainWindow(QWidget):
 
 			try:
 				packet_bytes = [int(byte, 16) for byte in ter_hex.split()]
-				ter_decoded = decode_packet(packet_bytes)
+				ter_decoded = gt.decode_packet(packet_bytes)
 
 				# Display header information
 				self.ter_content_display.append(f"<b>HEADER > {ter_hex[:PACKET_HEADER_LENGTH * 3]}</b>")
