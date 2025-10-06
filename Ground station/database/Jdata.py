@@ -7,65 +7,22 @@ from PyQt5.QtCore import Qt, QDate
 import os
 import struct
 
+# Tasks for packet management
+# Uncomment this line if the database is run from GUI
+from database import GS_task as gt 
+# Uncomment this line if the database is run itself
+#import GS_task as gt
+
 DB_PATH = "./Ground station/database/SatelliteDB.db"
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 BYTE_RS_ON = 0xAA
 BYTE_RS_OFF = 0x55
-TER_LORA_PING = 0x33 # LoRa ping state reply
 
-# PACKET MANAGEMENT FUNCTIONS
-
-# Function to decode the packet
-def decode_packet(packet_bytes):
-	if len(packet_bytes) < PACKET_HEADER_LENGTH:
-		raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < {PACKET_HEADER_LENGTH}")
-
-	# Byte 0: Station ID (raw int)
-	station_id = packet_bytes[0]
-
-	# Byte 1: ECC Flag (bool)
-	byte_ecc = packet_bytes[1]
-	if byte_ecc == BYTE_RS_ON:
-		ecc_enabled = True
-	elif byte_ecc == BYTE_RS_OFF:
-		ecc_enabled = False
-	else:
-		raise ValueError(f"Invalid ECC flag: 0x{byte_ecc:02X}")
-
-	# Byte 2: TER (raw int)
-	ter = packet_bytes[2]
-
-	# Byte 3: Payload length
-	payload_length = packet_bytes[3]
-
-	# Ensure entire packet is present
-	expected_len = PACKET_HEADER_LENGTH + payload_length
-	if len(packet_bytes) < expected_len:
-		raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
-
-	# Bytes 4-7: Timestamp (int)
-	bytes_time = packet_bytes[4:8]
-	timestamp = int.from_bytes(bytes_time, byteorder='big')
-
-	# Bytes 8–11: MAC (int)
-	bytes_mac = packet_bytes[8:12]
-	mac = int.from_bytes(bytes_mac, byteorder='big')
-
-	# Payload: list of ints
-	if payload_length > 0:
-		payload_bytes = list(packet_bytes[12:12 + payload_length])
-	else:
-		payload_bytes = []
-
-	return {
-		"station_id": station_id,
-		"ecc_enabled": ecc_enabled,
-		"ter": ter,
-		"payload_length": payload_length,
-		"mac": mac,
-		"timestamp": timestamp,
-		"payload_bytes": payload_bytes  # always a list of ints
-	}
+# TER VALUES
+TER_BEACON = 0x30 # telemetry beacon reply
+TER_ACK = 0x31 # ACK reply
+TER_NACK = 0x32 # NACK reply
+TER_LORA_PONG = 0x33 # LoRa pong state reply
 
 #DATABASE FUNCTIONS 
 # Database initialization and packet definition
@@ -83,39 +40,46 @@ def database_initialization(path=DB_PATH):
         CREATE TABLE IF NOT EXISTS packets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT,
-            direction TEXT,
-            ground_station_id TEXT,
-            tec REAL,
-            rssi REAL,
-            snr REAL, 
-            freq_offset REAL,
-            status TEXT,
-            length INTEGER,
+            HEX BLOB,
+            source BLOB,
+            ecc BLOB,
+            tec_ter BLOB,
+            pl_length INTEGER,
+            unix REAL,
             mac TEXT,
-            packet BLOB,
-            metadata TEXT
+            rssi REAL,
+            snr REAL,
+            deltaf REAL,
+            comment TEXT
         )
     ''')
     
-    # Decoded TER table definition
+    # LORA_PONG table definition
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS TER_decoded (
+        CREATE TABLE IF NOT EXISTS LORA_PONG (
             id INTEGER PRIMARY KEY,
             rssi REAL,
             snr REAL,
-            freq_offset REAL
+            deltaf REAL
         )
     ''')
 
-    # Telemetry table definition
-    # cursor.execute('''
-    #     CREATE TABLE IF NOT EXISTS telemetry_packets (
-    #         id INTEGER PRIMARY KEY,
-    #         temperature REAL,
-    #         voltage REAL,
-    #         FOREIGN KEY(id) REFERENCES packets(id) ON DELETE CASCADE
-    #     )
-    # ''')
+    # NACK table definition
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS NACK (
+            id INTEGER PRIMARY KEY,
+            task_ID INTEGER,
+            error_code INTEGER
+        )
+    ''')
+
+    # ACK table definition
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ACK (
+            id INTEGER PRIMARY KEY,
+            task_ID INTEGER
+        )
+    ''')
     
     # OTHER TABLE DEFINITION HERE
     # NOTE: everytime a table is imported inside the database, his structure change,
@@ -367,11 +331,10 @@ def manual_access_function(parent):
     dialog.exec_()
 
 # Saving function (save packet in database)
-def save_packet(conn, timestamp, ground_station_id, status, mac, packet, tec, direction = "Transmitter", rssi = "0", snr = "0", freq_offset = "0", metadata=""):
-    """conn, timestamp, ground_station_id, status, mac, packet, tec, direction(F), rssi(F), snr(F), freq_offset(F), metadata [conn is the database definition --> use init_db()]"""
+def save_packet(conn, timestamp, HEX, rssi, snr, deltaf, comment = ""):
+    """conn, timestamp, HEX, rssi, snr, deltaf, comment [conn is the database definition --> use init_db()]"""
 
     cursor = conn.cursor()
-    length = len(packet)
 
     # # Get data of packet saving(UTC)
     # timestamp = datetime.utcnow().isoformat()
@@ -380,41 +343,58 @@ def save_packet(conn, timestamp, ground_station_id, status, mac, packet, tec, di
     dt = datetime.utcfromtimestamp(timestamp)
 
     # Packet decoding
-    # Getting TER decoding from packet
-    ter_decoded = decode_packet(packet)
+    # Getting TER_TEC value from HEX
+    HEX_decoded = gt.decode_packet(HEX)
 
-    # Getting payload bytes from decoded data 
-    payload_bytes = ter_decoded['payload_bytes']
-
-    # Getting TER value from decoded data
-    ter = ter_decoded['ter']
+    # Getting the decoded values from HEX_decoded
+    ter_tec = HEX_decoded['ter']
+    source = HEX_decoded['station_id']
+    payload_bytes = HEX_decoded['payload_bytes']
+    pl_length = HEX_decoded['payload_length']
+    ecc = HEX_decoded['ecc_enabled']
+    mac = HEX_decoded['mac']
+    unix = HEX_decoded['timestamp']
 
     # Creation of the packet from raw data
     cursor.execute('''
         INSERT INTO packets (
-            timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset,
-            status, length, mac, packet, metadata
+            timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (dt, direction, ground_station_id, tec, rssi, snr, freq_offset, status, length, mac, packet, metadata))
+    ''', (dt, HEX, source, ecc, ter_tec, pl_length, unix, mac, rssi, snr, deltaf, comment))
 
     # Getting the packet ID
     packet_id = cursor.lastrowid
 
     # Saving the specific packet data
-    # Saving data from TER LoRa ping
-    if ter == TER_LORA_PING:
-        rssi_bytes_TER = bytes(payload_bytes[0:4])
-        rssi_TER = struct.unpack(">f", rssi_bytes_TER)[0]
-        snr_bytes_TER = bytes(payload_bytes[4:8])
-        snr_TER = struct.unpack(">f", snr_bytes_TER)[0]
-        freq_shift_bytes_TER = bytes(payload_bytes[8:12])
-        freq_shift_TER = struct.unpack(">f", freq_shift_bytes_TER)[0]
+    # Saving data from TER LORA PONG
+    if ter_tec == TER_LORA_PONG:
+        data = gt.extract_lora_pong(payload_bytes)
 
-        # Insert data in the TER_decoded table
+        # Insert data in the LORA_PONG table
         cursor.execute('''
-            INSERT INTO TER_decoded (id, rssi, snr, freq_offset)
+            INSERT INTO LORA_PONG (id, rssi, snr, deltaf)
             VALUES (?, ?, ?, ?)
-        ''', (packet_id, rssi_TER, snr_TER, freq_shift_TER))
+        ''', (packet_id, data['rssi'], data['snr'], data['deltaf']))
+
+    # Saving data from NACK
+    elif ter_tec == TER_NACK:
+        data = gt.extract_nack(payload_bytes)
+
+        # Insert data in the ACK table
+        cursor.execute('''
+            INSERT INTO NACK (id, task_ID, error_code)
+            VALUES (?, ?, ?)
+        ''', (packet_id, data['task_ID'], data['error_code']))
+    
+    # Saving data from ACK
+    elif ter_tec == TER_ACK:
+        data = gt.extract_ack(payload_bytes)
+
+        # Insert data in the ACK table
+        cursor.execute('''
+            INSERT INTO ACK (id, task_ID)
+            VALUES (?, ?)
+        ''', (packet_id, data['task_ID']))
 
     # Commit packet to database
     conn.commit()
@@ -423,16 +403,15 @@ def save_packet(conn, timestamp, ground_station_id, status, mac, packet, tec, di
 def show_all_packets(conn):
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, timestamp, direction, ground_station_id, tec, rssi, snr, freq_offset,
-               status, length, mac, metadata
+        SELECT id, timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment
         FROM packets
         ORDER BY timestamp
     ''')
     rows = cursor.fetchall()
-    print("ID | Timestamp           | Direction | Ground Station ID | TEC   | RSSI  | SNR   | Freq Offset | Status     | Length | MAC               | Metadata")
-    print("-" * 120)
+    print("ID | Timestamp           | HEX         | Source      | ECC        | TEC_TER    | PL_LEN | UNIX        | MAC           | RSSI   | SNR    | DELTAF  | Comment")
+    print("-" * 160)
     for row in rows:
-        print(f"{row[0]:<3} | {row[1]:<20} | {row[2]:<9} | {row[3]:<17} | {row[4]:<5} | {row[5]:<5} | {row[6]:<5} | {row[7]:<12} | {row[8]:<10} | {row[9]:<6} | {row[10]:<17} | {row[11]}")
+        print(f"{row[0]:<3} | {row[1]:<20} | {str(row[2])[:10]:<10} | {str(row[3])[:8]:<8} | {str(row[4])[:8]:<8} | {str(row[5])[:8]:<8} | {row[6]:<6} | {row[7]:<10} | {str(row[8]):<13} | {row[9]:<6} | {row[10]:<6} | {row[11]:<7} | {row[12]}")
 
 # Create the GUI for database visualization
 def open_database():
@@ -507,8 +486,8 @@ def open_database():
             # Filters
             filter_layout = QHBoxLayout()
 
-            # Different filter that the user can apply to find packets inside the database
-            # Search for data
+
+            # Filter for date range
             self.date_from = QDateEdit(calendarPopup=True)
             self.date_from.setDisplayFormat("yyyy-MM-dd")
             self.date_from.setDate(QDate.currentDate().addDays(-7))  # default: 7 days ago
@@ -521,23 +500,17 @@ def open_database():
             filter_layout.addWidget(QLabel("To Date:"))
             filter_layout.addWidget(self.date_to)
 
-            # Search for direction(source or trasmitter)
-            self.direction_combo = QComboBox()
-            self.direction_combo.addItems(["All", "Source", "Transmitter"])
-            filter_layout.addWidget(QLabel("Direction:"))
-            filter_layout.addWidget(self.direction_combo)
-
-            # Search for ground station ID
+            # Filter for ground station ID
             self.gs_input = QLineEdit()
             filter_layout.addWidget(QLabel("Ground Station ID:"))
             filter_layout.addWidget(self.gs_input)
 
-            # Search for the status of transmission/reception
+            # Filter for TER/TEC name
             self.status_input = QLineEdit()
-            filter_layout.addWidget(QLabel("Status:"))
+            filter_layout.addWidget(QLabel("TER/TEC Names:"))
             filter_layout.addWidget(self.status_input)
 
-            # Refresh button
+            # Bottone refresh
             self.refresh_btn = QPushButton("Refresh")
             self.refresh_btn.clicked.connect(self.load_data)
             filter_layout.addWidget(self.refresh_btn)
@@ -657,80 +630,87 @@ def open_database():
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
 
-            query = "SELECT * FROM packets WHERE 1=1"
+            query = "SELECT id, timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment FROM packets WHERE 1=1"
             params = []
 
-            # Date range
+            # Filter for date range
             from_date = self.date_from.date().toString("yyyy-MM-dd")
             to_date = self.date_to.date().toString("yyyy-MM-dd")
             query += " AND date(timestamp) >= ? AND date(timestamp) <= ?"
             params.extend([from_date, to_date])
 
-            # Other filters
-            direction = self.direction_combo.currentText()
+            # Filter for ground station ID (source field)
             gs_id = self.gs_input.text().strip()
-            status = self.status_input.text().strip()
-
-            if direction != "All":
-                query += " AND direction = ?"
-                params.append(direction)
             if gs_id:
-                query += " AND ground_station_id = ?"
+                query += " AND source = ?"
                 params.append(gs_id)
-            if status:
-                query += " AND status = ?"
-                params.append(status)
 
-            # Search data inside database
+            # Filter for TER/TEC name (tec_ter field)
+            status = self.status_input.text().strip()
+            if status:
+                query += " AND tec_ter LIKE ?"
+                params.append(f"%{status}%")
+
             cursor.execute(query, params)
             self.packets = cursor.fetchall()
 
             self.table.setRowCount(len(self.packets))
+            self.table.setColumnCount(5)
+            self.table.setHorizontalHeaderLabels(["ID", "Timestamp", "HEX", "MAC", "Comment"])
 
-            # Plotting founded data
+            # Show only the principal info in the table
             for i, pkt in enumerate(self.packets):
                 self.table.setItem(i, 0, QTableWidgetItem(str(pkt[0])))  # ID
-                self.table.setItem(i, 1, QTableWidgetItem(pkt[1]))       # Timestamp
-                self.table.setItem(i, 2, QTableWidgetItem(pkt[2]))       # Direction
+                self.table.setItem(i, 1, QTableWidgetItem(str(pkt[1])))  # Timestamp
+                self.table.setItem(i, 2, QTableWidgetItem(str(pkt[2])[:16]))  # HEX (first 16 characters)
+                self.table.setItem(i, 3, QTableWidgetItem(str(pkt[8])))  # MAC
+                self.table.setItem(i, 4, QTableWidgetItem(str(pkt[12]))) # Comment
 
             conn.close()
 
         # Function to show the packet details when a row is clicked
         def show_packet_details(self, row, col):
             pkt = self.packets[row]
-            packet_full = str(pkt[11])
-            packet_preview = packet_full[:10] + ("..." if len(packet_full) > 10 else "")
+            # HEX preview (BLOB): mostra primi 32 caratteri HEX
+            hex_blob = pkt[2]
+            if isinstance(hex_blob, bytes):
+                # Show the first 16 bytes as preview
+                hex_preview = str(hex_blob[:16]) + ("..." if len(hex_blob) > 16 else "")
+                hex_full = str(hex_blob)
+            else:
+                # If not bytes, show the string
+                hex_preview = str(hex_blob)[:32] + ("..." if len(str(hex_blob)) > 32 else "")
+                hex_full = str(hex_blob)
 
-            # Showing TER decoded data if available
+            # TER decoded data (only if LORA_PONG)
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            cursor.execute("SELECT rssi, snr, freq_offset FROM TER_decoded WHERE id = ?", (pkt[0],))
+            cursor.execute("SELECT rssi, snr, deltaf FROM LORA_PONG WHERE id = ?", (pkt[0],))
             ter_row = cursor.fetchone()
             conn.close()
             self.ter_decoded_data = ter_row
 
-            # Preparing the rows to show
+            # Prepare the rows with the new structure
             if self.show_ter_decoded and self.ter_decoded_data:
-                rssi, snr, freq_offset = self.ter_decoded_data
-                snr_row = f"TEC: {pkt[4]}    |   RSSI: {rssi}    |   SNR: {snr}"
-                freq_row = f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {freq_offset}"
+                rssi, snr, deltaf = self.ter_decoded_data
+                snr_row = f"RSSI: {rssi}    |   SNR: {snr}    |   DELTAF: {deltaf}"
             else:
-                snr_row = f"TEC: {pkt[4]}    |   RSSI: {pkt[5]}    |   SNR: {pkt[6]}"
-                freq_row = f"Length: {pkt[9]}    |   Status: {pkt[8]}    |   Freq Offset: {pkt[7]}"
+                snr_row = f"RSSI: {pkt[9]}    |   SNR: {pkt[10]}    |   DELTAF: {pkt[11]}"
 
             rows = [
-                f"ID: {pkt[0]}    |   Direction: {pkt[2]}    |   GS id: {pkt[3]}",
+                f"ID: {pkt[0]}",
                 f"Timestamp: {pkt[1].replace('T', ' ')}",
+                f"HEX: {hex_preview}",
+                f"Source: {pkt[3]}    |   ECC: {pkt[4]}    |   TEC_TER: {pkt[5]}",
+                f"PL_LENGTH: {pkt[6]}    |   UNIX: {pkt[7]}",
+                f"MAC: {pkt[8]}",
                 snr_row,
-                freq_row,
-                f"MAC: {pkt[10]}",
-                f"Packet: {packet_preview}",
-                f"Metadata: {pkt[12]}"
+                f"Comment: {pkt[12]}"
             ]
 
+            # Show the rows in the frames
             for i, ((frame, layout), text) in enumerate(zip(self.detail_frames, rows)):
-                
-                # Clear all before the next interaction
+                # Clear the layout
                 for j in reversed(range(layout.count())):
                     item = layout.itemAt(j)
                     widget = item.widget()
@@ -748,8 +728,8 @@ def open_database():
                                     sub_widget.deleteLater()
                             layout.removeItem(sub_layout)
 
-                # Packet preview row (index 5): aggiungi pulsante Show All
-                if i == 5:
+                # HEX preview row (index 2): add Show All button
+                if i == 2:
                     hbox = QHBoxLayout()
                     label = QLabel(text)
                     hbox.addWidget(label)
@@ -769,7 +749,7 @@ def open_database():
                             background-color: #e67e22;
                         }
                     """)
-                    btn.clicked.connect(lambda _, p=packet_full: self.show_full_packet(p))
+                    btn.clicked.connect(lambda _, p=hex_blob: self.show_full_packet(p))
                     hbox.addWidget(btn)
                     layout.addLayout(hbox)
                 else:
@@ -982,47 +962,27 @@ def open_database():
     # Apply light theme
     QApplication.setPalette(light_palette)
 
-    app = QApplication(sys.argv)
-    viewer = PacketViewer()
-
-    # Show the windows
-    viewer.resize(1300, 700) # Setting window dimensions
-    viewer.show()
-    sys.exit(app.exec_())
+    global db_viewer
+    app = QApplication.instance() or QApplication(sys.argv)
+    db_viewer = PacketViewer()
+    db_viewer.resize(1300, 700) # Setting window dimensions
+    db_viewer.show()
+    # Run the application event loop only if not already running
+    if not QApplication.instance() or not app.thread().isRunning():
+        sys.exit(app.exec_())
 
 # Debug/test
 if __name__ == "__main__":
     conn = init_db()
 
-    # Example of telemetry packet saving
+    # # Example of telemetry packet saving
+    # HEX_data = b'\x01\xaa3\x0cgt\x85\xda\xd2\xea\x8b\x07\xc2\xdf\x00\x00\xc1(\x00\x00C\x8d\x08\x92\x00\x00\x00\x00'
     # save_packet(
     #     conn,
     #     timestamp=datetime.utcnow().timestamp(),  # timestamp UNIX
-    #     ground_station_id="GS-ITA-01",
-    #     status="telemetry",
-    #     mac="RP:00:00:00",
-    #     packet=b'\x01\xaa3\x0cgt\x85\xda\xd2\xea\x8b\x07\xc2\xdf\x00\x00\xc1(\x00\x00C\x8d\x08\x92\x00\x00\x00\x00',
-    #     tec=13.77,
-    #     direction="source",
+    #     HEX=HEX_data,
     #     rssi=-70.0,
     #     snr=10.1,
-    #     freq_offset=0.0,
-    #     metadata="Dati telemetria",
+    #     deltaf=0.0,
+    #     comment="Dati telemetria"
     # )
-
-    # Example of packet saving
-    # save_packet(
-    #     conn,
-    #     ground_station_id="GS-ITA-01",
-    #     status="transmit",
-    #     mac="00:1A:C2:7B:00:47",
-    #     packet=b"CMD:RESET",
-    #     tec=12.34,
-    #     direction="uplink",
-    #     rssi=-85.3,
-    #     snr=9.2,
-    #     freq_offset=0.5,
-    #     metadata="Initial uplink reset command"
-    # )
-
-    open_database()

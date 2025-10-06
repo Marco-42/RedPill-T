@@ -15,6 +15,7 @@ import hashlib
 import traceback
 
 from database import Jdata as jdb
+from database import GS_task as gt
 
 # ========== CONSTANTS AND CONFIGURATION ==========
 
@@ -522,7 +523,7 @@ def decode_packet(packet_bytes):
 	}
 
 
-# =========== TABLE FUNCTIONS ==========
+# =========== TABLE FUNCTIONS AND DATABASE MANAGEMENT ==========
 
 def clear_table(table: QTableWidget):
 	table.setRowCount(0)
@@ -594,8 +595,8 @@ def export_table_to_db(table: QTableWidget):
 	white_comment = False # To check if the comment was insert but it is None
 	add_to_all_check = False # To check if the user wants to add the comment to all the packets
 
-	# TEC table: 2 columns ["TEC", "HEX"]
-	# TER table: 5 columns ["TER", "RSSI", "SNR", "ΔF", "HEX"]
+	# TEC table: 3 columns ["TEC", "TX TIME", "HEX"]
+	# TER table: 6 columns ["TER", "RX TIME", "RSSI", "SNR", "ΔF", "HEX"]
 	# Counting columns number to determine the table type
 	col_count = table.columnCount()
 
@@ -603,40 +604,22 @@ def export_table_to_db(table: QTableWidget):
 	for row in reversed(range(table.rowCount())):
 
 		# TEC table
-		if col_count == 2:
-			tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
-			hex_str = table.item(row, 1).text() if table.item(row, 1) else ""
-			rssi = snr = freq_offset = "0"
-			status = tec_label
+		if col_count == 3:
+			# tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
+			time = table.item(row, 1).text() if table.item(row, 1) else "0"
+			hex_str = table.item(row, 2).text() if table.item(row, 2) else ""
+			rssi = snr = deltaf = "0"
 
 		# TER table
-		elif col_count == 5:
-			tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
-			rssi = table.item(row, 1).text() if table.item(row, 1) else "0"
-			snr = table.item(row, 2).text() if table.item(row, 2) else "0"
-			freq_offset = table.item(row, 3).text() if table.item(row, 3) else "0"
-			hex_str = table.item(row, 4).text() if table.item(row, 4) else ""
-			status = tec_label
+		elif col_count == 6:
+			# tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
+			time = table.item(row, 1).text() if table.item(row, 1) else "0"
+			rssi = table.item(row, 2).text() if table.item(row, 2) else "0"
+			snr = table.item(row, 3).text() if table.item(row, 3) else "0"
+			deltaf = table.item(row, 4).text() if table.item(row, 4) else "0"
+			hex_str = table.item(row, 5).text() if table.item(row, 5) else ""
 		else:
 			continue  # add here if is made a new table
-
-		# Extract payload bytes from hex string
-		try:
-			packet_bytes = bytes(int(b, 16) for b in hex_str.split())
-		except Exception:
-			packet_bytes = b""
-
-		# Extract the other datas from hex string
-		try:
-			decoded = decode_packet(packet_bytes)
-			ground_station_id = str(decoded.get("station_id", ""))
-			tec = decoded.get("ter", "")
-			mac = str(decoded.get("mac", ""))
-			timestamp = decoded.get("timestamp", "") # To check TODO # Take the timestamp of the packet creation(when it is added to queue)
-		except Exception:
-			ground_station_id = ""
-			tec = ""
-			mac = ""
 		
 		# Asking for comment
 		if add_to_all_check is False:
@@ -662,34 +645,23 @@ def export_table_to_db(table: QTableWidget):
 		# Save the single row in database
 		jdb.save_packet(
 			db_conn,
-			timestamp,
-			ground_station_id,
-			status,
-			mac,
-			packet_bytes,
-			tec,
-			direction="Receiver", # --> TO CHECK(TODO)
-			rssi=rssi,
-			snr=snr,
-			freq_offset=freq_offset,
-			metadata=comment
+			time,
+			hex_str,
+			rssi,
+			snr,
+			deltaf,
+			comment
 		)
 
 	# Clear all the table if the comment insertion wasn't cancelled(to delete all if some rows wasn't delete before)
 	if check_message == False or add_to_all_check == True:
 		clear_table(table)
 
-	# # Database initialization
-	# db_conn = jdb.init_db()
-
-	# # For each row of the table, extract data make a packet and send it to database
-	# for row in range(table.rowCount()):
-	# 	row_data = [table.item(row, col).text() if table.item(row, col) else "" 
-	# 				for col in range(table.columnCount())]
-	# 	print(row_data)  # Replace with actual DB logic later
-
-	# clear_table(table) # clear table after export
-
+def open_database_GUI():
+	
+	# Open a new window to show the database content
+	jdb.open_database()
+	
 # ========== MAIN WINDOW CLASS ==========
 
 class MainWindow(QWidget):
@@ -783,15 +755,22 @@ class MainWindow(QWidget):
 		self.last_tec_status_description = QLabel("")
 
 		self.sent_tec_table = QTableWidget()
-		self.sent_tec_table.setColumnCount(2)
-		self.sent_tec_table.setHorizontalHeaderLabels(["TEC", "HEX"])
+		self.sent_tec_table.setColumnCount(3)
+		self.sent_tec_table.setHorizontalHeaderLabels(["TEC", "TX Time", "HEX"])
 		self.sent_tec_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.sent_tec_table.horizontalHeader().setStretchLastSection(True)
-		self.sent_tec_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+		for i in range(2):
+			self.sent_tec_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
+		# Buttons to discard TEC table elements
 		self.clear_sent_button = QPushButton("Discard")
 		self.clear_sent_button.clicked.connect(lambda: clear_table(self.sent_tec_table))
 
+		# Button to open database
+		self.open_db_button = QPushButton("Open DB")
+		self.open_db_button.clicked.connect(open_database_GUI)
+
+		# Button to export TEC table elements to database
 		self.export_sent_button = QPushButton("Export to DB")
 		self.export_sent_button.clicked.connect(lambda: self.add_to_db("sent"))
 
@@ -839,6 +818,7 @@ class MainWindow(QWidget):
 		sent_table_layout.addWidget(self.sent_tec_table)
 		sent_table_btn_row = QHBoxLayout()
 		sent_table_btn_row.addWidget(self.clear_sent_button)
+		sent_table_btn_row.addWidget(self.open_db_button)
 		sent_table_btn_row.addWidget(self.export_sent_button)
 		sent_table_layout.addLayout(sent_table_btn_row)
 		sent_table_group.setLayout(sent_table_layout)
@@ -954,11 +934,11 @@ class MainWindow(QWidget):
 		received_ter_group = QGroupBox("Received TERs")
 		received_ter_layout = QVBoxLayout()
 		self.received_ter_table = QTableWidget()
-		self.received_ter_table.setColumnCount(5)
-		self.received_ter_table.setHorizontalHeaderLabels(["TER", "RSSI", "SNR", "ΔF", "HEX"])
+		self.received_ter_table.setColumnCount(6)
+		self.received_ter_table.setHorizontalHeaderLabels(["TER", "RX Time", "RSSI", "SNR", "ΔF", "HEX"])
 		self.received_ter_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.received_ter_table.horizontalHeader().setStretchLastSection(True)
-		for i in range(4):
+		for i in range(5):
 			self.received_ter_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeToContents)
 		self.received_ter_table.itemSelectionChanged.connect(self.display_selected_ter_content)
 		received_ter_layout.addWidget(self.received_ter_table)
@@ -1507,10 +1487,14 @@ class MainWindow(QWidget):
 			self.log_status(f"[ERROR] Failed to send TEC {tec_name}: {e}")
 
 		# Log sent TEC to history with "WAITING" status
-		self.sent_tecs.append((tec_name, tec_hex, "WAITING"))
-		self.sent_tec_table.insertRow(0)
-		self.sent_tec_table.setItem(0, 0, QTableWidgetItem(tec_name))
-		self.sent_tec_table.setItem(0, 1, QTableWidgetItem(tec_hex))
+		tx_timestamp = int(datetime.now().timestamp())
+		
+		self.sent_tecs.append((tec_name, tx_timestamp, tec_hex, "WAITING"))
+		row = 0
+		self.sent_tec_table.insertRow(row)
+		self.sent_tec_table.setItem(row, 0, QTableWidgetItem(tec_name))
+		self.sent_tec_table.setItem(row, 1, QTableWidgetItem(str(tx_timestamp)))
+		self.sent_tec_table.setItem(row, 2, QTableWidgetItem(tec_hex))
 
 		# Remove sent packet from queue
 		self.tec_queue.pop(0)
@@ -1532,6 +1516,7 @@ class MainWindow(QWidget):
 		self.execute_next_tec_button.setEnabled(True)  # re-enable next execution button
 
 		# Extract fields from the decoded packet
+		status = "UNKNOWN"
 		ter = decoded_packet["ter"]
 		payload = decoded_packet["payload_bytes"]
 		
@@ -1591,10 +1576,16 @@ class MainWindow(QWidget):
 		self.set_last_tec_status(status)
 
 		# Add to received TERs table
+		rx_timestamp = int(datetime.now().timestamp())
+
 		self.received_ter_table.insertRow(0)
 		self.received_ter_table.setItem(0, 0, QTableWidgetItem(ter_tec_label))
+		self.received_ter_table.setItem(0, 1, QTableWidgetItem(str(rx_timestamp)))
+		self.received_ter_table.setItem(0, 2, QTableWidgetItem("N/A"))  # RSSI (to be filled later)
+		self.received_ter_table.setItem(0, 3, QTableWidgetItem("N/A"))  # SNR (to be filled later)
+		self.received_ter_table.setItem(0, 4, QTableWidgetItem("N/A"))  # deltaF (to be filled later)
 		ter_tec_hex = ' '.join(f"{b:02X}" for b in packet_bytes)
-		self.received_ter_table.setItem(0, 4, QTableWidgetItem(ter_tec_hex))
+		self.received_ter_table.setItem(0, 5, QTableWidgetItem(ter_tec_hex))
 
 	# Check if the last TEC sent has timed out
 	def check_tec_timeout(self):
