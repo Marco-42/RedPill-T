@@ -358,11 +358,12 @@ def export_table_to_db(table: QTableWidget):
 	if check_message == False or add_to_all_check == True:
 		clear_table(table)
 
+# Function to open the database GUI
 def open_database_GUI():
 	
 	# Open a new window to show the database content
 	jdb.open_database()
-	
+
 # ========== MAIN WINDOW CLASS ==========
 
 class MainWindow(QWidget):
@@ -467,9 +468,32 @@ class MainWindow(QWidget):
 		self.clear_sent_button = QPushButton("Discard")
 		self.clear_sent_button.clicked.connect(lambda: clear_table(self.sent_tec_table))
 
-		# Button to open database
-		self.open_db_button = QPushButton("Open DB")
-		self.open_db_button.clicked.connect(open_database_GUI)
+		# Buttons to connect DB actions
+		self.db_menu_button = QToolButton()
+		self.db_menu_button.setText("DB Actions")
+		self.db_menu_button.setPopupMode(QToolButton.MenuButtonPopup) # Setting the popup button style
+		self.db_menu_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+		
+		# Setting button size to match other buttons
+		self.db_menu_button.setFixedHeight(23)
+		self.db_menu_button.setFixedWidth(160)
+
+		# Adding menu to the button
+		db_menu = QMenu(self.db_menu_button)
+		action_open_db = db_menu.addAction("Open Database")
+		action_export_excel = db_menu.addAction("Export DB to Excel")
+		action_open_db.triggered.connect(open_database_GUI)
+
+		# Function to export all tables to an excel file
+		def export_all_tables():
+			try:
+				jdb.export_tables_to_excel(self.db_conn)
+				self.log_status("Database exported successfully")
+			except Exception as e:
+				self.log_status("Export Error", str(e), QMessageBox.Critical)
+
+		action_export_excel.triggered.connect(export_all_tables)
+		self.db_menu_button.setMenu(db_menu)
 
 		# Button to export TEC table elements to database
 		self.export_sent_button = QPushButton("Export to DB")
@@ -519,7 +543,7 @@ class MainWindow(QWidget):
 		sent_table_layout.addWidget(self.sent_tec_table)
 		sent_table_btn_row = QHBoxLayout()
 		sent_table_btn_row.addWidget(self.clear_sent_button)
-		sent_table_btn_row.addWidget(self.open_db_button)
+		sent_table_btn_row.addWidget(self.db_menu_button)
 		sent_table_btn_row.addWidget(self.export_sent_button)
 		sent_table_layout.addLayout(sent_table_btn_row)
 		sent_table_group.setLayout(sent_table_layout)

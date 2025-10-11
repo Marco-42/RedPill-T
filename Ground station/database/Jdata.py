@@ -16,6 +16,7 @@ from database import GS_task as gt
 DB_PATH = "./Ground station/database/SatelliteDB.db"
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 BYTE_RS_ON = 0xAA
+import pandas as pd
 BYTE_RS_OFF = 0x55
 
 # TER VALUES
@@ -418,6 +419,22 @@ def show_all_packets(conn):
     print("-" * 160)
     for row in rows:
         print(f"{row[0]:<3} | {row[1]:<20} | {str(row[2])[:10]:<10} | {str(row[3])[:8]:<8} | {str(row[4])[:8]:<8} | {str(row[5])[:8]:<8} | {row[6]:<6} | {row[7]:<10} | {str(row[8]):<13} | {row[9]:<6} | {row[10]:<6} | {row[11]:<7} | {row[12]}")
+
+# Function to export packets to Excel
+def export_tables_to_excel(conn, excel_path="packets_export.xlsx"):
+    """Export all tables to a single Excel file with multiple sheets."""
+
+    # Packet and table definition
+    tables = ["packets", "LORA_PONG", "NACK", "ACK"]
+
+    # Export the tables in different sheets of the same Excel file
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        for table in tables:
+            try:
+                df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+                df.to_excel(writer, sheet_name=table, index=False)
+            except Exception as e:
+                print(f"[ERROR] Impossible to export {table}: {e}")
 
 # Create the GUI for database visualization
 def open_database():
@@ -981,14 +998,15 @@ def open_database():
 if __name__ == "__main__":
     conn = init_db()
 
-    # # Example of telemetry packet saving
-    # HEX_data = b'\x01\xaa3\x0cgt\x85\xda\xd2\xea\x8b\x07\xc2\xdf\x00\x00\xc1(\x00\x00C\x8d\x08\x92\x00\x00\x00\x00'
+    # Example of telemetry packet saving
+    # HEX_data deve essere una stringa esadecimale senza prefisso b''
+    # HEX_data = "01aa330c677485dad2ea8b07c2df0000c1280000438d089200000000"
     # save_packet(
     #     conn,
     #     timestamp=datetime.utcnow().timestamp(),  # timestamp UNIX
-    #     HEX=HEX_data,
-    #     rssi=-70.0,
-    #     snr=10.1,
-    #     deltaf=0.0,
+    #     HEX_str=HEX_data,
+    #     rssi_str="-70.0",
+    #     snr_str="10.1",
+    #     deltaf_str="0.0",
     #     comment="Dati telemetria"
     # )
