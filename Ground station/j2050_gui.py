@@ -1132,9 +1132,9 @@ class MainWindow(QWidget):
 					
 					self.log_serial(f"[RX]: {line}")
 
-					if line.startswith("Decoded:"):
+					if line.startswith("PACKET:"):
 
-						hex_str = line[len("Decoded:"):].strip()
+						hex_str = line[len("PACKET:"):].strip()
 						hex_parts = hex_str.split()
 
 						try:
@@ -1496,7 +1496,7 @@ class MainWindow(QWidget):
 			self.serial_conn.write(line.encode('utf-8'))
 
 			# Log TEC execution and display message on serial console
-			self.log_serial(f"[TX]: TEC {tec_name}: {tec_hex}")
+			self.log_serial(f"[TX]: TEC: {tec_hex}")
 
 			self.log_status(f"[INFO] Executed TEC {tec_name}")
 
