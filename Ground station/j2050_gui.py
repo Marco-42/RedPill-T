@@ -475,8 +475,8 @@ class MainWindow(QWidget):
 		self.db_menu_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
 		
 		# Setting button size to match other buttons
-		self.db_menu_button.setFixedHeight(23)
-		self.db_menu_button.setFixedWidth(160)
+		# self.db_menu_button.setFixedHeight(23)
+		# self.db_menu_button.setFixedWidth(160)
 
 		# Adding menu to the button
 		db_menu = QMenu(self.db_menu_button)
@@ -499,6 +499,13 @@ class MainWindow(QWidget):
 		self.export_sent_button = QPushButton("Export to DB")
 		self.export_sent_button.clicked.connect(lambda: self.add_to_db("sent"))
 
+		# Set sizes
+		self.db_menu_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+		self.clear_sent_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+		self.export_sent_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+		button_height = self.clear_sent_button.sizeHint().height()
+		self.db_menu_button.setFixedHeight(button_height)
 
 		# === Assemble Left Layout ===
 		main_layout = QHBoxLayout()
