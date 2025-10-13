@@ -1496,7 +1496,7 @@ class MainWindow(QWidget):
 			self.serial_conn.write(line.encode('utf-8'))
 
 			# Log TEC execution and display message on serial console
-			self.log_serial(f"[TX]: TEC {tec_name}: {tec_hex}")
+			self.log_serial(f"[TX]: TEC: {tec_hex}")
 
 			self.log_status(f"[INFO] Executed TEC {tec_name}")
 
