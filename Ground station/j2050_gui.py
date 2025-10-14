@@ -1132,9 +1132,9 @@ class MainWindow(QWidget):
 					
 					self.log_serial(f"[RX]: {line}")
 
-					if line.startswith("Decoded:"):
+					if line.startswith("PACKET:"):
 
-						hex_str = line[len("Decoded:"):].strip()
+						hex_str = line[len("PACKET:"):].strip()
 						hex_parts = hex_str.split()
 
 						try:
