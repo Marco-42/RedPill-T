@@ -40,13 +40,13 @@ def database_initialization(path=DB_PATH):
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS packets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
+            GS_time TEXT,
             HEX BLOB,
             source BLOB,
             ecc BLOB,
             tec_ter BLOB,
             pl_length INTEGER,
-            unix REAL,
+            TX_time TEXT,
             mac TEXT,
             rssi REAL,
             snr REAL,
@@ -332,8 +332,8 @@ def manual_access_function(parent):
     dialog.exec_()
 
 # Saving function (save packet in database)
-def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment = ""):
-    """conn, timestamp, HEX, rssi, snr, deltaf, comment [conn is the database definition --> use init_db()]"""
+def save_packet(conn, GS_time, HEX_str, rssi_str, snr_str, deltaf_str, comment = ""):
+    """conn, GS_time, HEX, rssi, snr, deltaf, comment [conn is the database definition --> use init_db()]"""
 
     cursor = conn.cursor()
 
@@ -346,9 +346,6 @@ def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment
     snr = float(snr_str) if snr_str else None
     deltaf = float(deltaf_str) if deltaf_str else None
 
-    # Convert timestamp to UTC datatime from UNIX
-    # dt = timestamp
-
     # Packet decoding
     # Getting TER_TEC value from HEX
     HEX_decoded = gt.decode_packet(HEX)
@@ -360,14 +357,14 @@ def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment
     pl_length = HEX_decoded['payload_length']
     ecc = HEX_decoded['ecc_enabled']
     mac = HEX_decoded['mac']
-    unix = HEX_decoded['timestamp']
+    TX_time = datetime.utcfromtimestamp(HEX_decoded['timestamp']) # Convert UNIX to UTC datetime
 
     # Creation of the packet from raw data
     cursor.execute('''
         INSERT INTO packets (
-            timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment
+            GS_time, HEX, source, ecc, tec_ter, pl_length, TX_time, mac, rssi, snr, deltaf, comment
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (timestamp, HEX, source, ecc, ter_tec, pl_length, unix, mac, rssi, snr, deltaf, comment))
+    ''', (GS_time, HEX, source, ecc, ter_tec, pl_length, TX_time, mac, rssi, snr, deltaf, comment))
 
     # Getting the packet ID
     packet_id = cursor.lastrowid
@@ -410,12 +407,12 @@ def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment
 def show_all_packets(conn):
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment
+        SELECT id, GS_time, HEX, source, ecc, tec_ter, pl_length, TX_time, mac, rssi, snr, deltaf, comment
         FROM packets
-        ORDER BY timestamp
+        ORDER BY GS_time
     ''')
     rows = cursor.fetchall()
-    print("ID | Timestamp           | HEX         | Source      | ECC        | TEC_TER    | PL_LEN | UNIX        | MAC           | RSSI   | SNR    | DELTAF  | Comment")
+    print("ID | GS_time            | HEX         | Source      | ECC        | TEC_TER    | PL_LEN | TX_time        | MAC           | RSSI   | SNR    | DELTAF  | Comment")
     print("-" * 160)
     for row in rows:
         print(f"{row[0]:<3} | {row[1]:<20} | {str(row[2])[:10]:<10} | {str(row[3])[:8]:<8} | {str(row[4])[:8]:<8} | {str(row[5])[:8]:<8} | {row[6]:<6} | {row[7]:<10} | {str(row[8]):<13} | {row[9]:<6} | {row[10]:<6} | {row[11]:<7} | {row[12]}")
@@ -543,7 +540,7 @@ def open_database():
             # Table with compact info
             self.table = QTableWidget()
             self.table.setColumnCount(3)
-            self.table.setHorizontalHeaderLabels(["ID", "Timestamp", "Direction"])
+            self.table.setHorizontalHeaderLabels(["ID", "GS time", "Direction"])
             self.table.setStyleSheet("""
                 QTableWidget {
                     background-color: #fff;
@@ -653,13 +650,13 @@ def open_database():
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
 
-            query = "SELECT id, timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment FROM packets WHERE 1=1"
+            query = "SELECT id, GS_time, HEX, source, ecc, tec_ter, pl_length, TX_time, mac, rssi, snr, deltaf, comment FROM packets WHERE 1=1"
             params = []
 
             # Filter for date range
             from_date = self.date_from.date().toString("yyyy-MM-dd")
             to_date = self.date_to.date().toString("yyyy-MM-dd")
-            query += " AND date(timestamp) >= ? AND date(timestamp) <= ?"
+            query += " AND date(GS_time) >= ? AND date(GS_time) <= ?"
             params.extend([from_date, to_date])
 
             # Filter for ground station ID (source field)
@@ -679,12 +676,12 @@ def open_database():
 
             self.table.setRowCount(len(self.packets))
             self.table.setColumnCount(5)
-            self.table.setHorizontalHeaderLabels(["ID", "Timestamp", "HEX", "MAC", "Comment"])
+            self.table.setHorizontalHeaderLabels(["ID", "GS_time", "HEX", "MAC", "Comment"])
 
             # Show only the principal info in the table
             for i, pkt in enumerate(self.packets):
                 self.table.setItem(i, 0, QTableWidgetItem(str(pkt[0])))  # ID
-                self.table.setItem(i, 1, QTableWidgetItem(str(pkt[1])))  # Timestamp
+                self.table.setItem(i, 1, QTableWidgetItem(str(pkt[1])))  # GS_time
                 self.table.setItem(i, 2, QTableWidgetItem(str(pkt[2])[:16]))  # HEX (first 16 characters)
                 self.table.setItem(i, 3, QTableWidgetItem(str(pkt[8])))  # MAC
                 self.table.setItem(i, 4, QTableWidgetItem(str(pkt[12]))) # Comment
@@ -722,10 +719,10 @@ def open_database():
 
             rows = [
                 f"ID: {pkt[0]}",
-                f"Timestamp: {pkt[1].replace('T', ' ')}",
+                f"GS_time: {pkt[1].replace('T', ' ')}",
                 f"HEX: {hex_preview}",
                 f"Source: {pkt[3]}    |   ECC: {pkt[4]}    |   TEC_TER: {pkt[5]}",
-                f"PL_LENGTH: {pkt[6]}    |   UNIX: {pkt[7]}",
+                f"PL_LENGTH: {pkt[6]}    |   TX_time: {pkt[7]}",
                 f"MAC: {pkt[8]}",
                 snr_row,
                 f"Comment: {pkt[12]}"
@@ -1003,7 +1000,7 @@ if __name__ == "__main__":
     # HEX_data = "01aa330c677485dad2ea8b07c2df0000c1280000438d089200000000"
     # save_packet(
     #     conn,
-    #     timestamp=datetime.utcnow().timestamp(),  # timestamp UNIX
+    #     GS_time=datetime.utcnow().timestamp(),  # GS_time
     #     HEX_str=HEX_data,
     #     rssi_str="-70.0",
     #     snr_str="10.1",
