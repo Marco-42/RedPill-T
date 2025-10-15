@@ -121,6 +121,7 @@ void handleSerialInput()
 	if (line.startsWith("RADIO:"))
 	{
 		line = line.substring(6);  // Remove "RADIO:"
+		line.trim();
 		
 		float freq_mhz = 0;
 		float bw_khz = 0;
@@ -146,28 +147,46 @@ void handleSerialInput()
 
 		if (param_index == 5)
 		{
+			// Parse parameters
 			freq_mhz = params[0].toFloat();
 			bw_khz = params[1].toFloat();
 			sf = (uint8_t)params[2].toInt();
 			cr = (uint8_t)params[3].toInt();
 			power = (int8_t)params[4].toInt();
 
-			int8_t state = 0;
-			state += radio.setFrequency(freq_mhz);
-			state += radio.setBandwidth(bw_khz);
-			state += radio.setSpreadingFactor(sf);
-			state += radio.setCodingRate(cr);
-			state += radio.setOutputPower(power);
+			// Apply settings
+			int8_t state = radio.setFrequency(freq_mhz);
+			if (state != 0)
+			{
+				Serial.printf("RADIO error: failed to apply F %.2f (error: %d)\n", freq_mhz, state);
+			}
 
-			if (state == 0)
+			state = radio.setBandwidth(bw_khz);
+			if (state != 0)
 			{
-				Serial.printf("RADIO settings: F %.2f MHz, BW %.2f kHz, SF %u, CR %u, Power %d dBm\n",
-							freq_mhz, bw_khz, sf, cr, power);
+				Serial.printf("RADIO error: failed to apply BW %.2f (error: %d)\n", bw_khz, state);
 			}
-			else
+
+			state = radio.setSpreadingFactor(sf);
+			if (state != 0)
 			{
-				Serial.printf("RADIO error: failed to apply settings (errors: %d)\n", state);
+				Serial.printf("RADIO error: failed to apply SF %u (error: %d)\n", sf, state);
 			}
+			
+			state = radio.setCodingRate(cr);
+			if (state != 0)
+			{
+				Serial.printf("RADIO error: failed to apply CR %u (error: %d)\n", cr, state);
+			}
+
+			state = radio.setOutputPower(power);
+			if (state != 0)
+			{
+				Serial.printf("RADIO error: failed to apply Power %d (error: %d)\n", power, state);
+			}
+
+			// Report all values
+			Serial.printf("RADIO settings: F %.2f MHz, BW %.2f kHz, SF %u, CR %u, Power %d dBm\n", freq_mhz, bw_khz, sf, cr, power);
 		}
 		else
 		{
@@ -178,6 +197,7 @@ void handleSerialInput()
 	else if (line.startsWith("TEC:"))
 	{
 		line = line.substring(4); // remove "TEC:"
+		line.trim();
 
 		uint8_t data[PACKET_SIZE_MAX];
 		uint8_t data_len = 0;

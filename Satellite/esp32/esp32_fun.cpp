@@ -904,18 +904,18 @@ bool isACKNeeded(const Packet* packet)
 	}
 }
 
-// // Check if ACK is needed for the command before execution
-// bool isACKNeededBefore(const Packet* packet)
-// {
-// 	switch (packet->command)
-// 	{
-// 		case TEC_OBC_REBOOT: // before rebooting OBC
-// 		case TEC_LORA_CONFIG: // before changing LoRa config
-// 			return true;
-// 		default:
-// 			return false; // ACK not needed early
-// 	}
-// }
+// Check if ACK is needed for the command before execution
+bool isACKNeededBefore(const Packet* packet)
+{
+	switch (packet->command)
+	{
+		case TEC_OBC_REBOOT: // before rebooting OBC
+		case TEC_LORA_CONFIG: // before changing LoRa config
+			return true;
+		default:
+			return false; // ACK not needed early
+	}
+}
 
 // Send ACK packet to report valid command received
 void sendACK(bool ecc, uint8_t TEC)

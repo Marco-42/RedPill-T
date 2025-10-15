@@ -1171,6 +1171,8 @@ class MainWindow(QWidget):
 
 						except (IndexError, ValueError) as e:
 							self.log_status(f"[ERROR] Failed to parse RSSI line: {e}")
+					elif line.startswith("RADIO error:"):
+						self.log_status(f"[ERROR] {line}")
 
 			except Exception as e:
 				self.log_status(f"[ERROR] Reading failed: {e}")
