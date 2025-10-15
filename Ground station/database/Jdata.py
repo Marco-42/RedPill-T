@@ -347,7 +347,7 @@ def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment
     deltaf = float(deltaf_str) if deltaf_str else None
 
     # Convert timestamp to UTC datatime from UNIX
-    dt = datetime.utcfromtimestamp(int(timestamp))
+    # dt = timestamp
 
     # Packet decoding
     # Getting TER_TEC value from HEX
@@ -367,7 +367,7 @@ def save_packet(conn, timestamp, HEX_str, rssi_str, snr_str, deltaf_str, comment
         INSERT INTO packets (
             timestamp, HEX, source, ecc, tec_ter, pl_length, unix, mac, rssi, snr, deltaf, comment
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (dt, HEX, source, ecc, ter_tec, pl_length, unix, mac, rssi, snr, deltaf, comment))
+    ''', (timestamp, HEX, source, ecc, ter_tec, pl_length, unix, mac, rssi, snr, deltaf, comment))
 
     # Getting the packet ID
     packet_id = cursor.lastrowid

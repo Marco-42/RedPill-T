@@ -522,7 +522,7 @@ def extract_lora_pong(payload_bytes):
 def extract_nack(payload_bytes):
 	"""Extract task_ID and error_code from NACK payload: payload_bytes"""
 
-	task_ID = bytes(payload_bytes[0])[0]
+	task_ID = payload_bytes[0]
 	error_code = int.from_bytes([payload_bytes[1]], byteorder='big', signed=True)
 
 	return {
@@ -534,7 +534,7 @@ def extract_nack(payload_bytes):
 def extract_ack(payload_bytes):
 	"""Extract task_ID from ACK payload: payload_bytes"""
 
-	task_ID = bytes(payload_bytes[0])[0]
+	task_ID = payload_bytes[0]
 
 	return {
 		"task_ID": task_ID

@@ -844,9 +844,9 @@ class MainWindow(QWidget):
 					
 					self.log_serial(f"[RX]: {line}")
 
-					if line.startswith("Decoded:"):
+					if line.startswith("PACKET:"):
 
-						hex_str = line[len("Decoded:"):].strip()
+						hex_str = line[len("PACKET:"):].strip()
 						hex_parts = hex_str.split()
 
 						try:
@@ -877,9 +877,9 @@ class MainWindow(QWidget):
 
 							# Update the top row of the received TER table, if it exists
 							if self.received_ter_table.rowCount() > 0:
-								self.received_ter_table.setItem(0, 1, QTableWidgetItem(f"{rssi:.2f}"))
-								self.received_ter_table.setItem(0, 2, QTableWidgetItem(f"{snr:.2f}"))
-								self.received_ter_table.setItem(0, 3, QTableWidgetItem(f"{freq_shift:.2f}"))
+								self.received_ter_table.setItem(0, 2, QTableWidgetItem(f"{rssi:.2f}"))
+								self.received_ter_table.setItem(0, 3, QTableWidgetItem(f"{snr:.2f}"))
+								self.received_ter_table.setItem(0, 4, QTableWidgetItem(f"{freq_shift:.2f}"))
 
 						except (IndexError, ValueError) as e:
 							self.log_status(f"[ERROR] Failed to parse RSSI line: {e}")
@@ -1208,7 +1208,7 @@ class MainWindow(QWidget):
 			self.serial_conn.write(line.encode('utf-8'))
 
 			# Log TEC execution and display message on serial console
-			self.log_serial(f"[TX]: TEC {tec_name}: {tec_hex}")
+			self.log_serial(f"[TX]: TEC: {tec_hex}")
 
 			self.log_status(f"[INFO] Executed TEC {tec_name}")
 
@@ -1219,13 +1219,13 @@ class MainWindow(QWidget):
 			self.log_status(f"[ERROR] Failed to send TEC {tec_name}: {e}")
 
 		# Log sent TEC to history with "WAITING" status
-		tx_timestamp = int(datetime.now().timestamp())
+		tx_timestamp = datetime.now()
 		
 		self.sent_tecs.append((tec_name, tx_timestamp, tec_hex, "WAITING"))
 		row = 0
 		self.sent_tec_table.insertRow(row)
 		self.sent_tec_table.setItem(row, 0, QTableWidgetItem(tec_name))
-		self.sent_tec_table.setItem(row, 1, QTableWidgetItem(str(tx_timestamp)))
+		self.sent_tec_table.setItem(row, 1, QTableWidgetItem(tx_timestamp.strftime('%Y-%m-%d %H:%M:%S')))
 		self.sent_tec_table.setItem(row, 2, QTableWidgetItem(tec_hex))
 
 		# Remove sent packet from queue
@@ -1308,11 +1308,11 @@ class MainWindow(QWidget):
 		self.set_last_tec_status(status)
 
 		# Add to received TERs table
-		rx_timestamp = int(datetime.now().timestamp())
+		rx_timestamp = datetime.now()
 
 		self.received_ter_table.insertRow(0)
 		self.received_ter_table.setItem(0, 0, QTableWidgetItem(ter_tec_label))
-		self.received_ter_table.setItem(0, 1, QTableWidgetItem(str(rx_timestamp)))
+		self.received_ter_table.setItem(0, 1, QTableWidgetItem(rx_timestamp.strftime('%Y-%m-%d %H:%M:%S')))  # RX Time
 		self.received_ter_table.setItem(0, 2, QTableWidgetItem("N/A"))  # RSSI (to be filled later)
 		self.received_ter_table.setItem(0, 3, QTableWidgetItem("N/A"))  # SNR (to be filled later)
 		self.received_ter_table.setItem(0, 4, QTableWidgetItem("N/A"))  # deltaF (to be filled later)
@@ -1345,15 +1345,21 @@ class MainWindow(QWidget):
 
 		for row in selected_rows:
 			item_label = self.received_ter_table.item(row, 0)
-			item_hex = self.received_ter_table.item(row, 4)
+			item_hex = self.received_ter_table.item(row, 5)
 
 			ter_hex = item_hex.text() if item_hex else "HEX error"
 			ter_label = item_label.text() if item_label else "TER error"
 			self.ter_content_display.append(f"<b>PACKET > {ter_hex}</b>")
 
-			rssi = self.received_ter_table.item(row, 1)
-			snr = self.received_ter_table.item(row, 2)
-			freq_shift = self.received_ter_table.item(row, 3)
+			rx_timestamp = self.received_ter_table.item(row, 1)
+
+			if rx_timestamp:
+				rx_time_label = rx_timestamp.text()
+				self.ter_content_display.append(f"RX Time: {rx_time_label}")
+
+			rssi = self.received_ter_table.item(row, 2)
+			snr = self.received_ter_table.item(row, 3)
+			freq_shift = self.received_ter_table.item(row, 4)
 			if rssi and snr and freq_shift:
 				self.ter_content_display.append(f"RSSI: {rssi.text()} dBm")
 				self.ter_content_display.append(f"SNR: {snr.text()} dB")
