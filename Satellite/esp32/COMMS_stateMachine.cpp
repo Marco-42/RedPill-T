@@ -64,7 +64,7 @@ void COMMS_stateMachine(void *parameter)
 			{
 				Serial.println("COMMS_IDLE: Waiting for events ... ");
 
-				bool first_run = true; // flag to check if this is the first run of the loop
+				startReception(); // always start reception when entering IDLE state
 
 				// Keep checking for events until state changes
 				while (COMMS_state == COMMS_IDLE)
@@ -83,21 +83,6 @@ void COMMS_stateMachine(void *parameter)
 						// Switch to CMD state
 						COMMS_state = COMMS_CMD;
 						break;
-					}
-					// Check if there is serial data to be transmitted
-					if (Serial.available() > 0)
-					{
-						// Switch to serial state
-						COMMS_state = COMMS_SERIAL;
-						break;
-					}
-
-					
-					// Enable RX if first run
-					if (first_run)
-					{
-						startReception();
-						first_run = false; // do not activate RX for next runs
 					}
 
 					// Check if a packet has been received
@@ -155,12 +140,6 @@ void COMMS_stateMachine(void *parameter)
 				dataToPacket(rx_data, rx_data_size, &rx_packet);
 				rs_enabled = rx_packet.ecc; // update RS encoding flag based on received packet
 
-				// Report RSSI and SNR if available
-				float RSSI = radio.getRSSI();
-				float SNR = radio.getSNR();
-				float freq_shift = radio.getFrequencyError();
-				Serial.printf("RSSI: %.2f SNR: %.2f dF: %.2f\n", RSSI, SNR, freq_shift);
-
 				// Execute packet if no decode error
 				if (rx_packet.state == PACKET_ERR_NONE)
 				{
@@ -171,25 +150,16 @@ void COMMS_stateMachine(void *parameter)
 					}
 				}
 				
-				if (rx_packet.state == PACKET_ERR_NONE)
+				if (rx_packet.state != PACKET_ERR_NONE)
 				{
-					if (isACKNeededBefore(&rx_packet))
-					{
-						// Send early ACK packet to confirm valid command executed
-						sendACK(rs_enabled, rx_packet.command);
-					}
+					// Send NACK packet to report invalid command received
+					sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
 				}
-				else
+				else if (isACKNeededBefore(&rx_packet))
 				{
-					if (isTEC(rx_packet.command))
-					{
-						// Send NACK packet to report invalid command received
-						sendNACK(rs_enabled, rx_packet.command, rx_packet.state);
-					}
-					else
-					{
-						Serial.println("Received packet is not TEC, ignore reply");
-					}
+					// Send ACK packet to report valid command received before execution
+					sendACK(rs_enabled, rx_packet.command);
+					// TODO: this might be optimistic
 				}
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing command
@@ -208,8 +178,7 @@ void COMMS_stateMachine(void *parameter)
 					Packet tx_packet_struct;
 					xQueueReceive(RTOS_queue_TX, &tx_packet_struct, portMAX_DELAY);
 				
-					if (tx_state == TX_OFF || 
-						(tx_state == TX_NOBEACON && tx_packet_struct.command == TER_BEACON))
+					if (tx_state == TX_OFF || (tx_state == TX_NOBEACON && tx_packet_struct.command == TER_BEACON))
 					{
 						Serial.println("COMMS_TX: Transmission is off, skipping packet.");
 						continue; // skip transmission if TX is off
@@ -285,17 +254,6 @@ void COMMS_stateMachine(void *parameter)
 				}
 
 				COMMS_state = COMMS_IDLE; // go back to idle state after processing all commands
-				break;
-			}
-
-			// SERIAL INPUT
-			case COMMS_SERIAL:
-			{
-				Serial.println("COMMS_SERIAL: processing serial input ...");
-
-				handleSerialInput();
-
-				COMMS_state = COMMS_IDLE;
 				break;
 			}
 

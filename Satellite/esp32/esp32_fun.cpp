@@ -202,124 +202,6 @@ void writeFloatToBytes(float value, uint8_t* buffer)
 	buffer[3] = value_int & 0xFF;
 }
 
-// Process commands in serial input TODO: maybe this should not be part of comms state machine
-void handleSerialInput()
-{
-	const uint16_t timeout_ms = 20; // max silence threshold between bytes
-	const uint16_t max_wait_ms = 200; // max wait time for full line
-
-	uint8_t buffer[PACKET_SIZE_MAX + 1]; // null-terminated buffer
-	uint8_t length = 0;
-
-	// Wait until something is available
-	if (!Serial.available())
-		return;
-
-	uint32_t start_time = millis();
-
-	// Read data until silence or timeout
-	while ((millis() - start_time < max_wait_ms) && length < PACKET_SIZE_MAX)
-	{
-		while (Serial.available() && length < PACKET_SIZE_MAX)
-		{
-			buffer[length++] = Serial.read();
-			start_time = millis(); // reset timeout on new byte
-		}
-		vTaskDelay(pdMS_TO_TICKS(timeout_ms)); // brief silence wait
-	}
-
-	buffer[length] = '\0';  // null-terminate for safety
-	String line = String((char*)buffer);
-    line.trim();  // remove leading/trailing whitespace, newlines
-
-	// Handle radio settings line
-	if (line.startsWith("RADIO:"))
-	{
-		line = line.substring(6);  // Remove "RADIO:"
-		
-		char* token = strtok((char*)line.c_str(), " ");
-		float freq_mhz = 0.0f;
-		float bw_khz = 0.0f;
-		uint8_t sf = 0;
-		uint8_t cr = 0;
-		int8_t power = 0;
-
-		if (token) freq_mhz = atof(token); // 1st: frequency
-		token = strtok(nullptr, " ");
-		if (token) bw_khz = atof(token); // 2nd: bandwidth
-		token = strtok(nullptr, " ");
-		if (token) sf = (uint8_t)atoi(token); // 3rd: spreading factor
-		token = strtok(nullptr, " ");
-		if (token) cr = (uint8_t)atoi(token); // 4th: coding rate
-		token = strtok(nullptr, " ");
-		if (token) power = (int8_t)atoi(token); // 5th: power
-
-		if (token) // token will be non-null if all 5 values were read
-		{
-			// Set radio parameters
-			int8_t state = radio.setFrequency(freq_mhz);
-			state = state + radio.setBandwidth(bw_khz);
-			state = state + radio.setSpreadingFactor(sf);
-			state = state + radio.setCodingRate(cr);
-			state = state + radio.setOutputPower(power);
-
-			if (state == 0)
-			{
-				Serial.printf("RADIO settings: F %.2f MHz, BW %.2f kHz, SF %u, CR %u, Power %d dBm\n", freq_mhz, bw_khz, sf, cr, power);
-			}
-			else
-			{
-				Serial.printf("RADIO error: failed to apply settings (errors: %d)\n", state);
-			}
-		}
-		else
-		{
-			Serial.println("RADIO error: expected 5 parameters (F, BW, SF, CR, Power)");
-		}
-	}
-	// Handle command line
-	else if (line.startsWith("TEC:"))
-	{
-		line = line.substring(4);  // remove "TEC:"
-		line.trim();
-
-		uint8_t data[PACKET_SIZE_MAX];
-		uint8_t data_len = 0;
-
-		char* token = strtok((char*)line.c_str(), " ");
-		while (token != nullptr && data_len < PACKET_SIZE_MAX)
-		{
-			data[data_len++] = strtoul(token, nullptr, 16);  // Hex conversion
-			token = strtok(nullptr, " ");
-		}
-
-		if (data_len > 0)
-		{
-			Packet packet;
-			dataToPacket(data, data_len, &packet);
-			if (packet.state == PACKET_ERR_NONE)
-			{
-				xQueueSend(RTOS_queue_TX, &packet, 0);
-				Serial.printf("Packet queued (%d bytes): ", data_len);
-				printData("", data, data_len);
-			}
-			else
-			{
-				Serial.printf("Invalid packet. Error: %d\n", packet.state);
-			}
-		}
-		else
-		{
-			Serial.println("PACKET error: No valid data");
-		}
-	}
-	// Display error
-	else
-	{
-		Serial.println("Unrecognized line format");
-	}
-}
-
 
 // ---------------------------------
 // RADIO FUNCTIONS
@@ -508,11 +390,16 @@ void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet)
 		packet->state = mac_state; // MAC error
 		return;
 	}
-	if (mac_calculated != packet->MAC)
+	if (mac_calculated == packet->MAC)
 	{
-		packet->state = PACKET_ERR_MAC; // MAC mismatch
-		return;
+		packet->mac_valid = true; // MAC valid
 	}
+	else
+	{
+		packet->mac_valid = false; // MAC invalid
+	}
+	// No PACKET_ERR_MAC here to allow processing packets with invalid MAC if it is not required (radiomateur payload)
+
 	// Serial.printf("Packet MAC: %08X, Calculated MAC: %08X\n", packet->MAC, mac_calculated);
 
 	// Packet successfully decoded
@@ -726,15 +613,13 @@ int8_t executeTEC(const Packet* cmd)
 			uint8_t val1 = (tx_state_new >> 4) & 0b1111;
 			Serial.printf("LoRa TX State new: %d, values: %d, %d\n", tx_state_new, val0, val1);
 
-			if (val0 == val1)
-			{
-				tx_state_new = val0; // use common value
-			}
-			else
+			// Check if both nibbles are the same
+			if (val0 != val1)
 			{
 				Serial.println("LoRa TX State values are not all the same!");
-				return PACKET_ERR_CMD_PAYLOAD; // payload error if not all same
+				return PACKET_ERR_CMD_PAYLOAD;
 			}
+			tx_state_new = val0;
 
 			// Unpack duration from payload
 			uint32_t duration = ((uint32_t)cmd->payload[1] << 16) | ((uint32_t)cmd->payload[2] << 8) | (uint32_t)cmd->payload[3];
@@ -744,54 +629,18 @@ int8_t executeTEC(const Packet* cmd)
 			Serial.printf("LoRa TX State set to %d for %d s\n", tx_state, duration);
 
 			// Cancel previous timer if still active
-			if (RTOS_timer_lora_state != NULL)
-			{
-				xTimerStop(RTOS_timer_lora_state, 0);
-				Packet* old_cmd = (Packet*)pvTimerGetTimerID(RTOS_timer_lora_state);
-				xTimerDelete(RTOS_timer_lora_state, 0);
-				vPortFree(old_cmd); // free memory of old command
-				RTOS_timer_lora_state = NULL;
-				Serial.println("Cancelled previous LoRa state timer");
-			}
+			deleteTimerIfExists(&RTOS_timer_lora_state, "LoRa State Timer");
 			
-			// Handle duration-based reset
+			// Schedule delayed revert if needed
 			if (duration > 0)
 			{
 				// Create packet with no delay to trigger the state change when timer expires
-				Packet* delayed_cmd = (Packet*)pvPortMalloc(sizeof(Packet));
-				if (delayed_cmd == nullptr)
-				{
-					Serial.println("Failed to allocate memory for delayed packet");
-					return PACKET_ERR_CMD_MEMORY;
-				}
-				memcpy(delayed_cmd, cmd, sizeof(Packet));
-
-				// Set default state and delay to 0 in payload
-				printPacket("Packet before editing: ", delayed_cmd);
-				delayed_cmd->payload[0] = ((TX_ON & 0b1111) << 4) | (TX_ON & 0b1111);
-				delayed_cmd->payload[1] = 0x00;
-				delayed_cmd->payload[2] = 0x00;
-				delayed_cmd->payload[3] = 0x00;
-				delayed_cmd->seal(); // seal the packet
-				printPacket("Packet after editing: ", delayed_cmd);
-
-				// Duration is in seconds, convert to ticks
-				TickType_t ticks = pdMS_TO_TICKS(duration * 1000UL);
-
-				// Create one-shot timer, no need to track globally
-				RTOS_timer_lora_state = xTimerCreate("LoRa State Timer",
-													ticks,
-													pdFALSE,
-													(void*)delayed_cmd,
-													vQueueDelayedPacket);
-				if (RTOS_timer_lora_state != NULL)
-				{
-					xTimerStart(RTOS_timer_lora_state, 0);
-				}
-				else
-				{
-					vPortFree(delayed_cmd);
-				}
+				createDelayedCommand(cmd,
+							queueDelayedPacket,
+							duration,
+							editDelayedLoraState,
+							&RTOS_timer_lora_state,
+							"LoRa State Timer");
 			}
 			else
 			{
@@ -860,77 +709,18 @@ int8_t executeTEC(const Packet* cmd)
 			}
 
 			// Cancel previous timer if still active
-			if (RTOS_timer_lora_config != NULL)
-			{
-				xTimerStop(RTOS_timer_lora_config, 0);
-				Packet* old_cmd = (Packet*)pvTimerGetTimerID(RTOS_timer_lora_config);
-				xTimerDelete(RTOS_timer_lora_config, 0);
-				vPortFree(old_cmd); // free memory of old command
-				RTOS_timer_lora_config = NULL;
-				Serial.println("Cancelled previous LoRa config timer");
-			}
+			deleteTimerIfExists(&RTOS_timer_lora_config, "LoRa Config Timer");
 
 			// Handle duration-based reset
 			if (duration > 0)
 			{
 				// Create packet with no delay to trigger the state change when timer expires
-				Packet* delayed_cmd = (Packet*)pvPortMalloc(sizeof(Packet));
-				if (delayed_cmd == nullptr)
-				{
-					Serial.println("Failed to allocate memory for delayed packet");
-					return PACKET_ERR_CMD_MEMORY;
-				}
-				memcpy(delayed_cmd, cmd, sizeof(Packet));
-
-				// Set default state and delay to 0 in payload
-				printPacket("Packet before editing: ", delayed_cmd);
-				uint32_t freq_khz = F * 1000;
-				uint32_t bw_hz = BW * 1000;
-				switch (bw_hz)
-				{
-					case 62500:
-						bandwidth = 0;
-						break;
-					case 125000:
-						bandwidth = 1;
-						break;
-					case 250000:
-						bandwidth = 2;
-						break;
-					case 500000:
-						bandwidth = 3;
-						break;
-				}
-				sf = SF;
-				cr = CR;
-				power = OUTPUT_POWER;
-
-				delayed_cmd->payload[0] = (freq_khz >> 16) & 0xFF;
-				delayed_cmd->payload[1] = (freq_khz >> 8) & 0xFF;
-				delayed_cmd->payload[2] = freq_khz & 0xFF;
-				delayed_cmd->payload[3] = (bandwidth << 6) | ((sf - 6) << 3) | (cr - 5); // 2 bits BW, 3 bits SF, 3 bits CR
-				delayed_cmd->payload[4] = ((power + 9) << 3) | reserved; // 5 bits power, 3 bits reserved
-				delayed_cmd->payload[5] = 0x00; // duration in seconds
-				delayed_cmd->seal(); // seal the packet
-				printPacket("Packet after editing: ", delayed_cmd);
-
-				// Duration is in seconds, convert to ticks
-				TickType_t ticks = pdMS_TO_TICKS(duration * 1000UL);
-
-				// Create one-shot timer, no need to track globally
-				RTOS_timer_lora_config = xTimerCreate("LoRa Config Timer",
-													ticks,
-													pdFALSE,
-													(void*)delayed_cmd,
-													vQueueDelayedPacket);
-				if (RTOS_timer_lora_config != NULL)
-				{
-					xTimerStart(RTOS_timer_lora_config, 0);
-				}
-				else
-				{
-					vPortFree(delayed_cmd);
-				}
+				createDelayedCommand(cmd,
+							queueDelayedPacket,
+							duration,
+							editDelayedLoraConfig,
+							&RTOS_timer_lora_config,
+							"LoRa Config Timer");
 			}
 			else
 			{
@@ -954,7 +744,7 @@ int8_t executeTEC(const Packet* cmd)
 
 			// Create packet with LoRa link status
 			Packet lora_packet;
-			lora_packet.init(rs_enabled, TER_LORA_LINK); // initialize packet
+			lora_packet.init(rs_enabled, TER_LORA_PONG); // initialize packet
 			lora_packet.setPayload(payload, sizeof(payload)); // set payload to LoRa link status
 			lora_packet.seal(); // seal packet with current time and MAC
 
@@ -1026,7 +816,7 @@ int8_t executeTEC(const Packet* cmd)
 													ticks,
 													pdFALSE,
 													(void*)delayed_cmd,
-													vQueueDelayedPacket);
+													queueDelayedPacket);
 				if (RTOS_timer_cry_state != NULL)
 				{
 					xTimerStart(RTOS_timer_cry_state, 0);
@@ -1114,18 +904,18 @@ bool isACKNeeded(const Packet* packet)
 	}
 }
 
-// Check if ACK is needed for the command before execution
-bool isACKNeededBefore(const Packet* packet)
-{
-	switch (packet->command)
-	{
-		case TEC_OBC_REBOOT: // before rebooting OBC
-		case TEC_LORA_CONFIG: // before changing LoRa config
-			return true;
-		default:
-			return false; // ACK not needed early
-	}
-}
+// // Check if ACK is needed for the command before execution
+// bool isACKNeededBefore(const Packet* packet)
+// {
+// 	switch (packet->command)
+// 	{
+// 		case TEC_OBC_REBOOT: // before rebooting OBC
+// 		case TEC_LORA_CONFIG: // before changing LoRa config
+// 			return true;
+// 		default:
+// 			return false; // ACK not needed early
+// 	}
+// }
 
 // Send ACK packet to report valid command received
 void sendACK(bool ecc, uint8_t TEC)
@@ -1161,42 +951,208 @@ void sendNACK(bool ecc, uint8_t TEC, int8_t error)
 // TIMER FUNCTIONS
 // ---------------------------------
 
-void vQueueDelayedPacket(TimerHandle_t xTimer)
+// Timer callback to queue delayed command packet
+void queueDelayedPacket(TimerHandle_t xTimer)
 {
-	Packet* delayed_cmd = (Packet*)pvTimerGetTimerID(xTimer);
-	if (delayed_cmd != nullptr)
+	// uint8_t state = PACKET_ERR_NONE;
+
+	TimerPayload* payload = (TimerPayload*)pvTimerGetTimerID(xTimer);
+	if (payload != nullptr)
 	{
-		BaseType_t sent = xQueueSend(RTOS_queue_cmd, delayed_cmd, 0);
-		if (sent != pdPASS)
+		Packet* delayed_cmd = payload->packet;
+		if (xQueueSend(RTOS_queue_cmd, delayed_cmd, 0) != pdPASS)
 		{
+			// state = PACKET_ERR_CMD_FULL;
 			Serial.println("Error: RTOS_queue_cmd is full, delayed command not queued");
 		}
 		else
 		{
 			Serial.println("Delayed command queued successfully");
 		}
-		printPacket("Delayed packet: ", delayed_cmd); // print the delayed command for debugging
+
+		printPacket("Delayed packet: ", delayed_cmd);
+
 		vPortFree(delayed_cmd);
+
+		// Clear the timer handle
+		if (payload->global_handle != nullptr)
+		{
+			*(payload->global_handle) = NULL;
+		}
+
+		vPortFree(payload);
 	}
 
-	// Delete timer to clean up resources
 	xTimerDelete(xTimer, 0);
 
-	// Reset global timer handle using if-else instead of switch
-	if (xTimer == RTOS_timer_lora_state)
+	// return state;
+}
+
+// Create a one-shot timer to execute a command after a delay, with optional packet editing
+void createDelayedCommand(const Packet* cmd,
+									void (*callback)(TimerHandle_t),
+									uint32_t delay_seconds,
+									void (*editDelayedCommand)(Packet*),
+									TimerHandle_t* global_timer_handle,
+									const char* timer_name)
+{
+	// Allocate a copy of the packet
+    Packet* delayed_cmd = (Packet*)pvPortMalloc(sizeof(Packet));
+    if (delayed_cmd == nullptr)
+    {
+        Serial.println("Failed to allocate memory for delayed packet");
+        // return NULL;
+    }
+
+    memcpy(delayed_cmd, cmd, sizeof(Packet));
+    editDelayedCommand(delayed_cmd); // Call the specific packet editor for this TEC command
+    printPacket("Packet after editing: ", delayed_cmd);
+
+    TimerPayload* payload = (TimerPayload*)pvPortMalloc(sizeof(TimerPayload));
+    if (payload == nullptr)
+    {
+        Serial.println("Failed to allocate timer payload");
+        vPortFree(delayed_cmd);
+        // return NULL;
+    }
+
+    payload->packet = delayed_cmd;
+    payload->global_handle = global_timer_handle;
+
+    TickType_t ticks = pdMS_TO_TICKS(delay_seconds * 1000UL);
+
+    *global_timer_handle = xTimerCreate(timer_name,
+                                        ticks,
+                                        pdFALSE,
+                                        (void*)payload,
+                                        callback);
+
+    if (*global_timer_handle != NULL)
+    {
+        xTimerStart(*global_timer_handle, 0);
+    }
+    else
+    {
+        vPortFree(delayed_cmd);
+        vPortFree(payload);
+        Serial.println("Failed to create timer");
+    }
+
+	// return *global_timer_handle;
+}
+
+// Delete timer if active
+void deleteTimerIfExists(TimerHandle_t* timer_handle, const char* timer_name)
+{
+	if (*timer_handle != NULL)
 	{
-		RTOS_timer_lora_state = NULL;
+		xTimerStop(*timer_handle, 0);
+
+		TimerPayload* payload = (TimerPayload*)pvTimerGetTimerID(*timer_handle);
+		if (payload != nullptr)
+		{
+			if (payload->packet != nullptr)
+			{
+				vPortFree(payload->packet);
+			}
+			vPortFree(payload);
+		}
+
+		xTimerDelete(*timer_handle, 0);
+		*timer_handle = NULL;
+
+		Serial.printf("Cancelled previous %s timer\n", timer_name);
 	}
-	else if (xTimer == RTOS_timer_lora_config)
+}
+
+// Edit function to set delay to 0 (generic 4-byte delay at payload[0..3])
+void editDelayedGeneric4(Packet* packet)
+{
+	if (packet != nullptr)
 	{
-		RTOS_timer_lora_config = NULL;
+		// Set the first 4 bytes of the payload to 0
+		memset(packet->payload, 0, 4);
+
+		// Re-seal the packet to update MAC
+		packet->seal();
 	}
-	else if (xTimer == RTOS_timer_cry_state)
+}
+
+// Edit function to set delay to 0 (generic 1-byte delay at payload[0])
+void editDelayedGeneric1(Packet* packet)
+{
+	if (packet != nullptr)
 	{
-		RTOS_timer_cry_state = NULL;
+		// Set the first byte of the payload to 0
+		packet->payload[0] = 0;
+
+		// Re-seal the packet to update MAC
+		packet->seal();
 	}
-	else
+}
+
+// Edit function to set LoRa default state with 0 delay (3-byte duration at payload[1..3])
+void editDelayedLoraState(Packet* packet)
+{
+	 if (packet == nullptr)
+    {
+        Serial.println("editDelayedPacketLoraState: null packet pointer");
+        return;
+    }
+
+	// Set default state and delay to 0 in payload
+	printPacket("Packet before editing: ", packet);
+
+	packet->payload[0] = ((TX_ON & 0b1111) << 4) | (TX_ON & 0b1111);
+	packet->payload[1] = 0x00;
+	packet->payload[2] = 0x00;
+	packet->payload[3] = 0x00;
+
+	packet->seal(); // seal the packet
+
+	printPacket("Packet after editing: ", packet);
+}
+
+// Edit function to set LoRa default config with 0 duration (1-byte duration at payload[5])
+void editDelayedLoraConfig(Packet* packet)
+{
+	if (packet == nullptr)
 	{
-		Serial.println("Warning: Unknown timer deleted, not resetting global handle");
+		Serial.println("editDelayedLoraConfig: null packet pointer");
+		return;
 	}
+
+	// Set default global values for F, BW, SF, CR, OUTPUT_POWER with 0 delay
+	printPacket("Packet before editing: ", packet);
+
+	uint32_t freq_khz = F * 1000;
+	uint32_t bw_hz = BW * 1000;
+	uint8_t bandwidth_code = 1; // default to 125 kHz
+	switch (bw_hz)
+	{
+		case 62500:
+			bandwidth_code = 0;
+			break;
+		case 125000:
+			bandwidth_code = 1;
+			break;
+		case 250000:
+			bandwidth_code = 2;
+			break;
+		case 500000:
+			bandwidth_code = 3;
+			break;
+	}
+
+	uint8_t reserved = 0b000; // reserved bits set to 0
+	packet->payload[0] = (freq_khz >> 16) & 0xFF;
+	packet->payload[1] = (freq_khz >> 8) & 0xFF;
+	packet->payload[2] = freq_khz & 0xFF;
+	packet->payload[3] = (bandwidth_code << 6) | ((SF - 6) << 3) | (CR - 5); // 2 bits BW, 3 bits SF, 3 bits CR
+	packet->payload[4] = ((OUTPUT_POWER + 9) << 3) | reserved; // 5 bits power, 3 bits reserved
+	packet->payload[5] = 0x00; // duration in seconds
+
+	packet->seal(); // seal the packet
+
+	printPacket("Packet after editing: ", packet);	
 }

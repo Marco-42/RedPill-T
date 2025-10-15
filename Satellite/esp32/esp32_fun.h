@@ -89,18 +89,26 @@ void COMMS_stateMachine(void *parameter);
 // Struct to hold packet information
 struct Packet
 {
-	uint8_t station;
 	bool ecc; // flag to indicate if RS ECC is used
+	bool mac_valid; // flag to indicate if MAC is valid
+	int8_t state;
+
+	uint8_t station;
 	uint8_t command;
 	uint8_t payload_length;
 	uint32_t time_unix;
 	uint32_t MAC;
 	uint8_t payload[PACKET_PAYLOAD_MAX];
-	int8_t state;
 
 	void init(bool rs_enabled, uint8_t cmd);
 	int8_t setPayload(const uint8_t* data, uint8_t length);
 	int8_t seal(); // seal packet by calculating MAC and setting time
+};
+
+struct TimerPayload
+{
+    Packet* packet;
+    TimerHandle_t* global_handle;
 };
 
 
@@ -148,7 +156,7 @@ int8_t makeMAC(const Packet* packet, uint32_t* out_mac);
 void writeFloatToBytes(float value, uint8_t* buffer);
 
 // Process commands in serial input
-void handleSerialInput();
+// void handleSerialInput();
 
 
 // ---------------------------------
@@ -201,7 +209,7 @@ extern uint8_t tx_state;
 #define TER_BEACON 0x30 // telemetry beacon reply
 #define TER_ACK 0x31 // ACK reply
 #define TER_NACK 0x32 // NACK reply
-#define TER_LORA_LINK 0x33 // LoRa link state reply
+#define TER_LORA_PONG 0x33 // LoRa link state reply
 
 // TER header
 #define MISSION_ID 0x01 // mission ID
@@ -274,6 +282,30 @@ extern TimerHandle_t RTOS_timer_lora_config; // timer to reset LoRa config
 extern TimerHandle_t RTOS_timer_cry_state; // timer to update cry state
 // extern TimerHandle_t RTOS_timer_camera; // timer to delay camera capture
 
-void vQueueDelayedPacket(TimerHandle_t xTimer);
+// Timer callback to queue delayed command packet
+void queueDelayedPacket(TimerHandle_t xTimer);
+
+// Create a one-shot timer to execute a command after a delay, with optional packet editing
+void createDelayedCommand(const Packet* cmd,
+									void (*callback)(TimerHandle_t),
+									uint32_t delay_seconds,
+									void (*editDelayedCommand)(Packet*),
+									TimerHandle_t* global_timer_handle,
+									const char* timer_name);
+
+// Delete timer if active
+void deleteTimerIfExists(TimerHandle_t* timer_handle, const char* timer_name);					
+
+// Edit function to set delay to 0 (generic 4-byte delay at payload[0..3])
+void editDelayedGeneric4(Packet* packet);
+
+// Edit function to set delay to 0 (generic 1-byte delay at payload[0])
+void editDelayedGeneric1(Packet* packet);
+
+// Edit function to set LoRa state duration to 0 (1-byte duration at payload[5])
+void editDelayedLoraState(Packet* packet);
+
+// Edit function to set LoRa default config with 0 duration (1-byte duration at payload[5])
+void editDelayedLoraConfig(Packet* packet);
 
 #endif
