@@ -1219,7 +1219,7 @@ class MainWindow(QWidget):
 			self.log_status(f"[ERROR] Failed to send TEC {tec_name}: {e}")
 
 		# Log sent TEC to history with "WAITING" status
-		tx_timestamp = datetime.now()
+		tx_timestamp = datetime.utcnow()
 		
 		self.sent_tecs.append((tec_name, tx_timestamp, tec_hex, "WAITING"))
 		row = 0
@@ -1308,7 +1308,7 @@ class MainWindow(QWidget):
 		self.set_last_tec_status(status)
 
 		# Add to received TERs table
-		rx_timestamp = datetime.now()
+		rx_timestamp = datetime.utcnow()
 
 		self.received_ter_table.insertRow(0)
 		self.received_ter_table.setItem(0, 0, QTableWidgetItem(ter_tec_label))
