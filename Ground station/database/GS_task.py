@@ -497,6 +497,52 @@ def decode_packet(packet_bytes):
 		"payload_bytes": payload_bytes  # always a list of ints
 	}
 
+# Functions to get labels of TER and TEC codes
+def get_ter_tec_label(code, is_ter):
+	"""Get the label for a given TER or TEC code: code - is_ter = true for TER, false for TEC"""
+	if is_ter:
+		for label, val in TER_TASKS.items():
+			if int(val) == code:
+				return label
+	else:
+		for label, val in TEC_TASKS.items():
+			if int(val) == code:
+				return label
+	return f"Unknown ({code})"
+
+# Functions to get IDs of TER and TEC labels
+def get_ter_tec_id(tec_label, is_ter):
+	"""Get the ID for a given TEC label: tec_label, is_ter = true for TER, false for TEC"""
+
+	if is_ter:
+		for label, val in TER_TASKS.items():
+			if label == tec_label:
+				return int(val)
+	else:
+		for label, val in TEC_TASKS.items():
+			if label == tec_label:
+				return int(val)
+
+	return f"Unknown ({tec_label})"
+
+# Functions to get Ground Station labels and IDs
+def get_gs_label(station_id):
+	"""Get the Ground Station label for a given station ID: station_id"""
+
+	for label, val in TX_SOURCES.items():
+		if int(val) == station_id:
+			return label
+	return f"Unknown ({station_id})"
+
+# Functions to get Ground Station IDs
+def get_gs_id(gs_label):
+
+	"""Get the Ground Station ID for a given station label: gs_label"""
+	for label, val in TX_SOURCES.items():
+		if label == gs_label:
+			return int(val)
+	return f"Unknown ({gs_label})"
+
 # ============= DATA EXTRACTION FROM HEX =============
 # Function for data extraction from HEX to save specific fields in the database
 

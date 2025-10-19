@@ -471,497 +471,444 @@ def open_database():
         def __init__(self):
             super().__init__()
 
-            self.show_ter_decoded = False  # Flag to toggle TER_decoded display
-            
-            # Set the theme for GUI
+            self.show_ter_decoded = False
+            self.setWindowTitle("Jdata Database - Viewer")
+            self.resize(1300, 800)
+
+            # Shared style
             self.setStyleSheet("""
-            QPushButton {
-                background-color: #f39c12;
-                color: #333;
-                border: none;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #e67e22;
-            }
-            QLineEdit, QComboBox, QDateEdit {
-                background-color: #fff;
-                color: #333;
-                border: 1px solid #bbb;
-            }
-            QLabel {
-                color: #333;
-            }
-        """)
+            QPushButton { background-color: #f39c12; color: #333; border: none; padding: 6px 10px; }
+            QPushButton:hover { background-color: #e67e22; }
+            QLineEdit, QComboBox, QDateEdit { background-color: #fff; color: #333; border: 1px solid #bbb; }
+            QLabel { color: #333; }
+            QTableWidget { background-color: #fff; color: #333; }
+            """)
+
+            # Top: filters/search bar
+            self.top_layout = QHBoxLayout()
+
+            # Searching for comment only
+            self.search_input = QLineEdit()
+            self.search_input.setPlaceholderText("Search packets comment...")
+            self.search_input.returnPressed.connect(self.load_data)
+
+            # Searching for TEC/TER types
+            self.type_combo = QComboBox()
+            self.type_combo.addItem("All Types")
+            self.type_combo.currentIndexChanged.connect(self.load_data)
             
-            self.setWindowTitle("Jdata Database")
-            self.resize(1200, 600)
+            # populate types from DB
+            self.populate_type_combo()
+            
+            # Searching for GS id
+            self.gs_id_input = QComboBox()
+            self.gs_id_input.addItem("All GS IDs")
+            self.gs_id_input.currentIndexChanged.connect(self.load_data)
 
-            # Main horizontal layout (left: table, right: details)
-            main_layout = QHBoxLayout()
+            # populate GS IDs from DB
+            self.populate_gs_id_combo()
 
-            # Left panel (filters + table)
-            left_panel = QVBoxLayout()
-
-            # Filters
-            filter_layout = QHBoxLayout()
-
-
-            # Filter for date range
+            # Search by date range
             self.date_from = QDateEdit(calendarPopup=True)
             self.date_from.setDisplayFormat("yyyy-MM-dd")
-            self.date_from.setDate(QDate.currentDate().addDays(-7))  # default: 7 days ago
-            filter_layout.addWidget(QLabel("From Date:"))
-            filter_layout.addWidget(self.date_from)
-
+            self.date_from.setDate(QDate.currentDate().addDays(-30))
             self.date_to = QDateEdit(calendarPopup=True)
             self.date_to.setDisplayFormat("yyyy-MM-dd")
-            self.date_to.setDate(QDate.currentDate())  # default: today
-            filter_layout.addWidget(QLabel("To Date:"))
-            filter_layout.addWidget(self.date_to)
+            self.date_to.setDate(QDate.currentDate())
 
-            # Filter for ground station ID
-            self.gs_input = QLineEdit()
-            filter_layout.addWidget(QLabel("Ground Station ID:"))
-            filter_layout.addWidget(self.gs_input)
-
-            # Filter for TER/TEC name
-            self.status_input = QLineEdit()
-            filter_layout.addWidget(QLabel("TER/TEC Names:"))
-            filter_layout.addWidget(self.status_input)
-
-            # Bottone refresh
+            # Refresh button
             self.refresh_btn = QPushButton("Refresh")
             self.refresh_btn.clicked.connect(self.load_data)
-            filter_layout.addWidget(self.refresh_btn)
 
-            left_panel.addLayout(filter_layout)
+            # Showing each button in the research bar
+            self.top_layout.addWidget(QLabel("Type:"))
+            self.top_layout.addWidget(self.type_combo, stretch=1)
+            self.top_layout.addWidget(QLabel("GS ID:"))
+            self.top_layout.addWidget(self.gs_id_input, stretch=1)
+            self.top_layout.addWidget(QLabel("From:"))
+            self.top_layout.addWidget(self.date_from)
+            self.top_layout.addWidget(QLabel("To:"))
+            self.top_layout.addWidget(self.date_to)
+            self.top_layout.addWidget(QLabel("Search:"))
+            self.top_layout.addWidget(self.search_input, stretch=2)
+            self.top_layout.addWidget(self.refresh_btn)
 
-            # Table with compact info
-            self.table = QTableWidget()
-            self.table.setColumnCount(3)
-            self.table.setHorizontalHeaderLabels(["ID", "GS time", "Direction"])
-            self.table.setStyleSheet("""
-                QTableWidget {
-                    background-color: #fff;
-                    color: #333;
-                    gridline-color: #bbb;
-                }
-                QHeaderView::section {
-                    background-color: #f5f5f5;
-                    color: #333;
-                    font-weight: bold;
-                    border: 1px solid #bbb;
-                }
-            """)
-            self.table.horizontalHeader().setStretchLastSection(True)
-            self.table.verticalHeader().setVisible(False)
-            self.table.cellClicked.connect(self.show_packet_details)
-            left_panel.addWidget(self.table)
+            # Main grid: 2x2 below the search bar
+            grid = QGridLayout()
 
-            # Right panel (packet detail)
-            right_panel = QVBoxLayout()
+            # Top-left: full filtered packet list (ID, type, date, comment)
+            self.left_top_table = QTableWidget()
+            self.left_top_table.setColumnCount(5)
+            self.left_top_table.setHorizontalHeaderLabels(["ID", "Type", "Gs ID", "Date", "Comment"])
+            self.left_top_table.verticalHeader().setVisible(False)
+            self.left_top_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+            self.left_top_table.setSelectionMode(QAbstractItemView.MultiSelection)
+            self.left_top_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+            self.left_top_table.cellClicked.connect(self.on_left_table_select)
 
-            # First line in the right panel "PACKET DETAILS" + "DELETE PACKET" button
-            header_layout = QHBoxLayout()
+            # Bottom-left: last saved packet
+            self.left_bottom_group = QGroupBox("Last saved packet")
+            lb_layout = QVBoxLayout()
+            self.last_packet_text = QTextEdit()
+            self.last_packet_text.setReadOnly(True)
+            lb_layout.addWidget(self.last_packet_text)
+            self.left_bottom_group.setLayout(lb_layout)
 
-            # Setting the header for the right panel
-            details_label = QLabel("PACKET DETAILS:")
-            details_label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
-
-            # Setting the delete button layout
+            # Top-right: detailed packet characteristics
+            self.right_top_group = QGroupBox("Packet Details")
+            rt_layout = QVBoxLayout()
+            self.packet_details = QTextEdit()
+            self.packet_details.setReadOnly(True)
+            rt_layout.addWidget(self.packet_details)
+            
+            # Action buttons (delete / toggle)
+            btn_row = QHBoxLayout()
             self.delete_btn = QPushButton("DELETE PACKET")
-            self.delete_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #b30000;
-                    color: white;
-                    border: none;
-                    padding: 4px 10px;
-                    font-weight: bold;
-                    font-size: 11pt;
-                }
-                QPushButton:hover {
-                    background-color: #c0392b;
-                }
-            """)
             self.delete_btn.clicked.connect(self.delete_selected_packet)
+            
+            # Button to export to excel
+            self.export_btn = QPushButton("EXPORT TO EXCEL")
+            
+            # Function to export to excel with GUI notification
+            def export_to_excel_db_gui():
+                conn = sqlite3.connect(DB_PATH)
+                export_tables_to_excel(conn)
+                QMessageBox.information(self, "Export to Excel", "Data exported successfully.")
 
-            # Button to toggle TER_decoded display
-            self.ter_toggle_btn = QPushButton("TER DATA")
-            self.ter_toggle_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #27ae60;
-                    color: white;
-                    border: none;
-                    padding: 4px 10px;
-                    font-weight: bold;
-                    font-size: 11pt;
-                    border-radius: 4px;
-                    margin-left: 10px;
-                }
-                QPushButton:hover {
-                    background-color: #229954;
-                }
-            """)
-            self.ter_toggle_btn.clicked.connect(self.toggle_ter_decoded)
+            # Connect the export button to the export function
+            self.export_btn.clicked.connect(export_to_excel_db_gui)
 
-            header_layout.addWidget(details_label)
-            header_layout.addStretch()
-            header_layout.addWidget(self.ter_toggle_btn) # TER toggle button
-            header_layout.addWidget(self.delete_btn)
+            btn_row.addStretch()
+            btn_row.addWidget(self.delete_btn)
+            btn_row.addWidget(self.export_btn)
+            rt_layout.addLayout(btn_row)
+            self.right_top_group.setLayout(rt_layout)
 
-            right_panel.addLayout(header_layout)
+            # Bottom-right: related table values (LORA_PONG, ACK, NACK)
+            self.right_bottom_group = QGroupBox("Related Tables")
+            rb_layout = QVBoxLayout()
+            self.related_table = QTableWidget()
+            self.related_table.setColumnCount(2)
+            self.related_table.setHorizontalHeaderLabels(["Field", "Value"])
+            self.related_table.verticalHeader().setVisible(False)
+            self.related_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+            rb_layout.addWidget(self.related_table)
+            self.right_bottom_group.setLayout(rb_layout)
 
-            self.detail_frames = []
+            # Arrange grid
+            grid.addWidget(self.left_top_table, 0, 0)
+            grid.addWidget(self.right_top_group, 0, 1)
+            grid.addWidget(self.left_bottom_group, 1, 0)
+            grid.addWidget(self.right_bottom_group, 1, 1)
 
-            # Modify the layout for the right panel
-            for _ in range(7):
-                frame = QFrame()
-                frame.setStyleSheet("""
-                    QFrame {
-                        background-color: #f9f9f9;
-                        border: 1px solid #ddd;
-                        border-radius: 6px;
-                        padding: 8px;
-                        margin-bottom: 6px;
-                    }
-                    QLabel {
-                        color: #333;
-                        font-family: Consolas, monospace;
-                        font-size: 10pt;
-                    }
-                """)
-                layout = QHBoxLayout()
-                layout.setContentsMargins(10, 4, 10, 4)
-                frame.setLayout(layout)
-                right_panel.addWidget(frame)
-                self.detail_frames.append((frame, layout))
+            # Main vertical layout: search on top, grid below
+            main_v = QVBoxLayout()
+            main_v.addLayout(self.top_layout)
+            main_v.addLayout(grid)
+            self.setLayout(main_v)
 
-            # Add both panels to main layout
-            main_layout.addLayout(left_panel, stretch=1)
-            main_layout.addLayout(right_panel, stretch=5)
+            # Internal buffers
+            self.packets = []
+            # Improve spacing and indentation for the top-left section
+            grid.setHorizontalSpacing(12)
+            grid.setVerticalSpacing(12)
+            grid.setContentsMargins(12, 12, 12, 12)
 
-            self.setLayout(main_layout)
-            self.packets = []  # buffer for fetched packets
+            # Make the timestamp column wider so the full datetime is visible
+            # Columns: 0 ID, 1 Type, 2 Gs ID, 3 Date, 4 Comment
+            header = self.left_top_table.horizontalHeader()
+            try:
+                # Set reasonable default widths
+                header.setSectionResizeMode(0, header.ResizeToContents)
+                header.setSectionResizeMode(1, header.ResizeToContents)
+                header.setSectionResizeMode(2, header.ResizeToContents)
+                # Make Date column fixed wider so timestamps are shown
+                header.setSectionResizeMode(3, header.Fixed)
+                self.left_top_table.setColumnWidth(3, 260)
+                # Let comment column stretch to fill remaining space
+                header.setSectionResizeMode(4, header.Stretch)
+            except Exception:
+                # Fallback: ignore if header API differs
+                pass
+
             self.load_data()
 
-        # Function to display data applying filters
         def load_data(self):
+            """Load packets from DB applying search/date filters and populate left_top_table and last packet."""
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
 
             query = "SELECT id, GS_time, HEX, source, ecc, tec_ter, pl_length, TX_time, mac, rssi, snr, deltaf, comment FROM packets WHERE 1=1"
             params = []
 
-            # Filter for date range
+            # Date range filter
             from_date = self.date_from.date().toString("yyyy-MM-dd")
             to_date = self.date_to.date().toString("yyyy-MM-dd")
             query += " AND date(GS_time) >= ? AND date(GS_time) <= ?"
             params.extend([from_date, to_date])
 
-            # Filter for ground station ID (source field)
-            gs_id = self.gs_input.text().strip()
-            if gs_id:
+            # Search input: comment
+            s = self.search_input.text().strip()
+            if s:
+                query += " AND comment LIKE ?"
+                params.append(f"%{s}%")
+
+            # Searching for GS id
+            gs_id = self.gs_id_input.currentText()
+            if gs_id and gs_id != "All GS IDs":
                 query += " AND source = ?"
-                params.append(gs_id)
+                params.append(gt.get_gs_id(gs_id))
 
-            # Filter for TER/TEC name (tec_ter field)
-            status = self.status_input.text().strip()
-            if status:
-                query += " AND tec_ter LIKE ?"
-                params.append(f"%{status}%")
+            # Filter by TEC or TER types
+            s_type = self.type_combo.currentText()
+            if s_type and s_type == "All Types":
+                pass
+            if s_type and s_type != "All Types":
+                query += " AND tec_ter = ?"
+                params.append(gt.get_ter_tec_id(s_type, True))
 
+            query += " ORDER BY GS_time DESC"
             cursor.execute(query, params)
-            self.packets = cursor.fetchall()
+            rows = cursor.fetchall()
+            self.packets = rows
 
-            self.table.setRowCount(len(self.packets))
-            self.table.setColumnCount(5)
-            self.table.setHorizontalHeaderLabels(["ID", "GS_time", "HEX", "MAC", "Comment"])
+            # Populate left_top_table
+            self.left_top_table.setRowCount(len(rows))
+            for i, pkt in enumerate(rows):
+                pkt_id = str(pkt[0])
+                tec_ter = str(pkt[5])
+                gs_time = str(pkt[1])
+                gs_id = str(pkt[3])
+                comment = str(pkt[12]) if pkt[12] is not None else ""
+                self.left_top_table.setItem(i, 0, QTableWidgetItem(pkt_id))
+                self.left_top_table.setItem(i, 1, QTableWidgetItem(tec_ter))
+                self.left_top_table.setItem(i, 2, QTableWidgetItem(gs_id))
+                self.left_top_table.setItem(i, 3, QTableWidgetItem(gs_time))
+                self.left_top_table.setItem(i, 4, QTableWidgetItem(comment))
 
-            # Show only the principal info in the table
-            for i, pkt in enumerate(self.packets):
-                self.table.setItem(i, 0, QTableWidgetItem(str(pkt[0])))  # ID
-                self.table.setItem(i, 1, QTableWidgetItem(str(pkt[1])))  # GS_time
-                self.table.setItem(i, 2, QTableWidgetItem(str(pkt[2])[:16]))  # HEX (first 16 characters)
-                self.table.setItem(i, 3, QTableWidgetItem(str(pkt[8])))  # MAC
-                self.table.setItem(i, 4, QTableWidgetItem(str(pkt[12]))) # Comment
+            # Load last saved packet into left_bottom
+            if rows:
+                last = rows[0]
+                self.show_last_packet(last)
+            else:
+                self.last_packet_text.setPlainText("No packets found")
 
             conn.close()
 
-        # Function to show the packet details when a row is clicked
-        def show_packet_details(self, row, col):
-            pkt = self.packets[row]
-            # HEX preview (BLOB): mostra primi 32 caratteri HEX
+        # Function to show TEC and TER types in the research bar
+        def populate_type_combo(self):
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT DISTINCT tec_ter FROM packets ORDER BY tec_ter")
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = str(r[0])
+                    if val not in [self.type_combo.itemText(i) for i in range(self.type_combo.count())]:
+                        self.type_combo.addItem(gt.get_ter_tec_label(r[0], True))
+                conn.close()
+            except Exception:
+                # ignore if DB not accessible at populate time
+                pass
+        
+        # Function to show GS IDs in the research bar
+        def populate_gs_id_combo(self):
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT DISTINCT source FROM packets ORDER BY source")
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = str(r[0])
+                    if val not in [self.gs_id_input.itemText(i) for i in range(self.gs_id_input.count())]:
+                        self.gs_id_input.addItem(gt.get_gs_label(r[0]))
+                conn.close()
+            except Exception:
+                # ignore if DB not accessible at populate time
+                pass
+
+        def show_last_packet(self, pkt):
+            # pkt is a row from packets SELECT
             hex_blob = pkt[2]
             if isinstance(hex_blob, bytes):
-                # Show the first 16 bytes as preview
-                hex_preview = str(hex_blob[:16]) + ("..." if len(hex_blob) > 16 else "")
-                hex_full = str(hex_blob)
+                hex_preview = ' '.join(f"{b:02X}" for b in hex_blob[:32])
             else:
-                # If not bytes, show the string
-                hex_preview = str(hex_blob)[:32] + ("..." if len(str(hex_blob)) > 32 else "")
-                hex_full = str(hex_blob)
+                hex_preview = str(hex_blob)[:256]
 
-            # TER decoded data (only if LORA_PONG)
+            html = (
+                "<style>"
+                "table { border-collapse: collapse; width: 100%; }"
+                "td, th { border: 1px solid #bbb; padding: 3px 6px; font-size: 9pt; }"
+                "th { background: #f9f9f9; color: #333; font-weight: bold; }"
+                "tr:nth-child(even) { background: #f5f5f5; }"
+                ".label { width: 100px; text-align: right; color: #555; font-weight: bold; font-size: 9pt; }"
+                ".value { text-align: left; color: #222; font-size: 9pt; }"
+                "</style>"
+                "<table width='100%'>"
+            )
+            html += f'<tr><td class="label">ID</td><td class="value">{pkt[0]}</td><td class="label">Source</td><td class="value">{pkt[3]}</td></tr>'
+            html += f'<tr><td class="label">ECC</td><td class="value">{pkt[4]}</td><td class="label">TEC_TER</td><td class="value">{pkt[5]}</td></tr>'
+            html += f'<tr><td class="label">PL_LEN</td><td class="value" colspan="3">{pkt[6]}</td></tr>'
+            html += f'<tr><td class="label">GS_time</td><td class="value" colspan="3">{pkt[1]}</td></tr>'
+            html += f'<tr><td class="label">TX_time</td><td class="value" colspan="3">{pkt[7]}</td></tr>'
+            html += f'<tr><td class="label">MAC</td><td class="value" colspan="3">{pkt[8]}</td></tr>'
+            html += f'<tr><td class="label">HEX</td><td class="value" colspan="3">{hex_preview}</td></tr>'
+            html += f'<tr><td class="label">RSSI</td><td class="value" colspan="3">{pkt[9]}</td></tr>'
+            html += f'<tr><td class="label">SNR</td><td class="value" colspan="3">{pkt[10]}</td></tr>'
+            html += f'<tr><td class="label">DELTAF</td><td class="value" colspan="3">{pkt[11]}</td></tr>'
+            html += f'<tr><td class="label">Comment</td><td class="value" colspan="3">{pkt[12] if pkt[12] is not None else ""}</td></tr>'
+            html += "</table>"
+            self.last_packet_text.setHtml(html)
+
+        def on_left_table_select(self, row, col):
+            # Called when a packet row is selected in left_top_table
+            if row < 0 or row >= len(self.packets):
+                return
+            pkt = self.packets[row]
+            self.show_packet_details(pkt)
+
+        def show_packet_details(self, pkt):
+            # pkt is a tuple from SELECT
+            # Show details in right_top_group as a two-column HTML table
+            hex_blob = pkt[2]
+            if isinstance(hex_blob, bytes):
+                hex_preview = ' '.join(f"{b:02X}" for b in hex_blob[:32])
+            else:
+                hex_preview = str(hex_blob)[:256]
+
+
+            # Compact layout: font 8pt, minimal padding, RSSI/SNR/DELTAF on one row
+            html = (
+                "<style>"
+                "table { border-collapse: collapse; width: 100%; }"
+                "td, th { border: 1px solid #bbb; padding: 3px 6px; font-size: 9pt; }"
+                "th { background: #f9f9f9; color: #333; font-weight: bold; }"
+                "tr:nth-child(even) { background: #f5f5f5; }"
+                ".label { width: 100px; text-align: right; color: #555; font-weight: bold; font-size: 9pt; }"
+                ".value { text-align: left; color: #222; font-size: 9pt; }"
+                "</style>"
+                "<table width='100%'>"
+            )
+
+            # ID, Source, ECC, TEC_TER, PL_LEN in two columns
+            html += f'<tr><td class="label">ID</td><td class="value">{pkt[0]}</td><td class="label">Source</td><td class="value">{pkt[3]}</td></tr>'
+            html += f'<tr><td class="label">ECC</td><td class="value">{pkt[4]}</td><td class="label">TEC_TER</td><td class="value">{pkt[5]}</td></tr>'
+            html += f'<tr><td class="label">PL_LEN</td><td class="value" colspan="3">{pkt[6]}</td></tr>'
+
+            # GS_time, TX_time, MAC each on their own row (full width)
+            html += f'<tr><td class="label">GS_time</td><td class="value" colspan="3">{pkt[1]}</td></tr>'
+            html += f'<tr><td class="label">TX_time</td><td class="value" colspan="3">{pkt[7]}</td></tr>'
+            html += f'<tr><td class="label">MAC</td><td class="value" colspan="3">{pkt[8]}</td></tr>'
+
+            # HEX preview (full width)
+            html += f'<tr><td class="label">HEX</td><td class="value" colspan="3">{hex_preview}</td></tr>'
+
+            # RSSI, SNR, DELTAF each on their own row
+            html += f'<tr><td class="label">RSSI</td><td class="value">{pkt[9]}</td><td class="label">SNR</td><td class="value">{pkt[10]}</td></tr>'
+            html += f'<tr><td class="label">DELTAF</td><td class="value" colspan="3">{pkt[11]}</td></tr>'
+
+            # Comment (full width)
+            html += f'<tr><td class="label">Comment</td><td class="value" colspan="3">{pkt[12] if pkt[12] is not None else ""}</td></tr>'
+
+            html += "</table>"
+
+            self.packet_details.setHtml(html)
+
+            # Load related tables
+            self.load_related_tables(pkt[0], pkt[5])
+
+        def load_related_tables(self, pkt_id, tec_ter):
+            # Clear related_table
+            self.related_table.setRowCount(0)
+
+            # Show packet type (decoded label) as first row
+            try:
+                code = int(tec_ter)
+            except Exception:
+                code = tec_ter
+            # Try both TER and TEC
+            label = gt.get_ter_tec_label(code, True)
+            if not label or label == str(code):
+                label = gt.get_ter_tec_label(code, False)
+            self.related_table.insertRow(0)
+            self.related_table.setItem(0, 0, QTableWidgetItem("Packet Type"))
+            self.related_table.setItem(0, 1, QTableWidgetItem(label))
+            self.related_table.setItem(0, 2, QTableWidgetItem(""))
+
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            cursor.execute("SELECT rssi, snr, deltaf FROM LORA_PONG WHERE id = ?", (pkt[0],))
-            ter_row = cursor.fetchone()
+
+            # Check LORA_PONG
+            cursor.execute("SELECT rssi, snr, deltaf FROM LORA_PONG WHERE id = ?", (pkt_id,))
+            row = cursor.fetchone()
+            if row:
+                r = self.related_table.rowCount()
+                self.related_table.insertRow(r)
+                self.related_table.setItem(r, 0, QTableWidgetItem("RSSI"))
+                self.related_table.setItem(r, 1, QTableWidgetItem(str(row[0])))
+                self.related_table.setItem(r, 2, QTableWidgetItem(""))
+                r = self.related_table.rowCount()
+                self.related_table.insertRow(r)
+                self.related_table.setItem(r, 0, QTableWidgetItem("SNR"))
+                self.related_table.setItem(r, 1, QTableWidgetItem(str(row[1])))
+                self.related_table.setItem(r, 2, QTableWidgetItem(""))
+                r = self.related_table.rowCount()
+                self.related_table.insertRow(r)
+                self.related_table.setItem(r, 0, QTableWidgetItem("DELTAF"))
+                self.related_table.setItem(r, 1, QTableWidgetItem(f"{row[2]:.2f}"))
+                self.related_table.setItem(r, 2, QTableWidgetItem(""))
+
+            # Check ACK
+            cursor.execute("SELECT task_ID FROM ACK WHERE id = ?", (pkt_id,))
+            row_ack = cursor.fetchone()
+            if row_ack:
+                r = self.related_table.rowCount()
+                self.related_table.insertRow(r)
+                self.related_table.setItem(r, 0, QTableWidgetItem("TASK ID"))
+                self.related_table.setItem(r, 1, QTableWidgetItem(str(row_ack[0])))
+                self.related_table.setItem(r, 2, QTableWidgetItem(""))
+
+            # Check NACK
+            cursor.execute("SELECT task_ID, error_code FROM NACK WHERE id = ?", (pkt_id,))
+            row_nack = cursor.fetchone()
+            if row_nack:
+                r = self.related_table.rowCount()
+                self.related_table.insertRow(r)
+                self.related_table.setItem(r, 0, QTableWidgetItem("TASK ID"))
+                self.related_table.setItem(r, 1, QTableWidgetItem(str(row_nack[0])))
+                self.related_table.setItem(r, 2, QTableWidgetItem(""))
+                r = self.related_table.rowCount()
+                self.related_table.insertRow(r)
+                self.related_table.setItem(r, 0, QTableWidgetItem("ERROR CODE"))
+                self.related_table.setItem(r, 1, QTableWidgetItem(str(row_nack[1])))
+                self.related_table.setItem(r, 2, QTableWidgetItem(""))
+
             conn.close()
-            self.ter_decoded_data = ter_row
 
-            # Prepare the rows with the new structure
-            if self.show_ter_decoded and self.ter_decoded_data:
-                rssi, snr, deltaf = self.ter_decoded_data
-                snr_row = f"RSSI: {rssi}    |   SNR: {snr}    |   DELTAF: {deltaf}"
-            else:
-                snr_row = f"RSSI: {pkt[9]}    |   SNR: {pkt[10]}    |   DELTAF: {pkt[11]}"
-
-            rows = [
-                f"ID: {pkt[0]}",
-                f"GS_time: {pkt[1].replace('T', ' ')}",
-                f"HEX: {hex_preview}",
-                f"Source: {pkt[3]}    |   ECC: {pkt[4]}    |   TEC_TER: {pkt[5]}",
-                f"PL_LENGTH: {pkt[6]}    |   TX_time: {pkt[7]}",
-                f"MAC: {pkt[8]}",
-                snr_row,
-                f"Comment: {pkt[12]}"
-            ]
-
-            # Show the rows in the frames
-            for i, ((frame, layout), text) in enumerate(zip(self.detail_frames, rows)):
-                # Clear the layout
-                for j in reversed(range(layout.count())):
-                    item = layout.itemAt(j)
-                    widget = item.widget()
-                    if widget is not None:
-                        layout.removeWidget(widget)
-                        widget.deleteLater()
-                    else:
-                        sub_layout = item.layout()
-                        if sub_layout is not None:
-                            for k in reversed(range(sub_layout.count())):
-                                sub_item = sub_layout.itemAt(k)
-                                sub_widget = sub_item.widget()
-                                if sub_widget is not None:
-                                    sub_layout.removeWidget(sub_widget)
-                                    sub_widget.deleteLater()
-                            layout.removeItem(sub_layout)
-
-                # HEX preview row (index 2): add Show All button
-                if i == 2:
-                    hbox = QHBoxLayout()
-                    label = QLabel(text)
-                    hbox.addWidget(label)
-                    btn = QPushButton("Show All")
-                    btn.setStyleSheet("""
-                        QPushButton {
-                            background-color: #f39c12;
-                            color: #333;
-                            border: none;
-                            padding: 2px 8px;
-                            font-size: 9pt;
-                            font-weight: bold;
-                            border-radius: 4px;
-                            margin-left: 10px;
-                        }
-                        QPushButton:hover {
-                            background-color: #e67e22;
-                        }
-                    """)
-                    btn.clicked.connect(lambda _, p=hex_blob: self.show_full_packet(p))
-                    hbox.addWidget(btn)
-                    layout.addLayout(hbox)
-                else:
-                    label = QLabel(text)
-                    layout.addWidget(label)
-        
-        # Function to toggle between normal and TER_decoded values
-        def toggle_ter_decoded(self):
-            self.show_ter_decoded = not self.show_ter_decoded
-            # Update button text
-            if self.show_ter_decoded:
-                self.ter_toggle_btn.setText("GS DATA")
-            else:
-                self.ter_toggle_btn.setText("TER DATA")
-            selected_row = self.table.currentRow()
-            if selected_row >= 0:
-                self.show_packet_details(selected_row, 0)
-
-        # Function to show all the payload
-        def show_full_payload(self, payload):
-
-            # Creating the window
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Full Payload")
-            dialog.setStyleSheet(self.styleSheet())
-            dialog.resize(700, 400)
-
-            vbox = QVBoxLayout()
-            label = QLabel("Full Payload:")
-            label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
-            vbox.addWidget(label)
-
-            text = QTextEdit()
-            text.setReadOnly(True)
-            text.setText(str(payload))
-
-            # Setting the window style
-            text.setStyleSheet("""
-                QTextEdit {
-                    background-color: #fff;
-                    color: #333;
-                    font-family: Consolas, monospace;
-                    font-size: 10pt;
-                    border: 1px solid #bbb;
-                    border-radius: 6px;
-                }
-            """)
-            vbox.addWidget(text)
-
-            # Button to close the window
-            btn = QPushButton("Close")
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #f39c12;
-                    color: #333;
-                    border: none;
-                    padding: 5px 15px;
-                    font-size: 11pt;
-                    font-weight: bold;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #e67e22;
-                }
-            """)
-            btn.clicked.connect(dialog.accept)
-            vbox.addWidget(btn, alignment=Qt.AlignRight)
-
-            dialog.setLayout(vbox)
-            dialog.exec_()
-            
-        # Function to show the full packet in a new window
-        def show_full_packet(self, packet):
-
-            # Creating the window
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Full Packet")
-            dialog.setStyleSheet(self.styleSheet())
-            dialog.resize(700, 400)
-
-            vbox = QVBoxLayout()
-            label = QLabel("Full Packet:")
-            label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #333;")
-            vbox.addWidget(label)
-
-            text = QTextEdit()
-            text.setReadOnly(True)
-            text.setText(str(packet))
-
-            # Setting the window style
-            text.setStyleSheet("""
-                QTextEdit {
-                    background-color: #fff;
-                    color: #333;
-                    font-family: Consolas, monospace;
-                    font-size: 10pt;
-                    border: 1px solid #bbb;
-                    border-radius: 6px;
-                }
-            """)
-            vbox.addWidget(text)
-
-            # Button to close the window
-            btn = QPushButton("Close")
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #f39c12;
-                    color: #333;
-                    border: none;
-                    padding: 5px 15px;
-                    font-size: 11pt;
-                    font-weight: bold;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #e67e22;
-                }
-            """)
-            btn.clicked.connect(dialog.accept)
-            vbox.addWidget(btn, alignment=Qt.AlignRight)
-
-            dialog.setLayout(vbox)
-            dialog.exec_()
-
-        # Deleting selected packet from database
         def delete_selected_packet(self):
-            selected_row = self.table.currentRow()
-
-            # Error message if no packet is selected
-            if selected_row < 0:
-                msg = QMessageBox(self)
-                msg.setIcon(QMessageBox.Warning)
-                msg.setWindowTitle("Warning")
-                msg.setText("Select a packet to delete.")
-                
-                # Setting the style of message box
-                msg.setStyleSheet("""
-                    QMessageBox {
-                        background-color: #f5f5f5;
-                        color: #333;
-                        font-size: 11pt;
-                    }
-                    QPushButton {
-                        background-color: #f39c12;
-                        color: #333;
-                        border: none;
-                        padding: 5px 10px;
-                    }
-                    QPushButton:hover {
-                        background-color: #e67e22;
-                    }
-                """)
-
-                msg.exec_()
+            selected_rows = self.left_top_table.selectionModel().selectedRows()
+            if not selected_rows:
+                QMessageBox.warning(self, "Warning", "Select one or more packets to delete.")
                 return
-
-            # Confirm elimination of the selected packet
-            pkt_id = self.packets[selected_row][0]
-            msgbox = QMessageBox(self)
-            msgbox.setWindowTitle("Confirm")
-            msgbox.setText(f"Sure to delete ID {pkt_id} from database?")
-            msgbox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            
-            # Setting the style of message box
-            msgbox.setStyleSheet("""
-                QMessageBox {
-                    background-color: #f5f5f5;
-                    color: #333;
-                    font-size: 11pt;
-                }
-                QPushButton {
-                    background-color: #f39c12;
-                    color: #333;
-                    border: none;
-                    padding: 5px 10px;
-                }
-                QPushButton:hover {
-                    background-color: #e67e22;
-                }
-            """)
-
-            reply = msgbox.exec_()
-
-            # Deleting the packet if confirmed
+            pkt_ids = [self.packets[row.row()][0] for row in selected_rows]
+            pkt_ids_str = ', '.join(str(pid) for pid in pkt_ids)
+            reply = QMessageBox.question(
+                self,
+                "Confirm",
+                f"Sure to delete IDs {pkt_ids_str} from database?",
+                QMessageBox.Yes | QMessageBox.No
+            )
             if reply == QMessageBox.Yes:
                 conn = sqlite3.connect(DB_PATH)
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM packets WHERE id = ?", (pkt_id,))
+                # Delete from all related tables for each packet id
+                for pid in pkt_ids:
+                    cursor.execute("DELETE FROM LORA_PONG WHERE id = ?", (pid,))
+                    cursor.execute("DELETE FROM ACK WHERE id = ?", (pid,))
+                    cursor.execute("DELETE FROM NACK WHERE id = ?", (pid,))
+                cursor.executemany("DELETE FROM packets WHERE id = ?", [(pid,) for pid in pkt_ids])
                 conn.commit()
                 conn.close()
-
-                # Refresh the left table after elimination
                 self.load_data()
 
     # White theme
