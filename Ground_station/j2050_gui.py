@@ -14,8 +14,8 @@ import hmac
 import hashlib
 import traceback
 
-from database import Jdata as jdb
-from database import GS_task as gt
+from Ground_station.database import Jdata as jdb
+from Ground_station import GS_task as gt
 
 # ========== CONSTANTS AND CONFIGURATION ==========
 
@@ -659,6 +659,7 @@ class MainWindow(QWidget):
 		ter_content_layout = QVBoxLayout()
 		self.ter_content_display = QTextEdit()
 		self.ter_content_display.setReadOnly(True)
+		self.ter_content_display.setFixedHeight(300)  # imposta altezza fissa solo per la sezione dei dettagli TER
 		ter_content_layout.addWidget(self.ter_content_display)
 		ter_content_group.setLayout(ter_content_layout)
 		received_tab_layout.addWidget(ter_content_group)
@@ -1343,69 +1344,89 @@ class MainWindow(QWidget):
 
 		selected_rows = sorted(set(item.row() for item in selected_items))
 
+		# Selecting html style 
+		html = (
+                "<style>"
+                "table { border-collapse: collapse; width: 100%; }"
+                "td, th { border: 1px solid #bbb; padding: 3px 6px; font-size: 9pt; }"
+                "th { background: #f9f9f9; color: #333; font-weight: bold; }"
+                "tr:nth-child(even) { background: #f5f5f5; }"
+                ".label { width: 100px; text-align: right; color: #555; font-weight: bold; font-size: 9pt; }"
+                ".value { text-align: left; color: #222; font-size: 9pt; }"
+                "</style>"
+                "<table width='100%'>"
+            )
+
 		for row in selected_rows:
 			item_label = self.received_ter_table.item(row, 0)
 			item_hex = self.received_ter_table.item(row, 5)
-
 			ter_hex = item_hex.text() if item_hex else "HEX error"
 			ter_label = item_label.text() if item_label else "TER error"
-			self.ter_content_display.append(f"<b>PACKET > {ter_hex}</b>")
-
-			rx_timestamp = self.received_ter_table.item(row, 1)
-
-			if rx_timestamp:
-				rx_time_label = rx_timestamp.text()
-				self.ter_content_display.append(f"RX Time: {rx_time_label}")
-
-			rssi = self.received_ter_table.item(row, 2)
-			snr = self.received_ter_table.item(row, 3)
-			freq_shift = self.received_ter_table.item(row, 4)
-			if rssi and snr and freq_shift:
-				self.ter_content_display.append(f"RSSI: {rssi.text()} dBm")
-				self.ter_content_display.append(f"SNR: {snr.text()} dB")
-				self.ter_content_display.append(f"Frequency Shift: {freq_shift.text()} Hz")
 
 			try:
 				packet_bytes = [int(byte, 16) for byte in ter_hex.split()]
 				ter_decoded = gt.decode_packet(packet_bytes)
+			except Exception as e:
+				self.ter_content_display.append(f"[Error decoding TER: {e}]")
 
-				# Display header information
-				self.ter_content_display.append(f"<b>HEADER > {ter_hex[:PACKET_HEADER_LENGTH * 3]}</b>")
 
-				source_label = next((name for name, code in TX_SOURCES.items() if code == ter_decoded['station_id']), f"Unknown {ter_decoded['station_id']}")
-				self.ter_content_display.append(f"Source: {source_label}")
+			# Adding source and ECC status
+			source_label = next((name for name, code in TX_SOURCES.items() if code == ter_decoded['station_id']), f"Unknown {ter_decoded['station_id']}")
+			ecc_label = "Enabled" if ter_decoded['ecc_enabled'] else "Disabled"
+			html += f'<tr><td class="label" colspan="2">Source</td><td class="value"  colspan="2">{source_label}</td><td class="label" colspan="2">ECC</td><td class="value"  colspan="2">{ecc_label}</td></tr>'
 
-				ecc_label = "Enabled" if ter_decoded['ecc_enabled'] else "Disabled"
-				self.ter_content_display.append(f"ECC: {ecc_label}")
+			# Adding TER and Payload Length
+			html += f'<tr><td class="label" colspan="2">TER</td><td class="value"  colspan="2">{ter_label}</td><td class="label" colspan="2">PL_LEN</td><td class="value"  colspan="2">{ter_decoded["payload_length"]}</td></tr>'
 
-				self.ter_content_display.append(f"TER: {ter_label}")
+			# Adding timestamps
+			rx_timestamp = self.received_ter_table.item(row, 1)
+			tx_timestamp = ter_decoded['timestamp']
 
-				timestamp = ter_decoded['timestamp']
+			if rx_timestamp and rx_timestamp.text():
+				rx_time_label = rx_timestamp.text()
+
 				try:
-					timestamp_label = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+					tx_time_label = datetime.fromtimestamp(tx_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 				except Exception:
-					timestamp_label = str(timestamp)
-				self.ter_content_display.append(f"Timestamp: {timestamp_label}")
+					tx_time_label = str(tx_timestamp)
+			
+				html += f'<tr><td class="label"  colspan="2">GS_time</td><td class="value" colspan="2">{rx_time_label}</td><td class="label"  colspan="2">TX_time</td><td class="value" colspan="2">{tx_time_label}</td></tr>'
 
-				self.ter_content_display.append(f"MAC: {ter_decoded['mac']}")
+			# Adding MAC informations
+			html += f'<tr><td class="label" colspan="2">MAC</td><td class="value" colspan="6">{ter_decoded["mac"]}</td></tr>'
 
-				self.ter_content_display.append(f"Payload Length: {ter_decoded['payload_length']}")
+			# Adding HEX representation
+			html += f'<tr><td class="label" colspan="2">HEX</td><td class="value" colspan="6">{ter_hex}</td></tr>'
+
+			# Adding header informations
+			html += f'<tr><td class="label" colspan="2">HEADER</td><td class="value" colspan="6">{ter_hex[:PACKET_HEADER_LENGTH * 3]}</td></tr>'
+			
+			rssi = self.received_ter_table.item(row, 2)
+			snr = self.received_ter_table.item(row, 3)
+			freq_shift = self.received_ter_table.item(row, 4)
+	
+			if rssi and snr and freq_shift:
+				html += f'<tr><td class="label" colspan="1">RSSI</td><td class="value" colspan="1">{rssi.text()}</td><td class="label" colspan="1">SNR</td><td class="value" colspan="2">{snr.text()}</td><td class="label" colspan="1">DELTAF</td><td class="value" colspan="2">{freq_shift.text()}</td></tr>'
+
+			try:
+				html += f'<tr><td class="label" colspan="8" style="text-align:center;">--- PAYLOAD DECODING ---</td></tr>'
+				packet_bytes = [int(byte, 16) for byte in ter_hex.split()]
+				ter_decoded = gt.decode_packet(packet_bytes)
 
 				# Display payload information
-				self.ter_content_display.append(f"<b>PAYLOAD > {ter_hex[PACKET_HEADER_LENGTH * 3:]}</b>")
+				html += f'<tr><td class="label" colspan="2">PAYLOAD</td><td class="value" colspan="6">{ter_hex[PACKET_HEADER_LENGTH * 3:]}</td></tr>'
 				ter = ter_decoded['ter']
 				payload_bytes = ter_decoded['payload_bytes']
 
+				# Display TER-specific payload decoding
 				if ter == TER_BEACON:
-					self.ter_content_display.append("Type: Beacon")
-					# Optionally decode payload if known
+					html += f'<tr><td class="label" colspan="2">TYPE</td><td class="label" colspan="6">Beacon</td></tr>'
 
 				elif ter == TER_ACK:
 					if payload_bytes:
 						tec_executed = payload_bytes[0]
 						tec_executed_label = get_task_label(TEC_TASKS, tec_executed)
-
-						self.ter_content_display.append(f"TEC executed: {tec_executed_label}")
+						html += f'<tr><td class="label" colspan="2">TEC executed</td><td class="label" colspan="6">{tec_executed_label}</td></tr>'
 
 				elif ter == TER_NACK:
 					if len(payload_bytes) == 2:
@@ -1413,11 +1434,11 @@ class MainWindow(QWidget):
 						error_code = int.from_bytes([payload_bytes[1]], byteorder='big', signed=True)
 						error_msg = PACKET_ERR_DESCRIPTION.get(error_code, f"Unknown error code: {error_code}")
 
-						self.ter_content_display.append(f"TEC not executed: {tec_requested:02X}")
-						self.ter_content_display.append(f"Error: {error_msg}")
+						html += f'<tr><td class="label" colspan="2">TEC not executed</td><td class="label" colspan="6">{tec_requested:02X}</td></tr>'
+						html += f'<tr><td class="label" colspan="2">Error</td><td class="label" colspan="6">{error_msg}</td></tr>'
 
 					else:
-						self.ter_content_display.append("Malformed NACK payload")
+						html += f'<tr><td class="label" colspan="2">Error</td><td class="label" colspan="6">Malformed NACK payload</td></tr>'
 
 				elif ter == TER_LORA_PING:
 					rssi_bytes = bytes(payload_bytes[0:4])
@@ -1427,15 +1448,14 @@ class MainWindow(QWidget):
 					freq_shift_bytes = bytes(payload_bytes[8:12])
 					freq_shift = struct.unpack(">f", freq_shift_bytes)[0]
 
-
-					self.ter_content_display.append(f"RSSI: {rssi:.2f} dBm")
-					self.ter_content_display.append(f"SNR: {snr:.2f} dB")
-					self.ter_content_display.append(f"Frequency Shift: {freq_shift:.2f} Hz")
+					html += f'<tr><td class="label" colspan="1">RSSI</td><td class="value" colspan="1">{rssi:.2f} dBm</td><td class="label" colspan="1">SNR</td><td class="value" colspan="2">{snr:.2f} dB</td><td class="label" colspan="1">DELTAF</td><td class="value" colspan="2">{freq_shift:.2f} Hz</td></tr>'
 
 				else:
-					self.ter_content_display.append("Type: Unknown or not handled")
+					html += f'<tr><td class="label" colspan="2">Type</td><td class="label" colspan="6">Unknown or not handled</td></tr>'
 			except Exception as e:
-				self.ter_content_display.append(f"[Error decoding TER: {e}]")
+				html += f'<tr><td class="label" colspan="2">Error decoding TER</td><td class="label" colspan="6">{e}</td></tr>'
+
+			self.ter_content_display.setHtml(html)
 
 			self.ter_content_display.append("<br>")
 

@@ -3,5 +3,8 @@
     "C_Cpp.default.compilerPath": "",
     "files.associations": {
         "rs.c": "cpp"
-    }
+    },
+    "python.analysis.extraPaths": [
+        "./Ground station/database"
+    ]
 }
