@@ -454,6 +454,7 @@ class MainWindow(QWidget):
 		self.last_tec_status.setAlignment(Qt.AlignCenter)
 		self.last_tec_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
 
+
 		self.last_tec_status_description = QLabel("")
 
 		self.sent_tec_table = QTableWidget()

@@ -497,31 +497,36 @@ def decode_packet(packet_bytes):
 		"payload_bytes": payload_bytes  # always a list of ints
 	}
 
+# ============= CONVERSION FUNCTIONS ============= 
+
 # Functions to get labels of TER and TEC codes
-def get_ter_tec_label(code, is_ter):
-	"""Get the label for a given TER or TEC code: code - is_ter = true for TER, false for TEC"""
-	if is_ter:
-		for label, val in TER_TASKS.items():
-			if int(val) == code:
-				return label
-	else:
-		for label, val in TEC_TASKS.items():
-			if int(val) == code:
-				return label
+def get_ter_tec_label(code):
+	"""Get the label for a given TER or TEC code"""
+
+	# search in TER tasks first
+	for label, val in TER_TASKS.items():
+		if int(val) == code:
+			return label
+		
+	# then search in TEC tasks
+	for label, val in TEC_TASKS.items():
+		if int(val) == code:
+			return label
 	return f"Unknown ({code})"
 
 # Functions to get IDs of TER and TEC labels
-def get_ter_tec_id(tec_label, is_ter):
-	"""Get the ID for a given TEC label: tec_label, is_ter = true for TER, false for TEC"""
+def get_ter_tec_id(tec_label):
+	"""Get the ID for a given TEC or TER label"""
 
-	if is_ter:
-		for label, val in TER_TASKS.items():
-			if label == tec_label:
-				return int(val)
-	else:
-		for label, val in TEC_TASKS.items():
-			if label == tec_label:
-				return int(val)
+	# search in TER tasks first
+	for label, val in TER_TASKS.items():
+		if label == tec_label:
+			return int(val)
+	
+	# then search in TEC tasks
+	for label, val in TEC_TASKS.items():
+		if label == tec_label:
+			return int(val)
 
 	return f"Unknown ({tec_label})"
 

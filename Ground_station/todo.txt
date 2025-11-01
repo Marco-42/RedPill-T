@@ -10,6 +10,8 @@ Next:
 - check packet splitting (split_payload_if_needed) ✅
 - add checking obtions in database initialization ✅
 - check timestamp in data saving(gui) ✅
+- check the "populate" functions in DB GUI 
+- check if lora ping TEC has to be change to lora pong
 
 Notes: 
 - TX_SOURCES:

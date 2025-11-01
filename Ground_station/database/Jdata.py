@@ -23,7 +23,8 @@ TER_ACK = 0x31 # ACK reply
 TER_NACK = 0x32 # NACK reply
 TER_LORA_PONG = 0x33 # LoRa pong state reply
 
-#DATABASE FUNCTIONS 
+# ============ DATABASE INITIALIZATION ============
+
 # Database initialization and packet definition
 def database_initialization(path=DB_PATH):
     """Initialize the SQLite database and create the packets table if it doesn't exist."""
@@ -329,6 +330,8 @@ def manual_access_function(parent):
 
     dialog.exec_()
 
+# ============ DATABASE OPERATIONS ============
+
 # Saving function (save packet in database)
 def save_packet(conn, GS_time, HEX_str, rssi_str, snr_str, deltaf_str, comment = ""):
     """conn, GS_time, HEX, rssi, snr, deltaf, comment [conn is the database definition --> use init_db()]"""
@@ -430,6 +433,8 @@ def export_tables_to_excel(conn, excel_path="packets_export.xlsx"):
                 df.to_excel(writer, sheet_name=table, index=False)
             except Exception as e:
                 print(f"[ERROR] Impossible to export {table}: {e}")
+
+# ============ DATABASE GUI ============
 
 # Create the GUI for database visualization
 def open_database():
@@ -540,7 +545,7 @@ def open_database():
             self.left_top_table.setHorizontalHeaderLabels(["ID", "Type", "Gs ID", "Date", "Comment"])
             self.left_top_table.verticalHeader().setVisible(False)
             self.left_top_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-            self.left_top_table.setSelectionMode(QAbstractItemView.MultiSelection)
+            self.left_top_table.setSelectionMode(QAbstractItemView.SingleSelection)
             self.left_top_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
             self.left_top_table.cellClicked.connect(self.on_left_table_select)
 
@@ -631,6 +636,9 @@ def open_database():
 
             self.load_data()
 
+        # ============ DATABASE GUI FUNCTIONS ============
+
+        # Function to load packets from DB applying search/date filters
         def load_data(self):
             """Load packets from DB applying search/date filters and populate left_top_table and last packet."""
             conn = sqlite3.connect(DB_PATH)
@@ -663,7 +671,7 @@ def open_database():
                 pass
             if s_type and s_type != "All Types":
                 query += " AND tec_ter = ?"
-                params.append(gt.get_ter_tec_id(s_type, True))
+                params.append(gt.get_ter_tec_id(s_type))
 
             query += " ORDER BY GS_time DESC"
             cursor.execute(query, params)
@@ -703,7 +711,7 @@ def open_database():
                 for r in rows:
                     val = str(r[0])
                     if val not in [self.type_combo.itemText(i) for i in range(self.type_combo.count())]:
-                        self.type_combo.addItem(gt.get_ter_tec_label(r[0], True))
+                        self.type_combo.addItem(gt.get_ter_tec_label(r[0]))
                 conn.close()
             except Exception:
                 # ignore if DB not accessible at populate time
@@ -724,7 +732,8 @@ def open_database():
             except Exception:
                 # ignore if DB not accessible at populate time
                 pass
-
+        
+        # Function to show information about the last saved packet
         def show_last_packet(self, pkt):
             # pkt is a row from packets SELECT
             hex_blob = pkt[2]
@@ -732,6 +741,12 @@ def open_database():
                 hex_preview = ' '.join(f"{b:02X}" for b in hex_blob[:32])
             else:
                 hex_preview = str(hex_blob)[:256]
+
+            # Extract informatin about ECC
+            if pkt[4] == 1:
+                ecc_info = "Enabled"
+            else:
+                ecc_info = "Disabled"
 
             html = (
                 "<style>"
@@ -744,8 +759,9 @@ def open_database():
                 "</style>"
                 "<table width='100%'>"
             )
-            html += f'<tr><td class="label">ID</td><td class="value">{pkt[0]}</td><td class="label">Source</td><td class="value">{pkt[3]}</td></tr>'
-            html += f'<tr><td class="label">ECC</td><td class="value">{pkt[4]}</td><td class="label">TEC_TER</td><td class="value">{pkt[5]}</td></tr>'
+
+            html += f'<tr><td class="label">ID</td><td class="value">{pkt[0]}</td><td class="label">Source</td><td class="value">{gt.get_gs_label(pkt[3])}</td></tr>'
+            html += f'<tr><td class="label">ECC</td><td class="value">{ecc_info}</td><td class="label">TEC_TER</td><td class="value">{gt.get_ter_tec_label(pkt[5])}</td></tr>'
             html += f'<tr><td class="label">PL_LEN</td><td class="value" colspan="3">{pkt[6]}</td></tr>'
             html += f'<tr><td class="label">GS_time</td><td class="value" colspan="3">{pkt[1]}</td></tr>'
             html += f'<tr><td class="label">TX_time</td><td class="value" colspan="3">{pkt[7]}</td></tr>'
@@ -758,14 +774,18 @@ def open_database():
             html += "</table>"
             self.last_packet_text.setHtml(html)
 
+        # Function to handle selection of a packet in the left table
         def on_left_table_select(self, row, col):
+
             # Called when a packet row is selected in left_top_table
             if row < 0 or row >= len(self.packets):
                 return
             pkt = self.packets[row]
             self.show_packet_details(pkt)
 
+        # Function to show detailed packet information in the right top section
         def show_packet_details(self, pkt):
+
             # pkt is a tuple from SELECT
             # Show details in right_top_group as a two-column HTML table
             hex_blob = pkt[2]
@@ -774,6 +794,11 @@ def open_database():
             else:
                 hex_preview = str(hex_blob)[:256]
 
+            # Extract informatin about ECC
+            if pkt[4] == 1:
+                ecc_info = "Enabled"
+            else:
+                ecc_info = "Disabled"
 
             # Compact layout: font 8pt, minimal padding, RSSI/SNR/DELTAF on one row
             html = (
@@ -789,8 +814,8 @@ def open_database():
             )
 
             # ID, Source, ECC, TEC_TER, PL_LEN in two columns
-            html += f'<tr><td class="label">ID</td><td class="value">{pkt[0]}</td><td class="label">Source</td><td class="value">{pkt[3]}</td></tr>'
-            html += f'<tr><td class="label">ECC</td><td class="value">{pkt[4]}</td><td class="label">TEC_TER</td><td class="value">{pkt[5]}</td></tr>'
+            html += f'<tr><td class="label">ID</td><td class="value">{pkt[0]}</td><td class="label">Source</td><td class="value">{gt.get_gs_label(pkt[3])}</td></tr>'
+            html += f'<tr><td class="label">ECC</td><td class="value">{ecc_info}</td><td class="label">TEC_TER</td><td class="value">{gt.get_ter_tec_label(pkt[5])}</td></tr>'
             html += f'<tr><td class="label">PL_LEN</td><td class="value" colspan="3">{pkt[6]}</td></tr>'
 
             # GS_time, TX_time, MAC each on their own row (full width)
@@ -815,6 +840,7 @@ def open_database():
             # Load related tables
             self.load_related_tables(pkt[0], pkt[5])
 
+        # Function to load related tables (LORA_PONG, ACK, NACK) for the selected packet
         def load_related_tables(self, pkt_id, tec_ter):
             # Clear related_table
             self.related_table.setRowCount(0)
@@ -825,9 +851,7 @@ def open_database():
             except Exception:
                 code = tec_ter
             # Try both TER and TEC
-            label = gt.get_ter_tec_label(code, True)
-            if not label or label == str(code):
-                label = gt.get_ter_tec_label(code, False)
+            label = gt.get_ter_tec_label(code)
             self.related_table.insertRow(0)
             self.related_table.setItem(0, 0, QTableWidgetItem("Packet Type"))
             self.related_table.setItem(0, 1, QTableWidgetItem(label))
@@ -883,10 +907,57 @@ def open_database():
 
             conn.close()
 
+        # Function to delete selected packets from the database
         def delete_selected_packet(self):
+            # Temporarily enable multi-selection for deletion
+            self.left_top_table.setSelectionMode(QAbstractItemView.MultiSelection)
+
+            # Hide EXPORT TO EXCEL during multi-selection
+            self.export_btn.setVisible(False)
+
+            # Remove if already present
+            btn_row = self.right_top_group.layout().itemAt(1)
+            if btn_row and isinstance(btn_row, QHBoxLayout):
+                btn_row = btn_row
+            else:
+                # fallback: search for QHBoxLayout
+                for i in range(self.right_top_group.layout().count()):
+                    item = self.right_top_group.layout().itemAt(i)
+                    if isinstance(item, QHBoxLayout):
+                        btn_row = item
+                        break
+            # Remove buttons/label if present
+            if hasattr(self, 'cancel_delete_btn'):
+                btn_row.removeWidget(self.cancel_delete_btn)
+                self.cancel_delete_btn.deleteLater()
+                del self.cancel_delete_btn
+            if hasattr(self, 'select_packets_label'):
+                btn_row.removeWidget(self.select_packets_label)
+                self.select_packets_label.deleteLater()
+                del self.select_packets_label
+            btn_row.removeWidget(self.delete_btn)
+
+            # Add label to select packets
+            self.select_packets_label = QLabel("Selection mode: ")
+            self.select_packets_label.setStyleSheet("color: #d35400; font-weight: bold; margin-left: 12px;")
+            btn_row.addWidget(self.select_packets_label)
+
+            # Change button to confirm/cancel
+            self.delete_btn.setText("CONFIRM DELETE")
+            self.delete_btn.clicked.disconnect()
+            self.delete_btn.clicked.connect(self.confirm_delete_packets)
+            btn_row.addWidget(self.delete_btn)
+
+            # Add CANCEL button
+            self.cancel_delete_btn = QPushButton("CANCEL")
+            self.cancel_delete_btn.clicked.connect(self.cancel_delete_packets)
+            btn_row.addWidget(self.cancel_delete_btn)
+
+        # Function to confirm deletion of selected packets
+        def confirm_delete_packets(self):
             selected_rows = self.left_top_table.selectionModel().selectedRows()
             if not selected_rows:
-                QMessageBox.warning(self, "Warning", "Select one or more packets to delete.")
+                # Just do nothing if none selected
                 return
             pkt_ids = [self.packets[row.row()][0] for row in selected_rows]
             pkt_ids_str = ', '.join(str(pid) for pid in pkt_ids)
@@ -908,6 +979,67 @@ def open_database():
                 conn.commit()
                 conn.close()
                 self.load_data()
+
+            # Restore EXPORT TO EXCEL after the selection
+            self.export_btn.setVisible(True)
+
+            self.left_top_table.setSelectionMode(QAbstractItemView.SingleSelection)
+
+            # Restore DELETE PACKET to btn_row and remove CANCEL/label
+            btn_row = self.right_top_group.layout().itemAt(1)
+            if btn_row and isinstance(btn_row, QHBoxLayout):
+                btn_row = btn_row
+            else:
+                for i in range(self.right_top_group.layout().count()):
+                    item = self.right_top_group.layout().itemAt(i)
+                    if isinstance(item, QHBoxLayout):
+                        btn_row = item
+                        break
+            btn_row.removeWidget(self.delete_btn)
+            self.delete_btn.setText("DELETE PACKET")
+            self.delete_btn.clicked.disconnect()
+            self.delete_btn.clicked.connect(self.delete_selected_packet)
+            btn_row.addWidget(self.delete_btn)
+            if hasattr(self, 'cancel_delete_btn'):
+                btn_row.removeWidget(self.cancel_delete_btn)
+                self.cancel_delete_btn.deleteLater()
+                del self.cancel_delete_btn
+            if hasattr(self, 'select_packets_label'):
+                btn_row.removeWidget(self.select_packets_label)
+                self.select_packets_label.deleteLater()
+                del self.select_packets_label
+
+        # Function to cancel deletion of packets
+        def cancel_delete_packets(self):
+            # Restore EXPORT TO EXCEL after the multi-selection
+            self.export_btn.setVisible(True)
+            self.left_top_table.setSelectionMode(QAbstractItemView.SingleSelection)
+
+            # Restore DELETE PACKET to btn_row and remove CANCEL/label
+            btn_row = self.right_top_group.layout().itemAt(1)
+            if btn_row and isinstance(btn_row, QHBoxLayout):
+                btn_row = btn_row
+            else:
+                for i in range(self.right_top_group.layout().count()):
+                    item = self.right_top_group.layout().itemAt(i)
+                    if isinstance(item, QHBoxLayout):
+                        btn_row = item
+                        break
+
+            # Button definition for packet elimination
+            btn_row.removeWidget(self.delete_btn)
+            self.delete_btn.setText("DELETE PACKET")
+            self.delete_btn.clicked.disconnect()
+            self.delete_btn.clicked.connect(self.delete_selected_packet)
+            btn_row.addWidget(self.delete_btn)
+            if hasattr(self, 'cancel_delete_btn'):
+                btn_row.removeWidget(self.cancel_delete_btn)
+                self.cancel_delete_btn.deleteLater()
+                del self.cancel_delete_btn
+            if hasattr(self, 'select_packets_label'):
+                btn_row.removeWidget(self.select_packets_label)
+                self.select_packets_label.deleteLater()
+                del self.select_packets_label
 
     # White theme
     light_palette = QPalette()
