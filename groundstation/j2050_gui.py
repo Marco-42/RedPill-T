@@ -14,8 +14,8 @@ import hmac
 import hashlib
 import traceback
 
-from Ground_station.database import Jdata as jdb
-from Ground_station import GS_task as gt
+from .database import Jdata as jdb
+from . import GS_task as gt
 
 # ========== CONSTANTS AND CONFIGURATION ==========
 
@@ -25,7 +25,7 @@ RX_TIMEOUT = 5  # seconds to wait for a reply after sending a TEC
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 PACKET_PAYLOAD_MAX = 98  # maximum payload length in bytes
 
-# MAC configuration
+# MAC configuration		
 SECRET_KEY = 0xA1B2C3D4
 
 # Fixed bytes configuration

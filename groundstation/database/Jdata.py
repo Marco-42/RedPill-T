@@ -9,9 +9,9 @@ import struct
 
 # Tasks for packet management
 # Uncomment this line if the database is run from GUI
-from Ground_station import GS_task as gt
+from groundstation import GS_task as gt
 
-DB_PATH = "./Ground_station/database/SatelliteDB.db"
+DB_PATH = "./groundstation/database/SatelliteDB.db"
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 BYTE_RS_ON = 0xAA
 import pandas as pd

@@ -1,0 +1,1 @@
+python -m groundstation.j2050_gui
