@@ -335,6 +335,18 @@ else:
     max_rssi_lora = 0
     max_rssi_lora_std = 0
 
+# Uncomment to use RSSI at 0 degrees as reference
+# for i in range(len(angle)):
+#     if angle[i] == 0:
+#         max_rssi = rssi_mean[i]
+#         max_rssi_std = rssi_std[i]
+#         max_rssi_lora = rssi_lora_mean[i]
+#         max_rssi_lora_std = rssi_lora_std[i]
+#         print(f"RSSI GS 0: {rssi_mean[i]:.1f} +- {rssi_std[i]:.1f}")
+#         print(f"RSSI PICO 0: {rssi_lora_mean[i]:.1f} +- {rssi_lora_std[i]:.1f}")
+#         print(f"SNR GS 0: {snr_mean[i]:.1f} +- {snr_std[i]:.1f}")
+#         print(f"SNR PICO 0: {snr_lora_mean[i]:.1f} +- {snr_lora_std[i]:.1f}")
+        
 # compute losses and propagate uncertainties
 RSSI_loss = rssi_mean - max_rssi
 RSSI_loss_std = np.sqrt(rssi_std**2 + max_rssi_std**2)
@@ -373,7 +385,7 @@ fig.suptitle("RSSI DATA", fontsize=14, fontweight = 2)
 ax.errorbar(angle,rssi_mean,xerr = Sangle, yerr = rssi_std, fmt='o', label=r'RSSI data [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
 ax.errorbar(angle, rssi_lora_mean, xerr = Sangle, yerr = rssi_lora_std, fmt='o', label=r'RSSI data [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
 #ax.errorbar(np.linspace(min(angle_fit), max(angle_fit), 100), fitf(params, np.linspace(min(angle_fit), max(angle_fit), 100)), yerr=None, fmt='-', label='Parabolic Fit [GS]', color='darkred', zorder=3, lw=1.5)
-ax.axvline(x=zero_angle[0], color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
 ax.set_ylabel(r'$RSSI \, [dbm]$', size = 13)
 ax.set_xlabel(r'Angle', size = 13)
 ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
@@ -397,7 +409,7 @@ fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
 fig.suptitle("SNR DATA", fontsize=14, fontweight = 2)
 ax.errorbar(angle,snr_mean,xerr = Sangle, yerr = snr_std, fmt='o', label=r'SNR data [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
 ax.errorbar(angle_lora, snr_lora_mean, xerr = Sangle, yerr = snr_lora_std, fmt='o', label=r'SNR data [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
-ax.axvline(x=zero_angle[0], color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
 ax.set_ylabel(r'$SNR \, [db]$', size = 13)
 ax.set_xlabel(r'Angle', size = 13)
 ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
@@ -421,9 +433,9 @@ fig, ax = plt.subplots(1, 1 , figsize=(6, 6),sharex=True)
 fig.suptitle("DELTAF DATA", fontsize=14, fontweight = 2)
 ax.errorbar(angle,deltaf_mean,xerr = Sangle, yerr = deltaf_std, fmt='o', label=r'ΔF data [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
 ax.errorbar(angle_lora, deltaf_lora_mean, xerr = Sangle, yerr = deltaf_lora_std, fmt='o', label=r'ΔF data [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
-ax.axvline(x=zero_angle[0], color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
 ax.errorbar(angle, DELTAF_sum, xerr = Sangle, yerr = DELTAF_sum_std, fmt='o', label=r'ΔF Sum',ms=3,color='darkorange', zorder = 3, lw = 1.5)
-ax.text(-85, 500, rf'$\bar{{\Delta F}}$: {DELTAF_sum_weighted_mean:.0f} ± {DELTAF_sum_weighted_std:.0f} Hz', fontsize=13)
+#ax.text(-85, 500, rf'$\bar{{\Delta F}}$: {DELTAF_sum_weighted_mean:.0f} ± {DELTAF_sum_weighted_std:.0f} Hz', fontsize=13)
 ax.set_ylabel(r'$\Delta F \, [Hz]$', size = 13)
 ax.set_xlabel(r'Angle', size = 13)
 ax.legend(prop={'size': 13}, loc='upper left', frameon=False).set_zorder(2)
@@ -443,10 +455,11 @@ fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
 fig.suptitle("RSSI LOSS DATA", fontsize=14, fontweight = 2)
 ax.errorbar(angle,RSSI_loss,xerr = Sangle, yerr = RSSI_loss_std, fmt='o', label=r'RSSI loss [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
 ax.errorbar(angle, RSSI_lora_loss, xerr = Sangle, yerr = RSSI_lora_loss_std, fmt='o', label=r'RSSI loss [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
-ax.axvline(x=zero_angle[0], color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
-ax.set_ylabel(r'$RSSI \, [dbm]$', size = 13)
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.axhline(y = 0, color = 'darkorange', linestyle = '--', linewidth=1.5, label = 'No Loss Reference')
+ax.set_ylabel(r'$\Delta \, RSSI \, [dbm]$', size = 13)
 ax.set_xlabel(r'Angle', size = 13)
-ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+ax.legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
 # ax[1].errorbar(angle, RSSI_loss_diff, yerr=RSSI_loss_diff_std, fmt='o', ms=3, color='darkorange', zorder=3, lw=1.5)
 # ax[1].legend([r'RSSI loss Difference [GS - PICO]'], prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 # ax[1].set_ylabel(r'$RSSI \, [dbm]$', size = 13)
@@ -468,8 +481,8 @@ fig, ax = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
 fig.suptitle("RSSI LOSS DATA", fontsize=14, fontweight = 2)
 ax[0].errorbar(angle,RSSI_loss,xerr = Sangle, yerr = RSSI_loss_std, fmt='o', label=r'RSSI loss [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
 ax[0].errorbar(angle, RSSI_lora_loss, xerr = Sangle, yerr = RSSI_lora_loss_std, fmt='o', label=r'RSSI loss [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
-ax[0].axvline(x=zero_angle[0], color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
-ax[0].set_ylabel(r'$RSSI \, [dbm]$', size = 13)
+ax[0].axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax[0].set_ylabel(r'$\Delta \, RSSI \, [dbm]$', size = 13)
 ax[1].set_xlabel(r'Angle', size = 13)
 ax[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 # ax[1].errorbar(angle, RSSI_loss_diff, yerr=RSSI_loss_diff_std, fmt='o', ms=3, color='darkorange', zorder=3, lw=1.5)
@@ -512,4 +525,36 @@ ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
 ax.set_ylim([0, 11])
 ax.axhline(y=5.5, color='dimgray', linestyle='--', linewidth=1.5)
 ax.text(40, 6, 'Outliers', fontsize=13, color='black')
+
+
+# ============= POLAR PLOTTING =============
+fig, ax = plt.subplots(1, 1, figsize=(6, 6), subplot_kw={'projection': 'polar'}, layout='constrained')
+
+fig.suptitle("RSSI LOSS POLAR PLOT", fontsize=14, fontweight=2, y=0.92)
+# ax.errorbar(np.radians(angle), RSSI_loss, xerr = np.radians(Sangle), yerr = rssi_std, fmt='o', label=r'RSSI data [GS]',ms=5,color='firebrick', zorder = 2, lw = 1.5)
+# ax.errorbar(np.radians(angle), RSSI_lora_loss, xerr = np.radians(Sangle), yerr = rssi_lora_std, fmt='o', label=r'RSSI data [PICO]',ms=5,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.plot(np.radians(angle), RSSI_loss, 'o', label=r'RSSI loss [GS]', lw = 2,  ms=5, color='firebrick', zorder=2)
+ax.plot(np.radians(angle), RSSI_lora_loss, 'o', label=r'RSSI loss [PICO]', lw = 2,  ms=5, color='dodgerblue', zorder=1)
+from scipy.interpolate import interp1d
+
+# RSSI loss curbic interpolation for smoother lines
+angles_dense = np.linspace(min(angle), max(angle), 300)
+f_rssi = interp1d(angle, RSSI_loss, kind='cubic')
+RSSI_loss_smooth = f_rssi(angles_dense)
+f_rssi_lora = interp1d(angle, RSSI_lora_loss, kind='cubic')
+RSSI_lora_loss_smooth = f_rssi_lora(angles_dense)
+
+# Plotting smooth lines
+ax.plot(np.radians(angles_dense), RSSI_loss_smooth, '-', lw=1.5, alpha = 0.3, color='firebrick', zorder=2)
+ax.plot(np.radians(angles_dense), RSSI_lora_loss_smooth, '-', lw=1.5,  alpha = 0.3, color='dodgerblue', zorder=1)
+
+ax.set_theta_zero_location('N') # 0 degrees at the top
+ax.set_thetalim(-np.radians(-110),np.radians(-110)) # limit angle from -110 to 100
+
+# Setting tics position in the graph
+ax.tick_params(axis='y', pad=5, labelsize=10)  # pad in punti
+
+label_position = ax.get_rlabel_position()
+ax.text(np.radians(120), ax.get_rmax()/3., r'$\Delta \, RSSI \, [dbm]$', rotation=label_position, ha='center', va='center', fontsize=12)
+ax.legend(prop={'size': 13}, loc='lower right', frameon=False).set_zorder(2)
 plt.show()
