@@ -31,25 +31,24 @@ extern "C"
 // LORA CONFIGURATION
 // ---------------------------------
 
-// SX1278 LoRa module pins
-#define CS_PIN 18
-#define DIO0_PIN 26
-#define RESET_PIN 23
-#define DIO1_PIN 33
+// SX1268 LoRa module pins
+#define LORA_CS 17
+#define LORA_RST 32
+#define LORA_DIO1 35
+#define LORA_BUSY 33
 
-// SX1278 LoRa module configuration
+// SX1268 LoRa module configuration
 #define F 436.0 // frequency [MHz]
 #define BW 125.0 // bandwidth [kHz]
 #define SF 10 // spreading factor
 #define CR 5 // coding rate
-#define SYNC_WORD 0x12 // standard for private communications
-#define OUTPUT_POWER 10 // 10 dBm is set for testing phase (ideal value to use: 22 dBm)
+#define OUTPUT_POWER 1 //  1 -> 18.9 dBm, see datasheet for corresponding values
 #define PREAMBLE_LENGTH 8 // standard
-#define GAIN 1 // set automatic gain control
+#define TCXO_V 0 // no TCXO present in LoRa1268F30 module
+#define USE_LDO false // external DC-DC in LoRa1268F30 module
 
 // Define LoRa module
-extern SX1278 radio;
-
+extern SX1268 radio;
 
 // ---------------------------------
 // COMMS STATE MACHINE FUNCTION
