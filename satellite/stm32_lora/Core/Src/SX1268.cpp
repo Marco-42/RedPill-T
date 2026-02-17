@@ -1,279 +1,416 @@
-/*
- * SX1268.cpp
- *
- *  Created on: 16 feb 2026
- *      Author: aless
+/**
+ * @file    SX1268.cpp
+ * @brief   SX1268 Driver Implementation (RadioLib Compatible API)
  */
 
-
-/* Core/Src/SX1268.cpp */
 #include "SX1268.h"
-#include <string.h> // Per memcpy
-#include <stdio.h>
 
-// Costruttore
+// Costruttore Vuoto
+SX1268::SX1268() {
+    memset(&_pins, 0, sizeof(_pins));
+}
+
+// Costruttore Completo (usato in app.cpp)
 SX1268::SX1268(SPI_HandleTypeDef* hspi,
        GPIO_TypeDef* csPort, uint16_t csPin,
        GPIO_TypeDef* busyPort, uint16_t busyPin,
        GPIO_TypeDef* resetPort, uint16_t resetPin,
        GPIO_TypeDef* dio1Port, uint16_t dio1Pin)
 {
-    _hspi = hspi;
-    _csPort = csPort; _csPin = csPin;
-    _busyPort = busyPort; _busyPin = busyPin;
-    _resetPort = resetPort; _resetPin = resetPin;
-    _dio1Port = dio1Port; _dio1Pin = dio1Pin;
+    _pins.hspi = hspi;
+    _pins.nssPort = csPort; _pins.nssPin = csPin;
+    _pins.busyPort = busyPort; _pins.busyPin = busyPin;
+    _pins.resetPort = resetPort; _pins.resetPin = resetPin;
+    _pins.dio1Port = dio1Port; _pins.dio1Pin = dio1Pin;
 }
 
-// Low Level: Attesa del pin BUSY
-void SX1268::WaitForBusy() {
-    uint32_t start = HAL_GetTick();
-    while(HAL_GPIO_ReadPin(_busyPort, _busyPin) == GPIO_PIN_SET) {
-        if(HAL_GetTick() - start > 1000) {
-            printf("[SX1268] BUSY TIMEOUT!\r\n");
-            break;
-        }
-        // Piccola attesa per non saturare il bus
-        // osDelay(1) non si può usare dentro sezioni critiche o interrupt, quindi loop vuoto
-    }
-}
+// ==========================================
+// PUBLIC API (RADIOLIB STYLE)
+// ==========================================
 
-// Low Level: Scrittura Comando SPI
-void SX1268::WriteCommand(uint8_t opcode, uint8_t* params, uint8_t paramsLen) {
-    WaitForBusy();
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(_hspi, &opcode, 1, 100);
-    if(paramsLen > 0) {
-        HAL_SPI_Transmit(_hspi, params, paramsLen, 100);
-    }
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_SET);
-    WaitForBusy();
-}
-
-// Low Level: Lettura Comando SPI
-void SX1268::ReadCommand(uint8_t opcode, uint8_t* status, uint8_t* buffer, uint8_t bufferLen) {
-    WaitForBusy();
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_RESET);
-    HAL_SPI_Transmit(_hspi, &opcode, 1, 100);
-    uint8_t nop = 0x00;
-    HAL_SPI_TransmitReceive(_hspi, &nop, status, 1, 100); // Legge lo status
-    if(bufferLen > 0) {
-        HAL_SPI_Receive(_hspi, buffer, bufferLen, 100);
-    }
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_SET);
-    WaitForBusy();
-}
-
-void SX1268::WriteBuffer(uint8_t offset, uint8_t* data, uint8_t length) {
-    uint8_t buf[2] = {offset};
-    WriteCommand(SX126X_CMD_WRITE_BUFFER, buf, 1); // Setup offset
-    // Nota: WriteBuffer richiede di tenere CS basso e continuare a scrivere
-    // La mia WriteCommand alza CS, quindi implementazione specifica qui sotto:
-
-    WaitForBusy();
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_RESET);
-    uint8_t opcode = SX126X_CMD_WRITE_BUFFER;
-    HAL_SPI_Transmit(_hspi, &opcode, 1, 100);
-    HAL_SPI_Transmit(_hspi, &offset, 1, 100);
-    HAL_SPI_Transmit(_hspi, data, length, 100);
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_SET);
-    WaitForBusy();
-}
-
-void SX1268::ReadBuffer(uint8_t offset, uint8_t* data, uint8_t length) {
-    WaitForBusy();
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_RESET);
-    uint8_t opcode = SX126X_CMD_READ_BUFFER;
-    HAL_SPI_Transmit(_hspi, &opcode, 1, 100);
-    HAL_SPI_Transmit(_hspi, &offset, 1, 100);
-    uint8_t nop = 0x00;
-    HAL_SPI_Transmit(_hspi, &nop, 1, 100); // NOP durante la lettura status (SX126x quirk)
-    HAL_SPI_Receive(_hspi, data, length, 100);
-    HAL_GPIO_WritePin(_csPort, _csPin, GPIO_PIN_SET);
-    WaitForBusy();
-}
-
-void SX1268::SetStandby(uint8_t mode) {
-    WriteCommand(SX126X_CMD_SET_STANDBY, &mode, 1);
-}
-
-// Inizializzazione (Sostituisce radio.begin)
-int16_t SX1268::begin(float freq, float bw, uint8_t sf, uint8_t cr, uint8_t syncWord, int8_t power, uint16_t preambleLength, float tcxoVoltage, bool useRegulatorLDO) {
+int16_t SX1268::begin(float freq, float bw, uint8_t sf, uint8_t cr, uint16_t syncWord, int8_t power, uint16_t preambleLength, float tcxoVoltage, bool useRegulatorLDO) {
     // 1. Reset Hardware
-    HAL_GPIO_WritePin(_resetPort, _resetPin, GPIO_PIN_RESET);
-    osDelay(50);
-    HAL_GPIO_WritePin(_resetPort, _resetPin, GPIO_PIN_SET);
-    osDelay(50);
+    hwReset();
 
-    WaitForBusy();
-    SetStandby(0x00); // STDBY_RC
+    // 2. Wait for BUSY (Critical check)
+    if (waitBusy(1500) != 0) return RADIOLIB_ERR_CHIP_NOT_FOUND;
 
-    // 2. Set Packet Type: LoRa (0x01)
+    // 3. Standby RC
+    setStandby(0x00); // RC Mode
+    if (waitBusy() != 0) return RADIOLIB_ERR_CHIP_NOT_FOUND;
+
+    // 4. TCXO Config
+    if (tcxoVoltage > 0.0f) {
+        _useTCXO = true;
+        // Map voltage (1.6V=0 ... 3.3V=7)
+        if (tcxoVoltage < 1.7f) _tcxoVoltage = 0x00; // 1.6V
+        else if (tcxoVoltage < 2.0f) _tcxoVoltage = 0x02; // 1.8V
+        else _tcxoVoltage = 0x07; // 3.3V
+
+        // Opcode 0x97: SetDIO3AsTcxoCtrl
+        uint32_t delay = 5000 / 15.625; // 5ms delay
+        uint8_t buf[] = { _tcxoVoltage, (uint8_t)(delay >> 16), (uint8_t)(delay >> 8), (uint8_t)delay };
+        spiWrite(0x97, buf, 4);
+
+        // Calibrate (0x89) - Calibrate all (0x7F)
+        uint8_t cal = 0x7F;
+        spiWrite(0x89, &cal, 1);
+        waitBusy(100);
+    }
+
+    // 5. Regulator Mode (0x96)
+    uint8_t regMode = useRegulatorLDO ? 0x00 : 0x01; // 0=LDO, 1=DCDC
+    spiWrite(0x96, &regMode, 1);
+
+    // 6. Packet Type LoRa (0x8A -> 0x01)
     uint8_t pktType = 0x01;
-    WriteCommand(SX126X_CMD_SET_PACKET_TYPE, &pktType, 1);
+    spiWrite(0x8A, &pktType, 1);
 
-    // 3. Configurazione RF Frequency
+    // 7. Frequency (0x86)
     setFrequency(freq);
 
-    // 4. Configurazione PA (Power Amplifier) e TX Params
-    // Configurazione specifica per SX1268 (Low Power PA)
-    // paDutyCycle, hpMax, deviceSel, paLut = 1
-    uint8_t paConf[4] = {0x04, 0x07, 0x00, 0x01};
-    WriteCommand(SX126X_CMD_SET_PA_CONFIG, paConf, 4);
+    // 8. PA Config & TX Power
+    // Per SX1268 +22dBm: paDuty=0x04, hpMax=0x07, devSel=0x00, paLut=0x01
+    uint8_t paBuf[] = {0x04, 0x07, 0x00, 0x01};
+    spiWrite(0x95, paBuf, 4);
     setOutputPower(power);
 
-    // 5. Modulation Params
+    // 9. Modulation Params
     _bw = bw; _sf = sf; _cr = cr;
-    SetModulationParams(sf, 0x04, cr, 0x00); // 0x04 = 125kHz, va mappato dinamicamente
+    uint8_t bwReg = mapBandwidth(bw);
+    uint8_t crReg = mapCodingRate(cr);
+    bool ldro = needsLDRO(sf, bwReg);
+    setModulationParams(sf, bwReg, crReg, ldro ? 1 : 0);
 
-    // 6. Packet Params
-    _preambleLength = preambleLength;
-    SetPacketParams(preambleLength, 0x00, 0xFF, 0x00, 0x00); // Explicit header, CRC on, IQ standard
+    // 10. Packet Params
+    // Preamble, Header(0=Explicit), Payload(255 max), CRC(1=On), IQ(0=Std)
+    setPacketParams(preambleLength, 0x00, 255, 0x01, 0x00);
 
-    // 7. DIO Irq Params (TxDone, RxDone, Timeout)
-    // Abilitiamo IRQ su DIO1 per TxDone (bit 0), RxDone (bit 1), Timeout (bit 9)
-    uint8_t dioParams[8] = {
-        0x00, 0x00, 0x02, 0x03, // IRQ Mask (TxDone | RxDone | Timeout) -> 0x0203 (Bit 9, 1, 0)
-        0x00, 0x00, 0x02, 0x03, // DIO1 Mask (idem)
-    };
-    // Nota: l'endianness nei registri SX126x a 16 bit è MSB first.
-    // IRQ map: Bit 0=TxDone, 1=RxDone, 2=PreambleDetected... 9=RxTxTimeout.
-    // 0x0203 = Bit 9, Bit 1, Bit 0 set.
-    WriteCommand(SX126X_CMD_SET_DIO_IRQ_PARAMS, dioParams, 8);
+    // 11. Sync Word
+    uint8_t swBuf[2] = { (uint8_t)(syncWord >> 8), (uint8_t)(syncWord & 0xFF) };
+    writeRegister(0x0740, swBuf[0]);
+    writeRegister(0x0741, swBuf[1]);
 
-    return RADIOLIB_ERR_NONE;
-}
+    // 12. Workarounds
+    workaround_TxClampConfig();
 
-// Mapping Bandwidth kHz -> Register Value
-// 125.0 -> 0x04, 250 -> 0x05, 500 -> 0x06
-uint8_t MapBandwidth(float bw) {
-    if(bw < 100.0) return 0x03; // 62.5
-    if(bw < 200.0) return 0x04; // 125
-    if(bw < 400.0) return 0x05; // 250
-    return 0x06; // 500
-}
+    // 13. IRQ Setup (Enable All)
+    setDioIrqParams(0x03FF, 0x03FF, 0, 0);
 
-void SX1268::SetModulationParams(uint8_t sf, uint8_t bw, uint8_t cr, uint8_t ldro) {
-    uint8_t params[8] = {sf, bw, cr, ldro, 0, 0, 0, 0};
-    WriteCommand(SX126X_CMD_SET_MODULATION_PARAMS, params, 4); // LoRa usa solo 4 byte
-}
-
-void SX1268::SetPacketParams(uint16_t preambleLength, uint8_t crcType, uint8_t payloadLength, uint8_t headerType, uint8_t invertIQ) {
-    uint8_t params[6] = {
-        (uint8_t)((preambleLength >> 8) & 0xFF),
-        (uint8_t)(preambleLength & 0xFF),
-        headerType,
-        payloadLength,
-        crcType,
-        invertIQ
-    };
-    WriteCommand(SX126X_CMD_SET_PACKET_PARAMS, params, 6);
-}
-
-int16_t SX1268::setFrequency(float freq) {
-    // Freq = (RF * 2^25) / 32MHz
-    uint32_t frf = (uint32_t)((freq * 1000000.0) * (33554432.0 / 32000000.0));
-    uint8_t buf[4];
-    buf[0] = (frf >> 24) & 0xFF;
-    buf[1] = (frf >> 16) & 0xFF;
-    buf[2] = (frf >> 8) & 0xFF;
-    buf[3] = frf & 0xFF;
-    WriteCommand(SX126X_CMD_SET_RF_FREQUENCY, buf, 4);
-    _freq = freq;
     return RADIOLIB_ERR_NONE;
 }
 
 int8_t SX1268::startReceive() {
-    // Imposta buffer base address RX a 0
-    uint8_t bufBase[2] = {0x00, 0x00}; // TxBase, RxBase
-    WriteCommand(SX126X_CMD_SET_BUFFER_BASE_ADDRESS, bufBase, 2);
+    // Set Buffer Base
+    setBufferBaseAddress(0, 0);
 
-    // Set RX (Timeout 0 = continuous)
-    uint8_t rxParams[3] = {0x00, 0x00, 0x00};
-    WriteCommand(SX126X_CMD_SET_RX, rxParams, 3);
-    return RADIOLIB_ERR_NONE;
-}
+    // Config IRQ for RX
+    // RX_DONE, TIMEOUT, CRC_ERR
+    setDioIrqParams(0x0262, 0x0262, 0, 0);
+    clearIrqStatus(0x03FF);
 
-int8_t SX1268::startTransmit(uint8_t* data, uint8_t length) {
-    SetStandby();
+    // Set RX Continuous (0x82 -> 0xFFFFFF)
+    uint8_t buf[] = {0xFF, 0xFF, 0xFF};
+    spiWrite(0x82, buf, 3);
 
-    // Configura IRQ per TxDone e Timeout
-    uint8_t dioParams[8] = { 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x02, 0x01 }; // Mask TX Done | Timeout
-    WriteCommand(SX126X_CMD_SET_DIO_IRQ_PARAMS, dioParams, 8);
-
-    // Scrivi dati nel buffer (offset 0)
-    WriteBuffer(0x00, data, length);
-
-    // Aggiorna Packet Params con la lunghezza giusta
-    SetPacketParams(_preambleLength, 0x01, length, 0x00, 0x00); // 0x01 = CRC ON
-
-    // Set TX (Timeout 0 = disable watchdog)
-    uint8_t txParams[3] = {0x00, 0x00, 0x00};
-    WriteCommand(SX126X_CMD_SET_TX, txParams, 3);
     return RADIOLIB_ERR_NONE;
 }
 
 int8_t SX1268::readData(uint8_t* data, uint8_t length) {
-    // 1. Get RX Buffer Status (per sapere lunghezza e offset start)
-    uint8_t status = 0;
-    uint8_t bufStatus[2]; // [0] = PayloadLength, [1] = RxStartBufferPointer
-    ReadCommand(SX126X_CMD_GET_RX_BUFFER_STATUS, &status, bufStatus, 2);
+    // Check Flags
+    uint16_t irq = getIrqStatus();
 
-    uint8_t rxLen = bufStatus[0];
-    uint8_t rxPtr = bufStatus[1];
+    if (!(irq & 0x0002)) { // RX_DONE not set
+        return RADIOLIB_ERR_RX_TIMEOUT;
+    }
 
-    if(length < rxLen) rxLen = length; // Protezione buffer overflow
+    if (irq & 0x0040) { // CRC_ERR
+        clearIrqStatus(0x03FF);
+        return RADIOLIB_ERR_CRC_MISMATCH;
+    }
 
-    // 2. Leggi Buffer
-    ReadBuffer(rxPtr, data, rxLen);
+    // Get Payload Length & Start Offset
+    uint8_t len = 0;
+    uint8_t start = 0;
+    getRxBufferStatus(len, start);
 
-    // 3. Clear IRQ (Reset flags)
-    uint8_t clearIrq[2] = {0xFF, 0xFF}; // Pulisci tutto
-    WriteCommand(SX126X_CMD_CLEAR_IRQ_STATUS, clearIrq, 2);
+    // Safety cap
+    if (length < len) len = length;
+
+    // Read Buffer
+    readBuffer(start, data, len);
+
+    // Clear Flags
+    clearIrqStatus(0x03FF);
 
     return RADIOLIB_ERR_NONE;
+}
+
+int8_t SX1268::startTransmit(uint8_t* data, uint8_t length) {
+    if (length > 255) return RADIOLIB_ERR_PACKET_TOO_LONG;
+
+    setStandby(0x00); // Standby RC
+    waitBusy();
+
+    // Reset Buffer Base
+    setBufferBaseAddress(0, 0);
+
+    // Write Data
+    writeBuffer(0, data, length);
+
+    // Update Packet Params (Length)
+    // Preamb, Explicit, Len, CRC On, IQ Std
+    setPacketParams(8, 0x00, length, 0x01, 0x00);
+
+    // IRQ for TX
+    setDioIrqParams(0x0201, 0x0201, 0, 0); // TX_DONE | TIMEOUT
+    clearIrqStatus(0x03FF);
+
+    // Set TX (0x83 -> 0 = No Timeout)
+    uint8_t buf[] = {0, 0, 0};
+    spiWrite(0x83, buf, 3);
+
+    return RADIOLIB_ERR_NONE;
+}
+
+int8_t SX1268::transmit(uint8_t* data, uint8_t length, uint32_t timeoutMs) {
+    startTransmit(data, length);
+
+    uint32_t start = HAL_GetTick();
+    while (true) {
+        uint16_t irq = getIrqStatus();
+        if (irq & 0x0001) { // TX_DONE
+            clearIrqStatus(0x03FF);
+            return RADIOLIB_ERR_NONE;
+        }
+        if (irq & 0x0200) { // TIMEOUT
+            return RADIOLIB_ERR_TX_TIMEOUT;
+        }
+        if (HAL_GetTick() - start > timeoutMs) {
+            return RADIOLIB_ERR_TX_TIMEOUT;
+        }
+    }
 }
 
 uint8_t SX1268::getPacketLength() {
-    uint8_t status = 0;
-    uint8_t bufStatus[2];
-    ReadCommand(SX126X_CMD_GET_RX_BUFFER_STATUS, &status, bufStatus, 2);
-    return bufStatus[0];
+    uint8_t len = 0;
+    uint8_t start = 0;
+    getRxBufferStatus(len, start);
+    return len;
 }
 
-// Stub functions per compatibilità
-int16_t SX1268::setBandwidth(float bw) { _bw = bw; SetModulationParams(_sf, MapBandwidth(bw), _cr, 0); return RADIOLIB_ERR_NONE; }
-int16_t SX1268::setSpreadingFactor(uint8_t sf) { _sf = sf; SetModulationParams(sf, MapBandwidth(_bw), _cr, 0); return RADIOLIB_ERR_NONE; }
-int16_t SX1268::setCodingRate(uint8_t cr) { _cr = cr; SetModulationParams(_sf, MapBandwidth(_bw), cr, 0); return RADIOLIB_ERR_NONE; }
-int16_t SX1268::setOutputPower(int8_t power) {
-    uint8_t buf[2] = {(uint8_t)(power), 0x02}; // RampTime 0x02
-    WriteCommand(SX126X_CMD_SET_TX_PARAMS, buf, 2);
+// --- Setters ---
+int16_t SX1268::setFrequency(float freq) {
+    _freqMHz = freq;
+    uint32_t frf = (uint32_t)(freq * 1000000.0 * 33554432.0 / 32000000.0);
+    uint8_t buf[] = { (uint8_t)(frf>>24), (uint8_t)(frf>>16), (uint8_t)(frf>>8), (uint8_t)frf };
+    spiWrite(0x86, buf, 4);
     return RADIOLIB_ERR_NONE;
 }
-float SX1268::getRSSI() { return -100.0; /* TODO: Implement PacketStatus */ }
-float SX1268::getSNR() { return 10.0; /* TODO: Implement PacketStatus */ }
-float SX1268::getFrequencyError() { return 0.0; }
 
-void SX1268::setPacketReceivedAction(void (*func)(void)) { _onPacketReceived = func; }
-void SX1268::setPacketSentAction(void (*func)(void)) { _onPacketSent = func; }
-
-// Questa funzione viene chiamata dall'ISR EXTI
-void SX1268::handleDio1Irq() {
-    // Leggi IRQ Status per sapere cosa è successo
-    uint8_t status = 0;
-    uint8_t irqStatus[2];
-    ReadCommand(SX126X_CMD_GET_IRQ_STATUS, &status, irqStatus, 2);
-    uint16_t irq = (irqStatus[0] << 8) | irqStatus[1];
-
-    if(irq & 0x0002) { // RxDone (Bit 1)
-        if(_onPacketReceived) _onPacketReceived();
-    }
-    if(irq & 0x0001) { // TxDone (Bit 0)
-        if(_onPacketSent) _onPacketSent();
-    }
-
-    // Nota: La pulizia IRQ viene fatta normalmente nel loop principale (readData)
-    // o qui se necessario, ma attenzione alla concorrenza SPI dentro l'ISR.
-    // Per ora lasciamo che sia il Task RTOS a pulire dopo la notifica.
+int16_t SX1268::setBandwidth(float bw) {
+    _bw = bw;
+    // Note: This needs SetModulationParams to take effect.
+    // Simplified: Just set stored value, user must re-init or we assume they call begin() again?
+    // RadioLib setBandwidth re-applies modulation params instantly.
+    uint8_t bwReg = mapBandwidth(bw);
+    uint8_t crReg = mapCodingRate(_cr);
+    bool ldro = needsLDRO(_sf, bwReg);
+    setModulationParams(_sf, bwReg, crReg, ldro ? 1 : 0);
+    return RADIOLIB_ERR_NONE;
 }
 
+int16_t SX1268::setSpreadingFactor(uint8_t sf) {
+    _sf = sf;
+    uint8_t bwReg = mapBandwidth(_bw);
+    uint8_t crReg = mapCodingRate(_cr);
+    bool ldro = needsLDRO(sf, bwReg);
+    setModulationParams(sf, bwReg, crReg, ldro ? 1 : 0);
+    return RADIOLIB_ERR_NONE;
+}
+
+int16_t SX1268::setCodingRate(uint8_t cr) {
+    _cr = cr;
+    uint8_t bwReg = mapBandwidth(_bw);
+    uint8_t crReg = mapCodingRate(cr);
+    bool ldro = needsLDRO(_sf, bwReg);
+    setModulationParams(_sf, bwReg, crReg, ldro ? 1 : 0);
+    return RADIOLIB_ERR_NONE;
+}
+
+int16_t SX1268::setOutputPower(int8_t power) {
+    // 0x8E SetTxParams
+    uint8_t buf[] = { (uint8_t)power, 0x04 }; // 0x04 = 200us ramp
+    spiWrite(0x8E, buf, 2);
+    return RADIOLIB_ERR_NONE;
+}
+
+// --- Telemetry ---
+float SX1268::getRSSI() {
+    float rssi = 0;
+    float snr = 0;
+    getPacketStatus(rssi, snr);
+    return rssi;
+}
+
+float SX1268::getSNR() {
+    float rssi = 0;
+    float snr = 0;
+    getPacketStatus(rssi, snr);
+    return snr;
+}
+
+float SX1268::getFrequencyError() { return 0.0; } // Not implemented
+
+// --- Callbacks ---
+void SX1268::setPacketReceivedAction(void (*func)(void)) { _onRxCallback = func; }
+void SX1268::setPacketSentAction(void (*func)(void)) { _onTxCallback = func; }
+
+void SX1268::handleDio1Irq() {
+    uint16_t flags = getIrqStatus();
+    if (flags & 0x0002) { // RX_DONE
+        if (_onRxCallback) _onRxCallback();
+    }
+    if (flags & 0x0001) { // TX_DONE
+        if (_onTxCallback) _onTxCallback();
+    }
+}
+
+// ==========================================
+// PRIVATE HELPERS
+// ==========================================
+
+void SX1268::hwReset() {
+    HAL_GPIO_WritePin(_pins.resetPort, _pins.resetPin, GPIO_PIN_RESET);
+    HAL_Delay(20);
+    HAL_GPIO_WritePin(_pins.resetPort, _pins.resetPin, GPIO_PIN_SET);
+    HAL_Delay(50);
+}
+
+int SX1268::waitBusy(uint32_t timeoutMs) {
+    uint32_t start = HAL_GetTick();
+    while (HAL_GPIO_ReadPin(_pins.busyPort, _pins.busyPin) == GPIO_PIN_SET) {
+        if (HAL_GetTick() - start > timeoutMs) return -1;
+    }
+    return 0;
+}
+
+void SX1268::nssLow() { HAL_GPIO_WritePin(_pins.nssPort, _pins.nssPin, GPIO_PIN_RESET); }
+void SX1268::nssHigh() { HAL_GPIO_WritePin(_pins.nssPort, _pins.nssPin, GPIO_PIN_SET); }
+
+void SX1268::spiWrite(uint8_t cmd, const uint8_t* data, uint16_t len) {
+    waitBusy(); nssLow();
+    HAL_SPI_Transmit(_pins.hspi, &cmd, 1, 100);
+    if (len > 0) HAL_SPI_Transmit(_pins.hspi, (uint8_t*)data, len, 100);
+    nssHigh();
+}
+
+void SX1268::spiRead(uint8_t cmd, uint8_t* data, uint16_t len) {
+    waitBusy(); nssLow();
+    HAL_SPI_Transmit(_pins.hspi, &cmd, 1, 100);
+    uint8_t nop = 0;
+    HAL_SPI_Transmit(_pins.hspi, &nop, 1, 100); // Status byte
+    if (len > 0) HAL_SPI_Receive(_pins.hspi, data, len, 100);
+    nssHigh();
+}
+
+void SX1268::writeRegister(uint16_t addr, uint8_t data) {
+    uint8_t buf[] = { (uint8_t)(addr >> 8), (uint8_t)(addr & 0xFF), data };
+    uint8_t op = 0x0D;
+    waitBusy(); nssLow();
+    HAL_SPI_Transmit(_pins.hspi, &op, 1, 100);
+    HAL_SPI_Transmit(_pins.hspi, buf, 3, 100);
+    nssHigh();
+}
+
+void SX1268::writeBuffer(uint8_t offset, const uint8_t* data, uint8_t len) {
+    uint8_t buf[] = { offset };
+    uint8_t op = 0x0E;
+    waitBusy(); nssLow();
+    HAL_SPI_Transmit(_pins.hspi, &op, 1, 100);
+    HAL_SPI_Transmit(_pins.hspi, buf, 1, 100);
+    HAL_SPI_Transmit(_pins.hspi, (uint8_t*)data, len, 100);
+    nssHigh();
+}
+
+void SX1268::readBuffer(uint8_t offset, uint8_t* data, uint8_t len) {
+    uint8_t buf[] = { offset };
+    uint8_t op = 0x1E;
+    waitBusy(); nssLow();
+    HAL_SPI_Transmit(_pins.hspi, &op, 1, 100);
+    HAL_SPI_Transmit(_pins.hspi, buf, 1, 100);
+    uint8_t nop = 0;
+    HAL_SPI_Transmit(_pins.hspi, &nop, 1, 100); // Status
+    HAL_SPI_Receive(_pins.hspi, data, len, 100);
+    nssHigh();
+}
+
+// --- Commands ---
+void SX1268::setStandby(uint8_t mode) { spiWrite(0x80, &mode, 1); }
+void SX1268::setPacketParams(uint16_t pre, uint8_t head, uint8_t len, uint8_t crc, uint8_t iq) {
+    uint8_t buf[] = { (uint8_t)(pre >> 8), (uint8_t)pre, head, len, crc, iq, 0, 0, 0 };
+    spiWrite(0x8C, buf, 9);
+}
+void SX1268::setModulationParams(uint8_t sf, uint8_t bw, uint8_t cr, uint8_t ldro) {
+    uint8_t buf[] = { sf, bw, cr, ldro, 0, 0, 0, 0 };
+    spiWrite(0x8B, buf, 8);
+}
+void SX1268::setDioIrqParams(uint16_t irq, uint16_t d1, uint16_t d2, uint16_t d3) {
+    uint8_t buf[] = { (uint8_t)(irq >> 8), (uint8_t)irq, (uint8_t)(d1 >> 8), (uint8_t)d1, 0, 0, 0, 0 };
+    spiWrite(0x08, buf, 8);
+}
+void SX1268::clearIrqStatus(uint16_t flags) {
+    uint8_t buf[] = { (uint8_t)(flags >> 8), (uint8_t)flags };
+    spiWrite(0x02, buf, 2);
+}
+uint16_t SX1268::getIrqStatus() {
+    uint8_t buf[2] = {0, 0};
+    spiRead(0x12, buf, 2);
+    return (buf[0] << 8) | buf[1];
+}
+void SX1268::setBufferBaseAddress(uint8_t tx, uint8_t rx) {
+    uint8_t buf[] = { tx, rx };
+    spiWrite(0x8F, buf, 2);
+}
+void SX1268::getRxBufferStatus(uint8_t& len, uint8_t& start) {
+    uint8_t buf[2] = {0, 0};
+    spiRead(0x13, buf, 2);
+    len = buf[0];
+    start = buf[1];
+}
+void SX1268::getPacketStatus(float &rssi, float &snr) {
+    uint8_t buf[3];
+    spiRead(0x14, buf, 3);
+    rssi = -buf[0] / 2.0f;
+    snr = (int8_t)buf[1] / 4.0f;
+}
+
+// --- Helpers ---
+uint8_t SX1268::mapBandwidth(float bw) {
+    if (bw < 10.0) return 0x00; // 7.8
+    if (bw < 13.0) return 0x08; // 10.4
+    if (bw < 20.0) return 0x01; // 15.6
+    if (bw < 30.0) return 0x09; // 20.8
+    if (bw < 40.0) return 0x02; // 31.25
+    if (bw < 60.0) return 0x0A; // 41.7
+    if (bw < 100.0) return 0x03; // 62.5
+    if (bw < 200.0) return 0x04; // 125
+    if (bw < 400.0) return 0x05; // 250
+    return 0x06; // 500
+}
+
+uint8_t SX1268::mapCodingRate(uint8_t cr) {
+    if (cr >= 5) return cr - 4; // RadioLib 5->1, 6->2...
+    return 0x01; // Default 4/5
+}
+
+bool SX1268::needsLDRO(uint8_t sf, uint8_t bwReg) {
+    // Semplificazione: Low Data Rate Optimization consigliata per SF11/12 @ 125k
+    if (sf >= 11 && bwReg == 0x04) return true;
+    if (sf == 12 && bwReg == 0x05) return true;
+    return false;
+}
+
+void SX1268::workaround_TxClampConfig() {
+    writeRegister(0x08D8, 0x1E);
+}
