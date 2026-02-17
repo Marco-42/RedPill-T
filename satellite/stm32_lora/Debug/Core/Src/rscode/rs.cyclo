@@ -1,0 +1,10 @@
+../Core/Src/rscode/rs.c:48:1:initialize_ecc	1
+../Core/Src/rscode/rs.c:58:1:zero_fill_from	2
+../Core/Src/rscode/rs.c:66:1:print_parity	2
+../Core/Src/rscode/rs.c:77:1:print_syndrome	2
+../Core/Src/rscode/rs.c:88:1:build_codeword	3
+../Core/Src/rscode/rs.c:107:1:decode_data	3
+../Core/Src/rscode/rs.c:122:1:check_syndrome	3
+../Core/Src/rscode/rs.c:136:1:debug_check_syndrome	2
+../Core/Src/rscode/rs.c:154:1:compute_genpoly	2
+../Core/Src/rscode/rs.c:182:1:encode_data	5

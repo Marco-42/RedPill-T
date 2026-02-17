@@ -1,0 +1,4 @@
+../Core/Src/rscode/galois.c:53:1:init_galois_tables	1
+../Core/Src/rscode/galois.c:61:1:init_exp_table	5
+../Core/Src/rscode/galois.c:98:5:gmult	3
+../Core/Src/rscode/galois.c:108:5:ginv	1

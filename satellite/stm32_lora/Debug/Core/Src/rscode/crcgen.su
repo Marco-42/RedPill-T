@@ -1,0 +1,2 @@
+../Core/Src/rscode/crcgen.c:40:10:crc_ccitt	24	static
+../Core/Src/rscode/crcgen.c:53:10:crchware	16	static
