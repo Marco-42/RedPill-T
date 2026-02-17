@@ -90,7 +90,8 @@ def database_initialization(path=DB_PATH):
 
 # Database check
 def init_db(path=DB_PATH):
-    """Initialize the database connection and check if the database file exists."""
+    """Initialize the database connection and check if the database file exists. 
+    return NO_DB if the database is not found, otherwise return the connection to the database."""
 
     global connection # Global variable
 
@@ -154,14 +155,17 @@ def show_db_not_found(path = DB_PATH):
     btn_CD = QPushButton("Create Database")
     btn_TA = QPushButton("Try Again")
     btn_MA = QPushButton("Manual access")
+    btn_RA = QPushButton("Run anyway")
 
     btn_CD.clicked.connect(lambda: create_new_database(win, path))
     btn_TA.clicked.connect(lambda: try_again_function(win))
     btn_MA.clicked.connect(lambda: manual_access_function(win))
+    btn_RA.clicked.connect(lambda: run_anyway_function(win))
 
     button_layout.addWidget(btn_CD)
     button_layout.addWidget(btn_TA)
     button_layout.addWidget(btn_MA)
+    button_layout.addWidget(btn_RA)
 
     layout.addLayout(button_layout)
     win.setLayout(layout)
@@ -329,6 +333,16 @@ def manual_access_function(parent):
     btn_cancel.clicked.connect(dialog.reject)
 
     dialog.exec_()
+
+def run_anyway_function(parent):
+    """Function to run the application anyway without a database connection."""
+
+    global connection
+
+    if connection is None:
+        connection = "NO_DB"
+
+    parent.close()
 
 # ============ DATABASE OPERATIONS ============
 

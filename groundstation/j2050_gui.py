@@ -14,7 +14,32 @@ import hmac
 import hashlib
 import traceback
 
-from .database import Jdata as jdb
+# DATABASE IMPORT
+# Try to import the database. If it fails, provide a safe
+# fallback stub so the GUI and other features can keep running without DB.
+
+# Defining the flag for database availability
+DB_ENABLE = True
+
+try:
+	from .database import Jdata as jdb
+except Exception as _db_exc:
+
+	# Setting the database availability flag to False
+	DB_ENABLE = False
+
+	# Printing error message about the database import failure
+	print(f"[WARN] database import failed: {_db_exc}. Using DB stub.")
+
+
+	class _DBStub:
+		@staticmethod
+		def init_db():
+			# Return a non-None object so the application doesn't call sys.exit(1)
+			return {"stub": True}
+
+	jdb = _DBStub
+
 from . import GS_task as gt
 
 # ========== CONSTANTS AND CONFIGURATION ==========
@@ -226,15 +251,18 @@ def get_task_label(tasks_dict, code):
 
 # =========== TABLE FUNCTIONS AND DATABASE MANAGEMENT ==========
 
+# Function to clear the table
 def clear_table(table: QTableWidget):
 	table.setRowCount(0)
 
+# Function to remove a specific row from the table
 def remove_table_row(table: QTableWidget, row_index: int):
 
 	# Remove a specific row of the table if it exists
     if 0 <= row_index < table.rowCount():
         table.removeRow(row_index)
 
+# Function to ask for a comment to insert in the database saved packet
 def ask_for_comment(parent=None, id_in_table = 0):
 
 	# Boolean variable 
@@ -289,6 +317,7 @@ def ask_for_comment(parent=None, id_in_table = 0):
 
 	return comment["text"], white_comment, add_to_all_check
 
+# Function to export the table content to the database
 def export_table_to_db(table: QTableWidget):
 
 	# Checking boolean variable 
@@ -403,6 +432,9 @@ class MainWindow(QWidget):
 		self.timeout_timer.setInterval(1000)
 		self.timeout_timer.timeout.connect(self.check_tec_timeout)
 
+		# Enable or disable the database buttons if the database class cannot be accessed
+		self.DB_button_enable()
+
 	# Initialize left panel with TEC encoder, configuration, and queue controls
 	def init_left_panel(self):
 		self.gs_selector = QComboBox()
@@ -469,44 +501,15 @@ class MainWindow(QWidget):
 		self.clear_sent_button = QPushButton("Discard")
 		self.clear_sent_button.clicked.connect(lambda: clear_table(self.sent_tec_table))
 
-		# Buttons to connect DB actions
-		self.db_menu_button = QToolButton()
-		self.db_menu_button.setText("DB Actions")
-		self.db_menu_button.setPopupMode(QToolButton.MenuButtonPopup) # Setting the popup button style
-		self.db_menu_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
-		
-		# Setting button size to match other buttons
-		# self.db_menu_button.setFixedHeight(23)
-		# self.db_menu_button.setFixedWidth(160)
-
-		# Adding menu to the button
-		db_menu = QMenu(self.db_menu_button)
-		action_open_db = db_menu.addAction("Open Database")
-		action_export_excel = db_menu.addAction("Export DB to Excel")
-		action_open_db.triggered.connect(open_database_GUI)
-
-		# Function to export all tables to an excel file
-		def export_all_tables():
-			try:
-				jdb.export_tables_to_excel(self.db_conn)
-				self.log_status("Database exported successfully")
-			except Exception as e:
-				self.log_status("Export Error", str(e), QMessageBox.Critical)
-
-		action_export_excel.triggered.connect(export_all_tables)
-		self.db_menu_button.setMenu(db_menu)
-
 		# Button to export TEC table elements to database
 		self.export_sent_button = QPushButton("Export to DB")
 		self.export_sent_button.clicked.connect(lambda: self.add_to_db("sent"))
 
 		# Set sizes
-		self.db_menu_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 		self.clear_sent_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 		self.export_sent_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
 		button_height = self.clear_sent_button.sizeHint().height()
-		self.db_menu_button.setFixedHeight(button_height)
 
 		# === Assemble Left Layout ===
 		main_layout = QHBoxLayout()
@@ -551,7 +554,6 @@ class MainWindow(QWidget):
 		sent_table_layout.addWidget(self.sent_tec_table)
 		sent_table_btn_row = QHBoxLayout()
 		sent_table_btn_row.addWidget(self.clear_sent_button)
-		sent_table_btn_row.addWidget(self.db_menu_button)
 		sent_table_btn_row.addWidget(self.export_sent_button)
 		sent_table_layout.addLayout(sent_table_btn_row)
 		sent_table_group.setLayout(sent_table_layout)
@@ -573,6 +575,7 @@ class MainWindow(QWidget):
 		self.tabs.addTab(self.create_serial_tab(), "Serial Console")
 		self.tabs.addTab(self.create_received_tab(), "Received Messages")
 		self.tabs.addTab(self.create_settings_tab(), "Settings")
+		self.tabs.addTab(self.create_db_actions_tab(), "DB Actions")
 
 		# Status Messages
 		status_group = QGroupBox("Status Messages")
@@ -747,7 +750,102 @@ class MainWindow(QWidget):
 
 		return settings_tab
 
+	# Create Database Actions tab
+	def create_db_actions_tab(self):
+		db_tab = QWidget()
+		db_tab_layout = QVBoxLayout(db_tab)
+		db_tab_layout.setAlignment(Qt.AlignTop)
 
+		# Tab title
+		db_title_label = QLabel("DATABASE ACTIONS")
+		db_title_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+		db_title_label.setStyleSheet("font-size: 24px; font-weight: bold; margin-top: 10px; margin-bottom: 18px;")
+		db_tab_layout.addWidget(db_title_label)
+
+		# Status row with text and rectangle
+		status_row = QHBoxLayout()
+		status_text = QLabel("Database status")
+		status_text.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+		status_text.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		self.db_status_rect = QLabel()
+		self.db_status_rect.setAlignment(Qt.AlignCenter)
+		self.db_status_rect.setFixedHeight(28)
+		self.db_status_rect.setFixedWidth(90)
+		self.db_status_rect.setStyleSheet("background-color: gray; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+		self.db_error_type = QLabel()
+		self.db_error_type.setAlignment(Qt.AlignVCenter)
+		self.db_error_type.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		status_row.addWidget(status_text)
+		status_row.addWidget(self.db_status_rect)
+		status_row.addWidget(self.db_error_type)
+		status_row.addStretch()
+		db_tab_layout.addLayout(status_row)
+
+		# Database path
+		spacer = QLabel("")
+		spacer.setFixedHeight(15)
+		db_tab_layout.addWidget(spacer)
+		self.db_path_label = QLabel()
+		self.db_path_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+		self.db_path_label.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		db_tab_layout.addWidget(self.db_path_label)
+
+		# Database actions and buttons
+		spacer = QLabel("")
+		spacer.setFixedHeight(15)
+		db_tab_layout.addWidget(spacer)
+		self.action_quote = QLabel("Database actions")
+		self.action_quote.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+		self.action_quote.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		db_tab_layout.addWidget(self.action_quote)
+
+		# Open Database button
+		self.open_db_button = QPushButton("Open Database")
+		self.open_db_button.clicked.connect(open_database_GUI)
+		db_tab_layout.addWidget(self.open_db_button)
+
+		# Function to export all tables to an excel file
+		def export_all_tables():
+			try:
+				jdb.export_tables_to_excel(self.db_conn)
+				self.log_status("Database exported successfully")
+			except Exception as e:
+				self.log_status("Export Error", str(e), QMessageBox.Critical)
+
+		# Export Database button
+		self.export_db_button = QPushButton("Export DB to Excel")
+		self.export_db_button.clicked.connect(export_all_tables)
+		db_tab_layout.addWidget(self.export_db_button)
+
+		# Function to set the database status rectangle
+		def set_db_status_rect(available, db_path=None):
+			if available:
+				self.db_status_rect.setText("DB OK")
+				self.db_status_rect.setStyleSheet("background-color: #4caf50; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+				self.db_error_type.setText("DB found and accessible")
+			elif db_conn == "NO_DB":
+				self.db_status_rect.setText("DB ERR")
+				self.db_status_rect.setStyleSheet("background-color: #ffa500; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+				self.db_error_type.setText("No DB detected.")
+			else:
+				self.db_status_rect.setText("DB ERR")
+				self.db_status_rect.setStyleSheet("background-color: #e53935; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+				self.db_error_type.setText("DB module can not be imported.")
+
+			if db_path and DB_ENABLE:
+				self.db_path_label.setText(f"Path: {db_path}")
+			else:
+				self.db_path_label.setText("PATH NOT FOUND")
+
+		# Getting database path and status
+		try:
+			db_path = getattr(jdb, 'DB_PATH', None) if hasattr(jdb, 'DB_PATH') else None
+			set_db_status_rect(DB_ENABLE, db_path)
+		except Exception:
+			set_db_status_rect(DB_ENABLE, None)
+
+		return db_tab
+		
 	# ========== AUTHENTICATION ==========
 
 	# Check the password for the selected ground station
@@ -1336,6 +1434,7 @@ class MainWindow(QWidget):
 
 	# ========== PACKET VISUALIZATION ==========
 
+	# Display the content of the selected TER
 	def display_selected_ter_content(self):
 		self.ter_content_display.clear()
 		selected_items = self.received_ter_table.selectedItems()
@@ -1460,7 +1559,9 @@ class MainWindow(QWidget):
 
 			self.ter_content_display.append("<br>")
 
-	# ============ EXPORT TO DB ============
+	# ============ DB GUI FUNCTION ============
+
+	# Add the current packet to the database
 	def add_to_db(self, type):
 		"""self -  type: type = sent | received"""
 		
@@ -1472,15 +1573,23 @@ class MainWindow(QWidget):
 		elif type == "received":
 			export_table_to_db(self.received_ter_table)
 
+	# Enable or disable the database buttons based on the DB_ENABLE flag
+	def DB_button_enable(self):
+		for btn in [self.export_db_button, self.open_db_button, self.export_sent_button, self.export_received_button]:
+			btn.setEnabled(DB_ENABLE)
+
 if __name__ == "__main__":
 
 	# Database initialization
 	db_conn = jdb.init_db()
 
 	# If the database connection failed, exit the application
+	# If the database connection is valid, but the database is not found, set DB_ENABLE to False
 	if db_conn == None:
 		sys.exit(1)
-	
+	elif db_conn == "NO_DB":
+		DB_ENABLE = False
+
 	app = QApplication(sys.argv)
 	window = MainWindow(db_conn)
 	window.resize(1000, 800)
