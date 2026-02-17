@@ -1,0 +1,49 @@
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/CC1101/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/CC1101/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/LLCC68/../SX126x/SX126x.h:37:7:SX126x::~SX126x()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/LLCC68/../SX126x/SX126x.h:37:7:virtual SX126x::~SX126x()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/SX126x/SX1268.h:21:7:SX1268::~SX1268()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/SX126x/SX1268.h:21:7:virtual SX1268::~SX1268()	16	static
+../Core/Src/COMMS.cpp:53:17:void HAL_GPIO_EXTI_Callback(uint16_t)	24	static,ignoring_inline_asm
+../Core/Src/COMMS.cpp:72:6:void printStartupMessage(const char*)	16	static
+../Core/Src/COMMS.cpp:78:6:void printRadioStatus(int16_t, bool)	16	static
+../Core/Src/COMMS.cpp:90:6:void printData(const char*, const uint8_t*, uint8_t)	32	static
+../Core/Src/COMMS.cpp:97:6:void setUNIX(uint32_t)	16	static
+../Core/Src/COMMS.cpp:103:10:uint32_t getUNIX()	8	static
+../Core/Src/COMMS.cpp:108:6:void writeFloatToBytes(float, uint8_t*)	24	static
+../Core/Src/COMMS.cpp:118:8:int8_t makeMAC(const Packet*, uint32_t*)	168	static
+../Core/Src/COMMS.cpp:149:6:void Init_Radio_Hardware()	32	static
+../Core/Src/COMMS.cpp:167:6:void startReception()	16	static
+../Core/Src/COMMS.cpp:173:6:void startTransmission(uint8_t*, uint8_t)	24	static
+../Core/Src/COMMS.cpp:179:6:void packetEvent()	4	static
+../Core/Src/COMMS.cpp:188:6:void Packet::init(bool, uint8_t)	16	static
+../Core/Src/COMMS.cpp:200:8:int8_t Packet::setPayload(const uint8_t*, uint8_t)	24	static
+../Core/Src/COMMS.cpp:207:8:int8_t Packet::seal()	24	static
+../Core/Src/COMMS.cpp:216:6:void dataToPacket(const uint8_t*, uint8_t, Packet*)	32	static
+../Core/Src/COMMS.cpp:249:9:uint8_t packetToData(const Packet*, uint8_t*)	16	static
+../Core/Src/COMMS.cpp:267:6:bool isDataECCEnabled(const uint8_t*, uint8_t)	16	static
+../Core/Src/COMMS.cpp:272:6:void encodeECC(uint8_t*, uint8_t&)	72	dynamic
+../Core/Src/COMMS.cpp:299:8:int8_t decodeECC(uint8_t*, uint8_t&)	56	dynamic
+../Core/Src/COMMS.cpp:334:6:bool isTEC(uint8_t)	16	static
+../Core/Src/COMMS.cpp:340:6:bool isACKNeeded(const Packet*)	16	static
+../Core/Src/COMMS.cpp:345:6:bool isACKNeededBefore(const Packet*)	16	static
+../Core/Src/COMMS.cpp:350:6:void sendACK(bool, uint8_t)	136	static
+../Core/Src/COMMS.cpp:358:6:void sendNACK(bool, uint8_t, int8_t)	136	static
+../Core/Src/COMMS.cpp:368:8:int8_t executeTEC(const Packet*)	208	static
+../Core/Src/COMMS.cpp:483:6:void deleteTimerIfExists(tmrTimerControl**, const char*)	32	static
+../Core/Src/COMMS.cpp:497:6:void queueDelayedPacket(TimerHandle_t)	32	static
+../Core/Src/COMMS.cpp:510:6:void createDelayedCommand(const Packet*, void (*)(TimerHandle_t), uint32_t, void (*)(Packet*), tmrTimerControl**, const char*)	48	static
+../Core/Src/COMMS.cpp:526:6:void editDelayedLoraState(Packet*)	16	static
+../Core/Src/COMMS.cpp:534:6:void editDelayedLoraConfig(Packet*)	24	static
+../Core/Src/COMMS.cpp:552:6:void COMMS_stateMachine(void*)	272	static
+../Core/Src/COMMS.cpp:672:6:void PowerUp_COMMS()	16	static
+../Core/Src/COMMS.cpp:679:6:void PowerDown_COMMS()	8	static
+../Core/Src/COMMS.cpp:688:17:void app_OBC_loop(void*)	16	static
+../Core/Src/COMMS.cpp:698:1:void __static_initialization_and_destruction_0()	24	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/Hal.h:66:13:RadioLibHal::~RadioLibHal()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/Hal.h:66:13:virtual RadioLibHal::~RadioLibHal()	16	static
+../Core/Inc/STM32Hal.h:13:7:STM32Hal::~STM32Hal()	16	static
+../Core/Inc/STM32Hal.h:13:7:virtual STM32Hal::~STM32Hal()	16	static
+../Core/Src/COMMS.cpp:698:1:void __static_initialization_and_destruction_1()	8	static
+../Core/Src/COMMS.cpp:698:1:cpp)	8	static
+../Core/Src/COMMS.cpp:698:1:cpp)	8	static

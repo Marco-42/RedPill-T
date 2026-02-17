@@ -1,0 +1,11 @@
+../Core/Src/RadioLib/modules/SX126x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX126x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.h:37:7:SX126x::~SX126x()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.h:37:7:virtual SX126x::~SX126x()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.h:22:7:SX1262::~SX1262()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.h:22:7:virtual SX1262::~SX1262()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1261.cpp:4:1:SX1261::SX1261(Module*)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1261.cpp:8:9:virtual int16_t SX1261::setOutputPower(int8_t)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX1261.cpp:38:9:virtual int16_t SX1261::checkOutputPower(int8_t, int8_t*)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX1261.h:22:7:SX1261::~SX1261()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1261.h:22:7:virtual SX1261::~SX1261()	16	static

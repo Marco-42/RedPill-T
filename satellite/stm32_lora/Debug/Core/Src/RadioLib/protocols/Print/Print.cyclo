@@ -1,0 +1,25 @@
+../Core/Src/RadioLib/protocols/Print/Print.h:20:12:size_t RadioLibPrint::write(const char*)	2
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:1152:3:constexpr bool std::isinf(double)	3
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:1179:3:constexpr bool std::isnan(double)	2
+../Core/Src/RadioLib/protocols/Print/Print.cpp:6:8:size_t RadioLibPrint::print(ITA2String&)	2
+../Core/Src/RadioLib/protocols/Print/Print.cpp:16:8:size_t RadioLibPrint::println(ITA2String&)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:22:8:virtual size_t RadioLibPrint::write(const uint8_t*, size_t)	3
+../Core/Src/RadioLib/protocols/Print/Print.cpp:94:8:size_t RadioLibPrint::print(const char*)	2
+../Core/Src/RadioLib/protocols/Print/Print.cpp:105:8:size_t RadioLibPrint::print(char)	2
+../Core/Src/RadioLib/protocols/Print/Print.cpp:116:8:size_t RadioLibPrint::print(unsigned char, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:120:8:size_t RadioLibPrint::print(int, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:124:8:size_t RadioLibPrint::print(unsigned int, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:128:8:size_t RadioLibPrint::print(long int, int)	4
+../Core/Src/RadioLib/protocols/Print/Print.cpp:143:8:size_t RadioLibPrint::print(long unsigned int, int)	2
+../Core/Src/RadioLib/protocols/Print/Print.cpp:151:8:size_t RadioLibPrint::print(double, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:155:8:size_t RadioLibPrint::println(const char*)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:161:8:size_t RadioLibPrint::println(char)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:167:8:size_t RadioLibPrint::println(unsigned char, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:173:8:size_t RadioLibPrint::println(int, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:179:8:size_t RadioLibPrint::println(unsigned int, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:185:8:size_t RadioLibPrint::println(long int, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:191:8:size_t RadioLibPrint::println(long unsigned int, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:197:8:size_t RadioLibPrint::println(double, int)	1
+../Core/Src/RadioLib/protocols/Print/Print.cpp:203:8:size_t RadioLibPrint::println()	2
+../Core/Src/RadioLib/protocols/Print/Print.cpp:214:8:size_t RadioLibPrint::printNumber(long unsigned int, uint8_t)	6
+../Core/Src/RadioLib/protocols/Print/Print.cpp:245:8:size_t RadioLibPrint::printFloat(double, uint8_t)	16

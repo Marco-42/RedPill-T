@@ -1,0 +1,19 @@
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:7:1:AX25Frame::AX25Frame(const char*, uint8_t, const char*, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:12:1:AX25Frame::AX25Frame(const char*, uint8_t, const char*, uint8_t, uint8_t, uint8_t, const char*)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:17:1:AX25Frame::AX25Frame(const char*, uint8_t, const char*, uint8_t, uint8_t, uint8_t, const uint8_t*, uint16_t)	2
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:55:1:AX25Frame::AX25Frame(const AX25Frame&)	5
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:92:1:AX25Frame::~AX25Frame()	8
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:110:12:AX25Frame& AX25Frame::operator=(const AX25Frame&)	2
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:145:9:int16_t AX25Frame::setRepeaters(char**, const uint8_t*, uint8_t)	10
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:181:6:void AX25Frame::setRecvSequence(uint8_t)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:185:6:void AX25Frame::setSendSequence(uint8_t)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:189:1:AX25Client::AX25Client(PhysicalLayer*)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:198:1:AX25Client::AX25Client(AFSKClient*)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:205:1:AX25Client::AX25Client(const AX25Client&)	2
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:218:13:AX25Client& AX25Client::operator=(const AX25Client&)	3
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:234:9:int16_t AX25Client::setCorrection(int16_t, int16_t, float)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:246:9:int16_t AX25Client::begin(const char*, uint8_t, uint8_t)	2
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:272:9:int16_t AX25Client::transmit(const char*, const char*, uint8_t)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:285:9:int16_t AX25Client::sendFrame(AX25Frame*)	33
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:505:6:void AX25Client::getCallsign(char*)	1
+../Core/Src/RadioLib/protocols/AX25/AX25.cpp:509:9:uint8_t AX25Client::getSSID()	1

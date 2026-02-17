@@ -1,0 +1,8 @@
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:7:1:APRSClient::APRSClient(AX25Client*)	1
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:12:1:APRSClient::APRSClient(PhysicalLayer*)	1
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:17:9:int16_t APRSClient::begin(char, const char*, uint8_t, bool)	6
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:42:9:int16_t APRSClient::sendPosition(char*, uint8_t, const char*, const char*, const char*, const char*)	7
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:87:9:int16_t APRSClient::sendMicE(float, float, uint16_t, uint16_t, uint8_t, const uint8_t*, size_t, const char*, const char*, int32_t)	40
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:252:9:int16_t APRSClient::sendFrame(char*, uint8_t, char*)	8
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:285:6:void APRSClient::useRepeaters(char**, uint8_t*, uint8_t)	1
+../Core/Src/RadioLib/protocols/APRS/APRS.cpp:291:6:void APRSClient::dropRepeaters()	1

@@ -1,0 +1,18 @@
+../Core/Src/RadioLib/modules/LR11x0/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:7:9:int16_t LR11x0::startWifiScan(char, uint8_t, uint16_t, uint8_t, uint16_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:49:6:void LR11x0::setWiFiScanAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:53:6:void LR11x0::clearWiFiScanAction()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:57:9:int16_t LR11x0::getWifiScanResultsCount(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:71:9:int16_t LR11x0::getWifiScanResult(LR11x0WifiResult_t*, uint8_t, bool)	392	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:145:9:int16_t LR11x0::wifiScan(uint8_t, uint8_t*, uint8_t, uint16_t, uint8_t, uint16_t)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:170:9:int16_t LR11x0::wifiScan(uint8_t, uint16_t, uint8_t, uint8_t, uint8_t, uint16_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:182:9:int16_t LR11x0::wifiScanTimeLimit(uint8_t, uint16_t, uint8_t, uint8_t, uint16_t, uint16_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:192:9:int16_t LR11x0::wifiCountryCode(uint16_t, uint8_t, uint8_t, uint16_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:202:9:int16_t LR11x0::wifiCountryCodeTimeLimit(uint16_t, uint8_t, uint16_t, uint16_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:212:9:int16_t LR11x0::wifiReadResults(uint8_t, uint8_t, uint8_t, uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:217:9:int16_t LR11x0::wifiResetCumulTimings()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:221:9:int16_t LR11x0::wifiReadCumulTimings(uint32_t*, uint32_t*, uint32_t*)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:233:9:int16_t LR11x0::wifiGetNbCountryCodeResults(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:243:9:int16_t LR11x0::wifiReadCountryCodeResults(uint8_t, uint8_t, uint8_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:248:9:int16_t LR11x0::wifiCfgTimestampAPphone(uint32_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_wifi.cpp:256:9:int16_t LR11x0::wifiReadVersion(uint8_t*, uint8_t*)	48	static

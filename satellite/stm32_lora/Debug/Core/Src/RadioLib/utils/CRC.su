@@ -1,0 +1,4 @@
+../Core/Src/RadioLib/utils/CRC.cpp:3:1:RadioLibCRC::RadioLibCRC()	16	static
+../Core/Src/RadioLib/utils/CRC.cpp:7:10:uint32_t RadioLibCRC::checksum(const uint8_t*, size_t)	40	static
+../Core/Src/RadioLib/utils/CRC.cpp:35:32:void __static_initialization_and_destruction_0()	8	static
+../Core/Src/RadioLib/utils/CRC.cpp:35:32:cpp)	8	static

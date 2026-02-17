@@ -1,0 +1,71 @@
+../Core/Src/RadioLib/modules/SX126x/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/SX126x/../../Module.h:400:14:uint32_t Module::getRst() const	16	static
+../Core/Src/RadioLib/modules/SX126x/../../Module.h:406:14:uint32_t Module::getGpio() const	16	static
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:158:3:constexpr float std::ceil(float)	16	static
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:253:3:constexpr float std::floor(float)	16	static
+../Core/Src/RadioLib/modules/SX126x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX126x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:6:1:SX126x::SX126x(Module*)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:24:9:int16_t SX126x::begin(uint8_t, uint8_t, uint16_t, float, bool)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:70:9:int16_t SX126x::beginFSK(float, float, float, uint16_t, float, bool)	48	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:123:9:int16_t SX126x::beginBPSK(float, float, bool)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:139:9:int16_t SX126x::beginLRFHSS(uint8_t, uint8_t, bool, float, bool)	56	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:167:9:int16_t SX126x::setLrFhssConfig(uint8_t, uint8_t, uint8_t, uint16_t)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:180:9:int16_t SX126x::reset(bool)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:213:9:virtual int16_t SX126x::transmit(const uint8_t*, size_t, uint8_t)	56	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:279:9:virtual int16_t SX126x::receive(uint8_t*, size_t, RadioLibTime_t)	64	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:327:9:virtual int16_t SX126x::transmitDirect(uint32_t)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:343:9:virtual int16_t SX126x::receiveDirect()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:351:9:int16_t SX126x::directMode()	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:387:9:int16_t SX126x::packetMode()	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:417:9:virtual int16_t SX126x::scanChannel()	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:432:9:virtual int16_t SX126x::scanChannel(const ChannelScanConfig_t&)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:446:9:int16_t SX126x::hopLRFHSS()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:456:9:virtual int16_t SX126x::finishTransmit()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:465:9:virtual int16_t SX126x::finishReceive()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:479:9:virtual int16_t SX126x::startReceive()	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:483:9:int16_t SX126x::startReceiveDutyCycle(uint32_t, uint32_t, RadioLibIrqFlags_t, RadioLibIrqFlags_t)	56	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:510:9:int16_t SX126x::startReceiveDutyCycleAuto(uint16_t, uint16_t, RadioLibIrqFlags_t, RadioLibIrqFlags_t)	56	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:558:9:int16_t SX126x::startReceiveCommon(uint32_t, RadioLibIrqFlags_t, RadioLibIrqFlags_t)	72	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:591:9:virtual int16_t SX126x::readData(uint8_t*, size_t)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:631:9:virtual int16_t SX126x::startChannelScan()	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:646:9:virtual int16_t SX126x::startChannelScan(const ChannelScanConfig_t&)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:672:9:virtual int16_t SX126x::getChannelScanResult()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:691:7:float SX126x::getDataRate() const	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:695:7:virtual float SX126x::getRSSI()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:699:7:float SX126x::getRSSI(bool)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:713:7:virtual float SX126x::getSNR()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:729:7:float SX126x::getFrequencyError()	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:762:8:virtual size_t SX126x::getPacketLength(bool)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:766:8:size_t SX126x::getPacketLength(bool, uint8_t*)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:783:9:int16_t SX126x::getLoRaRxHeaderInfo(uint8_t*, bool*)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:797:16:virtual RadioLibTime_t SX126x::calculateTimeOnAir(ModemType_t, DataRate_t, PacketConfig_t, size_t)	48	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:870:16:virtual RadioLibTime_t SX126x::getTimeOnAir(size_t)	64	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:937:16:virtual RadioLibTime_t SX126x::calculateRxTimeout(RadioLibTime_t)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:944:10:virtual uint32_t SX126x::getIrqFlags()	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:950:9:virtual int16_t SX126x::setIrqFlags(uint32_t)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:954:9:virtual int16_t SX126x::clearIrqFlags(uint32_t)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:958:9:virtual uint8_t SX126x::randomByte()	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:987:9:virtual int16_t SX126x::getModem(ModemType_t*)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1006:9:virtual int16_t SX126x::stageMode(RadioModeType_t, RadioModeConfig_t*)	352	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1138:9:virtual int16_t SX126x::launchMode()	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1166:6:virtual void SX126x::setDirectAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1170:6:virtual void SX126x::readBit(uint32_t)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1175:9:int16_t SX126x::uploadPatch(const uint32_t*, size_t, bool)	56	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1223:9:int16_t SX126x::spectralScanStart(uint16_t, uint8_t, uint8_t)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1239:6:void SX126x::spectralScanAbort()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1243:9:int16_t SX126x::spectralScanGetStatus()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1251:9:int16_t SX126x::spectralScanGetResult(uint16_t*)	88	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1263:9:int16_t SX126x::calibrateImage(float)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1300:9:int16_t SX126x::calibrateImageRejection(float, float)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1308:9:int16_t SX126x::fixSensitivity()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1326:9:int16_t SX126x::fixPaClamping(bool)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1344:9:int16_t SX126x::fixImplicitTimeout()	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1369:9:int16_t SX126x::fixInvertedIQ(uint8_t)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1389:9:int16_t SX126x::fixGFSK()	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1431:9:virtual Module* SX126x::getMod()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1435:9:int16_t SX126x::modSetup(float, bool, uint8_t)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1499:9:static int16_t SX126x::SPIparseStatus(uint8_t)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.cpp:1512:6:bool SX126x::findChip(const char*)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.h:37:7:SX126x::~SX126x()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.h:37:7:virtual SX126x::~SX126x()	16	static

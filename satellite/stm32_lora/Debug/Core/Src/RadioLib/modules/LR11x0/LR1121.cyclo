@@ -1,0 +1,9 @@
+../Core/Src/RadioLib/modules/LR11x0/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/LR11x0/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.h:27:7:LR11x0::~LR11x0()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.h:27:7:virtual LR11x0::~LR11x0()	1
+../Core/Src/RadioLib/modules/LR11x0/LR1120.h:15:7:LR1120::~LR1120()	1
+../Core/Src/RadioLib/modules/LR11x0/LR1120.h:15:7:virtual LR1120::~LR1120()	1
+../Core/Src/RadioLib/modules/LR11x0/LR1121.cpp:4:1:LR1121::LR1121(Module*)	1
+../Core/Src/RadioLib/modules/LR11x0/LR1121.h:16:7:LR1121::~LR1121()	1
+../Core/Src/RadioLib/modules/LR11x0/LR1121.h:16:7:virtual LR1121::~LR1121()	1

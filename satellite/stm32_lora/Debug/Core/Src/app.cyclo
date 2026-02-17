@@ -1,6 +1,0 @@
-../Core/Src/app.cpp:17:17:void HAL_GPIO_EXTI_Callback(uint16_t)	2
-../Core/Src/app.cpp:37:6:void PowerUp_COMMS()	2
-../Core/Src/app.cpp:45:6:void PowerDown_COMMS()	2
-../Core/Src/app.cpp:58:17:void app_OBC_loop(void*)	4
-../Core/Src/app.cpp:95:1:void __static_initialization_and_destruction_0()	1
-../Core/Src/app.cpp:95:1:cpp)	1

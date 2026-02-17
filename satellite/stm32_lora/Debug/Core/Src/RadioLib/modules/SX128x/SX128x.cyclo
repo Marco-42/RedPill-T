@@ -1,0 +1,109 @@
+../Core/Src/RadioLib/modules/SX128x/../../Module.h:394:14:uint32_t Module::getIrq() const	1
+../Core/Src/RadioLib/modules/SX128x/../../Module.h:400:14:uint32_t Module::getRst() const	1
+../Core/Src/RadioLib/modules/SX128x/../../Module.h:406:14:uint32_t Module::getGpio() const	1
+../Core/Src/RadioLib/modules/SX128x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX128x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:6:1:SX128x::SX128x(Module*)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:22:9:int16_t SX128x::begin(float, float, uint8_t, uint8_t, uint8_t, int8_t, uint16_t)	9
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:63:9:int16_t SX128x::beginGFSK(float, uint16_t, float, int8_t, uint16_t)	10
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:112:9:int16_t SX128x::beginBLE(float, uint16_t, float, int8_t, uint8_t)	7
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:147:9:int16_t SX128x::beginFLRC(float, uint16_t, uint8_t, int8_t, uint16_t, uint8_t)	9
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:192:9:int16_t SX128x::reset(bool)	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:225:9:virtual int16_t SX128x::transmit(const uint8_t*, size_t, uint8_t)	10
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:267:9:virtual int16_t SX128x::receive(uint8_t*, size_t, RadioLibTime_t)	12
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:320:9:virtual int16_t SX128x::transmitDirect(uint32_t)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:335:9:virtual int16_t SX128x::receiveDirect()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:343:9:virtual int16_t SX128x::scanChannel()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:358:9:virtual int16_t SX128x::scanChannel(const ChannelScanConfig_t&)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:372:9:virtual int16_t SX128x::sleep()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:376:9:int16_t SX128x::sleep(bool)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:394:9:virtual int16_t SX128x::standby()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:398:9:int16_t SX128x::standby(uint8_t, bool)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:412:6:void SX128x::setDio1Action(void (*)())	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:416:6:void SX128x::clearDio1Action()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:420:6:virtual void SX128x::setPacketReceivedAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:424:6:virtual void SX128x::clearPacketReceivedAction()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:428:6:virtual void SX128x::setPacketSentAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:432:6:virtual void SX128x::clearPacketSentAction()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:436:9:virtual int16_t SX128x::finishTransmit()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:444:9:virtual int16_t SX128x::startReceive()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:448:9:virtual int16_t SX128x::readData(uint8_t*, size_t)	10
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:487:9:virtual int16_t SX128x::finishReceive()	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:496:10:virtual uint32_t SX128x::getIrqFlags()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:500:9:virtual int16_t SX128x::setIrqFlags(uint32_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:504:9:virtual int16_t SX128x::clearIrqFlags(uint32_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:508:9:virtual int16_t SX128x::startChannelScan()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:523:9:virtual int16_t SX128x::startChannelScan(const ChannelScanConfig_t&)	5
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:548:9:virtual int16_t SX128x::getChannelScanResult()	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:569:9:virtual int16_t SX128x::setFrequency(float)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:577:9:int16_t SX128x::setBandwidth(float)	11
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:607:9:int16_t SX128x::setSpreadingFactor(uint8_t)	16
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:650:9:int16_t SX128x::setCodingRate(uint8_t, bool)	15
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:691:9:virtual int16_t SX128x::setOutputPower(int8_t)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:700:9:virtual int16_t SX128x::checkOutputPower(int8_t, int8_t*)	5
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:708:9:virtual int16_t SX128x::setModem(ModemType_t)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:721:9:virtual int16_t SX128x::getModem(ModemType_t*)	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:736:9:virtual int16_t SX128x::setPreambleLength(size_t)	15
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:785:9:virtual int16_t SX128x::setDataRate(DataRate_t, ModemType_t)	10
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:816:9:virtual int16_t SX128x::setBitRate(float)	18
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:873:9:virtual int16_t SX128x::setFrequencyDeviation(float)	8
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:907:9:virtual int16_t SX128x::setDataShaping(uint8_t)	10
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:937:9:int16_t SX128x::setSyncWord(const uint8_t*, uint8_t)	10
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:979:9:int16_t SX128x::setSyncWord(uint8_t, uint8_t)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:990:9:int16_t SX128x::setCRC(uint8_t, uint32_t, uint16_t)	16
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1054:9:int16_t SX128x::setWhitening(bool)	5
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1074:9:int16_t SX128x::setAccessAddress(uint32_t)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1085:9:int16_t SX128x::setHighSensitivityMode(bool)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1102:9:int16_t SX128x::setGainControl(uint8_t)	8
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1138:7:virtual float SX128x::getRSSI()	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1162:7:float SX128x::getRSSI(bool)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1173:7:virtual float SX128x::getSNR()	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1193:7:float SX128x::getFrequencyError()	7
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1226:8:virtual size_t SX128x::getPacketLength(bool)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1230:8:size_t SX128x::getPacketLength(bool, uint8_t*)	5
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1246:9:int16_t SX128x::getLoRaRxHeaderInfo(uint8_t*, bool*)	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1260:9:int16_t SX128x::fixedPacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1264:9:int16_t SX128x::variablePacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1268:16:virtual RadioLibTime_t SX128x::calculateTimeOnAir(ModemType_t, DataRate_t, PacketConfig_t, size_t)	7
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1327:16:virtual RadioLibTime_t SX128x::getTimeOnAir(size_t)	5
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1370:9:int16_t SX128x::implicitHeader(size_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1374:9:int16_t SX128x::explicitHeader()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1378:9:virtual int16_t SX128x::setEncoding(uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1382:6:void SX128x::setRfSwitchPins(uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1386:6:void SX128x::setRfSwitchTable(const uint32_t (&)[5], const Module::RfSwitchMode_t*)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1390:9:virtual uint8_t SX128x::randomByte()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1396:9:virtual int16_t SX128x::invertIQ(bool)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1410:9:virtual int16_t SX128x::stageMode(RadioModeType_t, RadioModeConfig_t*)	28
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1508:9:virtual int16_t SX128x::launchMode()	6
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1537:6:virtual void SX128x::setDirectAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1543:6:virtual void SX128x::readBit(uint32_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1550:9:virtual Module* SX128x::getMod()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1554:9:int16_t SX128x::modSetup(uint8_t)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1581:9:uint8_t SX128x::getStatus()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1587:9:int16_t SX128x::writeRegister(uint16_t, const uint8_t*, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1592:9:int16_t SX128x::readRegister(uint16_t, uint8_t*, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1601:9:int16_t SX128x::writeBuffer(const uint8_t*, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1606:9:int16_t SX128x::readBuffer(uint8_t*, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1611:9:int16_t SX128x::setTx(uint16_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1616:9:int16_t SX128x::setRx(uint16_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1621:9:int16_t SX128x::setCad(uint8_t)	2
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1630:9:uint8_t SX128x::getPacketType()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1636:9:int16_t SX128x::setRfFrequency(uint32_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1641:9:int16_t SX128x::setTxParams(uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1646:9:int16_t SX128x::setBufferBaseAddress(uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1651:9:int16_t SX128x::setModulationParams(uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1656:9:int16_t SX128x::setPacketParamsGFSK(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1661:9:int16_t SX128x::setPacketParamsBLE(uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1666:9:int16_t SX128x::setPacketParamsLoRa(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1671:9:int16_t SX128x::setDioIrqParams(uint16_t, uint16_t, uint16_t, uint16_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1679:10:uint16_t SX128x::getIrqStatus()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1685:9:int16_t SX128x::clearIrqStatus(uint16_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1690:9:int16_t SX128x::setRangingRole(uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1695:9:int16_t SX128x::setPacketType(uint8_t)	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1700:9:int16_t SX128x::setPacketMode(uint8_t, uint8_t)	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1716:9:int16_t SX128x::setHeaderType(uint8_t, size_t)	3
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1729:9:int16_t SX128x::config(uint8_t)	5
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1753:9:static int16_t SX128x::SPIparseStatus(uint8_t)	6
+../Core/Src/RadioLib/modules/SX128x/SX128x.cpp:1766:6:bool SX128x::findChip(const char*)	4
+../Core/Src/RadioLib/modules/SX128x/SX128x.h:353:7:SX128x::~SX128x()	1
+../Core/Src/RadioLib/modules/SX128x/SX128x.h:353:7:virtual SX128x::~SX128x()	1

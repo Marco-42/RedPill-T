@@ -1,0 +1,59 @@
+../Core/Src/RadioLib/modules/LR11x0/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:7:9:int16_t LR11x0::isGnssScanCapable()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:53:9:int16_t LR11x0::gnssScan(LR11x0GnssResult_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:121:9:int16_t LR11x0::getGnssAlmanacStatus(LR11x0GnssAlmanacStatus_t*)	72	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:160:9:int16_t LR11x0::gnssDelayUntilSubframe(LR11x0GnssAlmanacStatus_t*, uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:184:9:int16_t LR11x0::updateGnssAlmanac(uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:214:9:int16_t LR11x0::getGnssPosition(LR11x0GnssPosition_t*, bool)	72	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:234:9:int16_t LR11x0::getGnssSatellites(LR11x0GnssSatellite_t*, uint8_t)	168	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:254:9:int16_t LR11x0::gnssReadRssi(int8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:263:9:int16_t LR11x0::gnssSetConstellationToUse(uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:268:9:int16_t LR11x0::gnssReadConstellationToUse(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:278:9:int16_t LR11x0::gnssSetAlmanacUpdate(uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:283:9:int16_t LR11x0::gnssReadAlmanacUpdate(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:293:9:int16_t LR11x0::gnssSetFreqSearchSpace(uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:298:9:int16_t LR11x0::gnssReadFreqSearchSpace(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:305:9:int16_t LR11x0::gnssReadVersion(uint8_t*, uint8_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:316:9:int16_t LR11x0::gnssReadSupportedConstellations(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:326:9:int16_t LR11x0::gnssSetMode(uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:331:9:int16_t LR11x0::gnssAutonomous(uint32_t, uint8_t, uint8_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:340:9:int16_t LR11x0::gnssAssisted(uint32_t, uint8_t, uint8_t, uint8_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:349:9:int16_t LR11x0::gnssSetAssistancePosition(float, float)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:359:9:int16_t LR11x0::gnssReadAssistancePosition(float*, float*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:376:9:int16_t LR11x0::gnssPushSolverMsg(uint8_t*, size_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:380:9:int16_t LR11x0::gnssPushDmMsg(uint8_t*, size_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:384:9:int16_t LR11x0::gnssGetContextStatus(uint8_t*, uint32_t*, uint8_t*, uint8_t*, uint8_t*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:400:9:int16_t LR11x0::gnssGetNbSvDetected(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:410:9:int16_t LR11x0::gnssGetSvDetected(uint8_t*, uint8_t*, int16_t*, size_t)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:439:9:int16_t LR11x0::gnssGetConsumption(uint32_t*, uint32_t*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:450:9:int16_t LR11x0::gnssGetResultSize(uint16_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:460:9:int16_t LR11x0::gnssReadResults(uint8_t*, uint16_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:465:9:int16_t LR11x0::gnssAlmanacFullUpdateHeader(uint16_t, uint32_t)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:475:9:int16_t LR11x0::gnssAlmanacFullUpdateSV(uint8_t, const uint8_t*)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:481:9:int16_t LR11x0::gnssAlmanacReadAddrSize(uint32_t*, uint16_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:491:9:int16_t LR11x0::gnssAlmanacReadSV(uint8_t, uint8_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:498:9:int16_t LR11x0::gnssGetNbSvVisible(uint32_t, float, float, uint8_t, uint8_t*)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:511:9:int16_t LR11x0::gnssGetSvVisible(uint8_t, uint8_t**, int16_t**, int16_t**)	104	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:528:9:int16_t LR11x0::gnssPerformScan(uint8_t, uint8_t, uint8_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:534:9:int16_t LR11x0::gnssReadLastScanModeLaunched(uint8_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:544:9:int16_t LR11x0::gnssFetchTime(uint8_t, uint8_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:550:9:int16_t LR11x0::gnssReadTime(uint8_t*, uint32_t*, uint32_t*, uint32_t*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:576:9:int16_t LR11x0::gnssResetTime()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:580:9:int16_t LR11x0::gnssResetPosition()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:584:9:int16_t LR11x0::gnssReadWeekNumberRollover(uint8_t*, uint8_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:592:9:int16_t LR11x0::gnssReadDemodStatus(int8_t*, uint8_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:603:9:int16_t LR11x0::gnssReadCumulTiming(uint32_t*, uint8_t*)	176	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:620:9:int16_t LR11x0::gnssSetTime(uint32_t, uint16_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:629:9:int16_t LR11x0::gnssReadDopplerSolverRes(uint8_t*, uint8_t*, float*, float*, uint16_t*, uint16_t*, float*, float*, uint16_t*, uint16_t*)	72	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:660:9:int16_t LR11x0::gnssReadDelayResetAP(uint32_t*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:669:9:int16_t LR11x0::gnssAlmanacUpdateFromSat(uint8_t, uint8_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:675:9:int16_t LR11x0::gnssReadKeepSyncStatus(uint8_t, uint8_t*, uint32_t*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:685:9:int16_t LR11x0::gnssReadAlmanacStatus(uint8_t*)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:689:9:int16_t LR11x0::gnssConfigAlmanacUpdatePeriod(uint8_t, uint8_t, uint16_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:694:9:int16_t LR11x0::gnssReadAlmanacUpdatePeriod(uint8_t, uint8_t, uint16_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:705:9:int16_t LR11x0::gnssConfigDelayResetAP(uint32_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:710:9:int16_t LR11x0::gnssGetSvWarmStart(uint8_t, uint8_t*, uint8_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:715:9:int16_t LR11x0::gnssGetSvSync(uint8_t, uint8_t, uint8_t*)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:720:9:int16_t LR11x0::gnssReadWarmStartStatus(uint8_t, uint8_t*, uint32_t*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:732:9:int16_t LR11x0::gnssWriteBitMaskSatActivated(uint8_t, uint32_t*, uint32_t*)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_gnss.cpp:745:6:void LR11x0::gnssAbort()	40	static

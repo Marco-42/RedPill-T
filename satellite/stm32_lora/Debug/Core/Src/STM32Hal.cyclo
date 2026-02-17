@@ -1,0 +1,23 @@
+../Core/Inc/STM32Hal.h:40:10:virtual void STM32Hal::attachInterrupt(uint32_t, void (*)(), uint32_t)	1
+../Core/Inc/STM32Hal.h:41:10:virtual void STM32Hal::detachInterrupt(uint32_t)	1
+../Core/Inc/STM32Hal.h:42:10:virtual void STM32Hal::yield()	1
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/Hal.h:66:13:RadioLibHal::~RadioLibHal()	1
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/Hal.h:66:13:virtual RadioLibHal::~RadioLibHal()	1
+../Core/Src/STM32Hal.cpp:13:1:STM32Hal::STM32Hal(SPI_HandleTypeDef*)	1
+../Core/Src/STM32Hal.cpp:18:6:void STM32Hal::addPin(uint32_t, GPIO_TypeDef*, uint16_t)	2
+../Core/Src/STM32Hal.cpp:25:11:Stm32Pin* STM32Hal::getStmPin(uint32_t)	3
+../Core/Src/STM32Hal.cpp:30:6:virtual void STM32Hal::pinMode(uint32_t, uint32_t)	1
+../Core/Src/STM32Hal.cpp:32:6:virtual void STM32Hal::digitalWrite(uint32_t, uint32_t)	3
+../Core/Src/STM32Hal.cpp:37:10:virtual uint32_t STM32Hal::digitalRead(uint32_t)	3
+../Core/Src/STM32Hal.cpp:43:6:virtual void STM32Hal::spiBegin()	1
+../Core/Src/STM32Hal.cpp:44:6:virtual void STM32Hal::spiBeginTransaction()	1
+../Core/Src/STM32Hal.cpp:47:6:virtual void STM32Hal::spiTransfer(uint8_t*, size_t, uint8_t*)	4
+../Core/Src/STM32Hal.cpp:76:6:virtual void STM32Hal::spiEndTransaction()	1
+../Core/Src/STM32Hal.cpp:77:6:virtual void STM32Hal::spiEnd()	1
+../Core/Src/STM32Hal.cpp:79:6:virtual void STM32Hal::delay(long unsigned int)	1
+../Core/Src/STM32Hal.cpp:81:6:virtual void STM32Hal::delayMicroseconds(long unsigned int)	2
+../Core/Src/STM32Hal.cpp:87:15:virtual long unsigned int STM32Hal::millis()	1
+../Core/Src/STM32Hal.cpp:88:15:virtual long unsigned int STM32Hal::micros()	1
+../Core/Src/STM32Hal.cpp:89:6:virtual long int STM32Hal::pulseIn(uint32_t, uint32_t, long unsigned int)	1
+../Core/Inc/STM32Hal.h:13:7:STM32Hal::~STM32Hal()	1
+../Core/Inc/STM32Hal.h:13:7:virtual STM32Hal::~STM32Hal()	1

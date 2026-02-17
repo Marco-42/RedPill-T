@@ -63,6 +63,7 @@ void Error_Handler(void);
 #define LORA_RST_GPIO_Port GPIOD
 #define LORA_DIO1_Pin GPIO_PIN_13
 #define LORA_DIO1_GPIO_Port GPIOD
+#define LORA_DIO1_EXTI_IRQn EXTI15_10_IRQn
 #define LORA_BUSY_Pin GPIO_PIN_6
 #define LORA_BUSY_GPIO_Port GPIOB
 

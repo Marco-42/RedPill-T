@@ -1,0 +1,7 @@
+../Core/Src/RadioLib/modules/SX128x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX128x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX128x/SX128x.h:353:7:SX128x::~SX128x()	16	static
+../Core/Src/RadioLib/modules/SX128x/SX128x.h:353:7:virtual SX128x::~SX128x()	16	static
+../Core/Src/RadioLib/modules/SX128x/SX1281.cpp:4:1:SX1281::SX1281(Module*)	16	static
+../Core/Src/RadioLib/modules/SX128x/SX1281.h:18:7:SX1281::~SX1281()	16	static
+../Core/Src/RadioLib/modules/SX128x/SX1281.h:18:7:virtual SX1281::~SX1281()	16	static

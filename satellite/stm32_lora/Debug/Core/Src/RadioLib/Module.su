@@ -1,0 +1,23 @@
+../Core/Src/RadioLib/Module.cpp:19:1:Module::Module(RadioLibHal*, uint32_t, uint32_t, uint32_t, uint32_t)	32	static
+../Core/Src/RadioLib/Module.cpp:23:1:Module::Module(const Module&)	24	static
+../Core/Src/RadioLib/Module.cpp:27:9:Module& Module::operator=(const Module&)	16	static
+../Core/Src/RadioLib/Module.cpp:37:6:void Module::init()	16	static
+../Core/Src/RadioLib/Module.cpp:44:6:void Module::term()	16	static
+../Core/Src/RadioLib/Module.cpp:49:9:int16_t Module::SPIgetRegValue(uint32_t, uint8_t, uint8_t)	32	static
+../Core/Src/RadioLib/Module.cpp:59:9:int16_t Module::SPIsetRegValue(uint32_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool)	40	static
+../Core/Src/RadioLib/Module.cpp:111:6:void Module::SPIreadRegisterBurst(uint32_t, size_t, uint8_t*)	56	static
+../Core/Src/RadioLib/Module.cpp:127:9:uint8_t Module::SPIreadRegister(uint32_t)	48	static
+../Core/Src/RadioLib/Module.cpp:145:6:void Module::SPIwriteRegisterBurst(uint32_t, const uint8_t*, size_t)	56	static
+../Core/Src/RadioLib/Module.cpp:161:6:void Module::SPIwriteRegister(uint32_t, uint8_t)	56	static
+../Core/Src/RadioLib/Module.cpp:177:6:void Module::SPItransfer(uint16_t, uint32_t, const uint8_t*, uint8_t*, size_t)	48	static
+../Core/Src/RadioLib/Module.cpp:239:9:int16_t Module::SPIreadStream(uint16_t, uint8_t*, size_t, bool, bool)	48	static
+../Core/Src/RadioLib/Module.cpp:248:9:int16_t Module::SPIreadStream(const uint8_t*, uint8_t, uint8_t*, size_t, bool, bool)	48	static
+../Core/Src/RadioLib/Module.cpp:267:9:int16_t Module::SPIwriteStream(uint16_t, const uint8_t*, size_t, bool, bool)	48	static
+../Core/Src/RadioLib/Module.cpp:276:9:int16_t Module::SPIwriteStream(const uint8_t*, uint8_t, const uint8_t*, size_t, bool, bool)	48	static
+../Core/Src/RadioLib/Module.cpp:295:9:int16_t Module::SPIcheckStream()	48	static
+../Core/Src/RadioLib/Module.cpp:318:9:int16_t Module::SPItransferStream(const uint8_t*, uint8_t, bool, const uint8_t*, uint8_t*, size_t, bool)	64	static
+../Core/Src/RadioLib/Module.cpp:455:6:void Module::waitForMicroseconds(RadioLibTime_t, RadioLibTime_t)	24	static
+../Core/Src/RadioLib/Module.cpp:488:6:void Module::setRfSwitchPins(uint32_t, uint32_t)	48	static
+../Core/Src/RadioLib/Module.cpp:504:6:void Module::setRfSwitchTable(const uint32_t (&)[5], const RfSwitchMode_t*)	32	static
+../Core/Src/RadioLib/Module.cpp:512:31:const Module::RfSwitchMode_t* Module::findRfSwitchMode(uint8_t) const	24	static
+../Core/Src/RadioLib/Module.cpp:523:6:void Module::setRfSwitchState(uint8_t)	32	static

@@ -1,0 +1,4 @@
+../Core/Src/RadioLib/modules/SX126x/SX126x_LR_FHSS.cpp:56:9:int16_t SX126x::buildLRFHSSPacket(const uint8_t*, size_t, uint8_t*, size_t*, size_t*, size_t*)	34
+../Core/Src/RadioLib/modules/SX126x/SX126x_LR_FHSS.cpp:267:9:int16_t SX126x::resetLRFHSS()	23
+../Core/Src/RadioLib/modules/SX126x/SX126x_LR_FHSS.cpp:328:10:uint16_t SX126x::stepLRFHSS()	4
+../Core/Src/RadioLib/modules/SX126x/SX126x_LR_FHSS.cpp:344:9:int16_t SX126x::setLRFHSSHop(uint8_t)	12

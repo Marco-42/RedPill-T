@@ -1,0 +1,8 @@
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:5:1:ITA2String::ITA2String(char)	1
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:14:1:ITA2String::ITA2String(const char*)	1
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:23:1:ITA2String::ITA2String(const ITA2String&)	1
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:32:13:ITA2String& ITA2String::operator=(const ITA2String&)	2
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:44:1:ITA2String::~ITA2String()	2
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:50:8:size_t ITA2String::length()	2
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:62:10:uint8_t* ITA2String::byteArr()	7
+../Core/Src/RadioLib/protocols/Print/ITA2String.cpp:121:10:static uint16_t ITA2String::getBits(char)	4

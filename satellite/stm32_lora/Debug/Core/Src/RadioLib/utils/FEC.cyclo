@@ -1,0 +1,11 @@
+../Core/Src/RadioLib/utils/FEC.cpp:4:1:RadioLibBCH::RadioLibBCH()	1
+../Core/Src/RadioLib/utils/FEC.cpp:8:1:RadioLibBCH::~RadioLibBCH()	4
+../Core/Src/RadioLib/utils/FEC.cpp:21:6:void RadioLibBCH::begin(uint8_t, uint8_t, uint32_t)	33
+../Core/Src/RadioLib/utils/FEC.cpp:200:10:uint32_t RadioLibBCH::encode(uint32_t)	22
+../Core/Src/RadioLib/utils/FEC.cpp:311:1:RadioLibConvCode::RadioLibConvCode()	1
+../Core/Src/RadioLib/utils/FEC.cpp:315:6:void RadioLibConvCode::begin(uint8_t)	1
+../Core/Src/RadioLib/utils/FEC.cpp:320:9:int16_t RadioLibConvCode::encode(const uint8_t*, size_t, uint8_t*, size_t*)	11
+../Core/Src/RadioLib/utils/FEC.cpp:365:42:void __static_initialization_and_destruction_0()	1
+../Core/Src/RadioLib/utils/FEC.cpp:365:42:void __static_initialization_and_destruction_1()	1
+../Core/Src/RadioLib/utils/FEC.cpp:365:42:cpp)	1
+../Core/Src/RadioLib/utils/FEC.cpp:365:42:cpp)	1

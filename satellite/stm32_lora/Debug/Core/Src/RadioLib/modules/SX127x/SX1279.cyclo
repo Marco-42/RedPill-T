@@ -1,0 +1,13 @@
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:SX127x::~SX127x()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:virtual SX127x::~SX127x()	1
+../Core/Src/RadioLib/modules/SX127x/SX1278.h:106:7:SX1278::~SX1278()	1
+../Core/Src/RadioLib/modules/SX127x/SX1278.h:106:7:virtual SX1278::~SX1278()	1
+../Core/Src/RadioLib/modules/SX127x/SX1279.cpp:4:1:SX1279::SX1279(Module*)	1
+../Core/Src/RadioLib/modules/SX127x/SX1279.cpp:8:9:virtual int16_t SX1279::begin(float, float, uint8_t, uint8_t, uint8_t, int8_t, uint16_t, uint8_t)	9
+../Core/Src/RadioLib/modules/SX127x/SX1279.cpp:40:9:virtual int16_t SX1279::beginFSK(float, float, float, float, int8_t, uint16_t, bool)	9
+../Core/Src/RadioLib/modules/SX127x/SX1279.cpp:71:9:virtual int16_t SX1279::setFrequency(float)	4
+../Core/Src/RadioLib/modules/SX127x/SX1279.cpp:82:9:virtual int16_t SX1279::setModem(ModemType_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX1279.h:14:7:SX1279::~SX1279()	1
+../Core/Src/RadioLib/modules/SX127x/SX1279.h:14:7:virtual SX1279::~SX1279()	1

@@ -1,0 +1,38 @@
+../Core/Src/RadioLib/modules/SX127x/../../Module.h:400:14:uint32_t Module::getRst() const	1
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:SX127x::~SX127x()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:virtual SX127x::~SX127x()	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:5:1:SX1272::SX1272(Module*)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:9:9:virtual int16_t SX1272::begin(float, float, uint8_t, uint8_t, uint8_t, int8_t, uint16_t, uint8_t)	9
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:41:9:int16_t SX1272::beginFSK(float, float, float, float, int8_t, uint16_t, bool)	10
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:76:6:virtual void SX1272::reset()	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:85:9:virtual int16_t SX1272::setFrequency(float)	4
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:96:9:int16_t SX1272::setBandwidth(float)	8
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:136:9:virtual int16_t SX1272::setSpreadingFactor(uint8_t)	12
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:190:9:int16_t SX1272::setCodingRate(uint8_t)	8
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:227:9:virtual int16_t SX1272::setBitRate(float)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:231:9:virtual int16_t SX1272::setDataRate(DataRate_t, ModemType_t)	12
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:274:9:virtual int16_t SX1272::checkDataRate(DataRate_t, ModemType_t)	15
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:302:9:virtual int16_t SX1272::setOutputPower(int8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:306:9:int16_t SX1272::setOutputPower(int8_t, bool)	6
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:342:9:virtual int16_t SX1272::checkOutputPower(int8_t, int8_t*)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:346:9:int16_t SX1272::checkOutputPower(int8_t, int8_t*, bool)	10
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:362:9:int16_t SX1272::setGain(uint8_t)	6
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:399:9:virtual int16_t SX1272::setDataShaping(uint8_t)	8
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:430:9:int16_t SX1272::setDataShapingOOK(uint8_t)	7
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:464:7:virtual float SX1272::getRSSI()	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:468:7:float SX1272::getRSSI(bool, bool)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:472:9:int16_t SX1272::setCRC(bool, bool)	6
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:501:9:int16_t SX1272::forceLDRO(bool)	3
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:516:9:int16_t SX1272::autoLDRO()	2
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:525:9:int16_t SX1272::implicitHeader(size_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:530:9:int16_t SX1272::explicitHeader()	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:535:9:int16_t SX1272::setBandwidthRaw(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:545:9:int16_t SX1272::setSpreadingFactorRaw(uint8_t)	4
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:567:9:int16_t SX1272::setCodingRateRaw(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:577:9:virtual int16_t SX1272::configFSK()	2
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:588:6:virtual void SX1272::errataFix(bool)	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.cpp:597:9:virtual int16_t SX1272::setModem(ModemType_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX1272.h:95:7:SX1272::~SX1272()	1
+../Core/Src/RadioLib/modules/SX127x/SX1272.h:95:7:virtual SX1272::~SX1272()	1

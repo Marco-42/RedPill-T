@@ -1,0 +1,89 @@
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:158:3:constexpr float std::ceil(float)	1
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:253:3:constexpr float std::floor(float)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:11:9:int16_t LR11x0::writeRegMem32(uint32_t, const uint32_t*, size_t)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:19:9:int16_t LR11x0::readRegMem32(uint32_t, uint32_t*, size_t)	6
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:56:9:int16_t LR11x0::writeBuffer8(const uint8_t*, size_t)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:64:9:int16_t LR11x0::readBuffer8(uint8_t*, size_t, size_t)	3
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:90:9:int16_t LR11x0::clearRxBuffer()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:94:9:int16_t LR11x0::writeRegMemMask32(uint32_t, uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:103:9:int16_t LR11x0::getStatus(uint8_t*, uint8_t*, uint32_t*)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:119:9:int16_t LR11x0::getVersion(uint8_t*, uint8_t*, uint8_t*, uint8_t*)	5
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:132:9:int16_t LR11x0::getErrors(uint16_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:142:9:int16_t LR11x0::clearErrors()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:146:9:int16_t LR11x0::calibrate(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:150:9:int16_t LR11x0::setRegMode(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:154:9:int16_t LR11x0::calibrateImageRejection(float, float)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:162:9:int16_t LR11x0::setDioAsRfSwitch(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:167:9:int16_t LR11x0::setDioIrqParams(uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:175:9:int16_t LR11x0::setDioIrqParams(uint32_t)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:179:9:int16_t LR11x0::clearIrqState(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:186:9:int16_t LR11x0::configLfClock(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:190:9:int16_t LR11x0::setTcxoMode(uint8_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:197:9:int16_t LR11x0::reboot(bool)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:202:9:int16_t LR11x0::getVbat(float*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:212:9:int16_t LR11x0::getTemp(float*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:226:9:int16_t LR11x0::setFs()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:230:9:int16_t LR11x0::getRandomNumber(uint32_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:240:9:int16_t LR11x0::eraseInfoPage()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:246:9:int16_t LR11x0::writeInfoPage(uint16_t, const uint32_t*, size_t)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:281:9:int16_t LR11x0::readInfoPage(uint16_t, uint32_t*, size_t)	6
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:318:9:int16_t LR11x0::getChipEui(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:323:9:int16_t LR11x0::getSemtechJoinEui(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:328:9:int16_t LR11x0::deriveRootKeysAndGetPin(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:333:9:int16_t LR11x0::enableSpiCrc(bool)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:346:9:int16_t LR11x0::driveDiosInSleepMode(bool)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:351:9:int16_t LR11x0::resetStats()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:355:9:int16_t LR11x0::getStats(uint16_t*, uint16_t*, uint16_t*, uint16_t*)	5
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:368:9:int16_t LR11x0::getPacketType(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:378:9:int16_t LR11x0::getRxBufferStatus(uint8_t*, uint8_t*)	3
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:389:9:int16_t LR11x0::getPacketStatusLoRa(float*, float*, float*)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:401:9:int16_t LR11x0::getPacketStatusGFSK(float*, float*, uint8_t*, uint8_t*)	5
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:414:9:int16_t LR11x0::getRssiInst(float*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:424:9:int16_t LR11x0::setGfskSyncWord(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:429:9:int16_t LR11x0::setLoRaPublicNetwork(bool)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:434:9:int16_t LR11x0::setRx(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:441:9:int16_t LR11x0::setTx(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:448:9:int16_t LR11x0::setRfFrequency(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:456:9:int16_t LR11x0::autoTxRx(uint32_t, uint8_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:464:9:int16_t LR11x0::setCadParams(uint8_t, uint8_t, uint8_t, uint8_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:472:9:int16_t LR11x0::setPacketType(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:477:9:int16_t LR11x0::setModulationParamsLoRa(uint8_t, uint8_t, uint8_t, uint8_t)	3
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:494:9:int16_t LR11x0::setModulationParamsGFSK(uint32_t, uint8_t, uint8_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:504:9:int16_t LR11x0::setModulationParamsLrFhss(uint32_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:512:9:int16_t LR11x0::setModulationParamsSigfox(uint32_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:517:9:int16_t LR11x0::setPacketParamsLoRa(uint16_t, uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:525:9:int16_t LR11x0::setPacketParamsGFSK(uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:533:9:int16_t LR11x0::setPacketParamsSigfox(uint8_t, uint16_t, uint16_t, uint16_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:542:9:int16_t LR11x0::setTxParams(int8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:547:9:int16_t LR11x0::setPacketAdrs(uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:552:9:int16_t LR11x0::setRxTxFallbackMode(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:557:9:int16_t LR11x0::setRxDutyCycle(uint32_t, uint32_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:566:9:int16_t LR11x0::setPaConfig(uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:571:9:int16_t LR11x0::stopTimeoutOnPreamble(bool)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:576:9:int16_t LR11x0::setCad()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:580:9:int16_t LR11x0::setTxCw()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:584:9:int16_t LR11x0::setTxInfinitePreamble()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:588:9:int16_t LR11x0::setLoRaSynchTimeout(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:593:9:int16_t LR11x0::setRangingAddr(uint32_t, uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:601:9:int16_t LR11x0::setRangingReqAddr(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:609:9:int16_t LR11x0::getRangingResult(uint8_t, float*)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:627:9:int16_t LR11x0::setRangingTxRxDelay(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:635:9:int16_t LR11x0::setGfskCrcParams(uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:646:9:int16_t LR11x0::setGfskWhitParams(uint16_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:653:9:int16_t LR11x0::setRangingParameter(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:659:9:int16_t LR11x0::setRssiCalibration(const int8_t*, int16_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:675:9:int16_t LR11x0::setLoRaSyncWord(uint8_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:680:9:int16_t LR11x0::lrFhssBuildFrame(uint8_t, uint8_t, uint8_t, bool, uint8_t, uint16_t, int8_t, const uint8_t*, size_t)	5
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:719:9:int16_t LR11x0::lrFhssSetSyncWord(uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:727:9:int16_t LR11x0::configBleBeacon(uint8_t, const uint8_t*, size_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:731:9:int16_t LR11x0::getLoRaRxHeaderInfo(uint8_t*, bool*)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:747:9:int16_t LR11x0::bleBeaconSend(uint8_t, const uint8_t*, size_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:751:9:int16_t LR11x0::bleBeaconCommon(uint16_t, uint8_t, const uint8_t*, size_t)	3
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:776:9:int16_t LR11x0::bootEraseFlash()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:785:9:int16_t LR11x0::bootWriteFlashEncrypted(uint32_t, const uint32_t*, size_t, bool)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:793:9:int16_t LR11x0::bootGetHash(uint8_t*)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:797:9:int16_t LR11x0::bootReboot(bool)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:802:9:int16_t LR11x0::bootGetPin(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:807:9:int16_t LR11x0::bootGetChipEui(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:812:9:int16_t LR11x0::bootGetJoinEui(uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_commands.cpp:817:9:int16_t LR11x0::writeCommon(uint16_t, uint32_t, const uint32_t*, size_t, bool)	4

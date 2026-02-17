@@ -1,0 +1,17 @@
+../Core/Src/RadioLib/modules/SX126x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX126x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.h:37:7:SX126x::~SX126x()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX126x.h:37:7:virtual SX126x::~SX126x()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:6:1:SX1262::SX1262(Module*)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:10:9:virtual int16_t SX1262::begin(float, float, uint8_t, uint8_t, uint8_t, int8_t, uint16_t, float, bool)	56	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:34:9:virtual int16_t SX1262::beginFSK(float, float, float, float, int8_t, uint16_t, float, bool)	48	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:52:9:virtual int16_t SX1262::beginBPSK(float, float, int8_t, float, bool)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:70:9:virtual int16_t SX1262::beginLRFHSS(float, uint8_t, uint8_t, bool, int8_t, float, bool)	48	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:88:9:virtual int16_t SX1262::setFrequency(float)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:92:9:int16_t SX1262::setFrequency(float, bool)	32	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:105:9:virtual int16_t SX1262::setOutputPower(int8_t)	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:109:9:int16_t SX1262::setOutputPower(int8_t, bool)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:121:9:virtual int16_t SX1262::checkOutputPower(int8_t, int8_t*)	24	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.cpp:129:9:virtual int16_t SX1262::setModem(ModemType_t)	40	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.h:22:7:SX1262::~SX1262()	16	static
+../Core/Src/RadioLib/modules/SX126x/SX1262.h:22:7:virtual SX1262::~SX1262()	16	static

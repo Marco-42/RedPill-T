@@ -1,0 +1,15 @@
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:8:9:int16_t LR11x0::cryptoSetKey(uint8_t, const uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:16:9:int16_t LR11x0::cryptoDeriveKey(uint8_t, uint8_t, const uint8_t*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:25:9:int16_t LR11x0::cryptoProcessJoinAccept(uint8_t, uint8_t, uint8_t, const uint8_t*, const uint8_t*, size_t, uint8_t*)	8
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:78:9:int16_t LR11x0::cryptoComputeAesCmac(uint8_t, const uint8_t*, size_t, uint32_t*)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:105:9:int16_t LR11x0::cryptoVerifyAesCmac(uint8_t, uint32_t, const uint8_t*, size_t, bool*)	4
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:136:9:int16_t LR11x0::cryptoAesEncrypt01(uint8_t, const uint8_t*, size_t, uint8_t*)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:140:9:int16_t LR11x0::cryptoAesEncrypt(uint8_t, const uint8_t*, size_t, uint8_t*)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:144:9:int16_t LR11x0::cryptoAesDecrypt(uint8_t, const uint8_t*, size_t, uint8_t*)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:148:9:int16_t LR11x0::cryptoStoreToFlash()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:152:9:int16_t LR11x0::cryptoRestoreFromFlash()	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:156:9:int16_t LR11x0::cryptoSetParam(uint8_t, uint32_t)	1
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:165:9:int16_t LR11x0::cryptoGetParam(uint8_t, uint32_t*)	3
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:174:9:int16_t LR11x0::cryptoCheckEncryptedFirmwareImage(uint32_t, const uint32_t*, size_t, bool)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:182:9:int16_t LR11x0::cryptoCheckEncryptedFirmwareImageResult(bool*)	2
+../Core/Src/RadioLib/modules/LR11x0/LR11x0_crypto.cpp:192:9:int16_t LR11x0::cryptoCommon(uint16_t, uint8_t, const uint8_t*, size_t, uint8_t*)	6

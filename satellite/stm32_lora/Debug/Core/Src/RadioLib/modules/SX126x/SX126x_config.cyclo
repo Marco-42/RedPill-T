@@ -1,0 +1,47 @@
+../Core/Src/RadioLib/modules/SX126x/../../Module.h:394:14:uint32_t Module::getIrq() const	1
+../Core/Src/RadioLib/modules/SX126x/../../Module.h:406:14:uint32_t Module::getGpio() const	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:12:6:virtual void SX126x::setDio1Action(void (*)())	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:16:6:virtual void SX126x::clearDio1Action()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:20:6:virtual void SX126x::setPacketReceivedAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:24:6:virtual void SX126x::clearPacketReceivedAction()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:28:6:virtual void SX126x::setPacketSentAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:32:6:virtual void SX126x::clearPacketSentAction()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:36:6:virtual void SX126x::setChannelScanAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:40:6:virtual void SX126x::clearChannelScanAction()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:44:9:virtual int16_t SX126x::setBandwidth(float)	17
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:95:9:virtual int16_t SX126x::setSpreadingFactor(uint8_t)	4
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:108:9:int16_t SX126x::setCodingRate(uint8_t, bool)	10
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:139:9:int16_t SX126x::setSyncWord(uint8_t, uint8_t)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:150:9:int16_t SX126x::setCurrentLimit(float)	3
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:163:7:float SX126x::getCurrentLimit()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:172:9:virtual int16_t SX126x::setPreambleLength(size_t)	7
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:193:9:virtual int16_t SX126x::setFrequencyDeviation(float)	5
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:217:9:virtual int16_t SX126x::setBitRate(float)	12
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:254:9:virtual int16_t SX126x::setDataRate(DataRate_t, ModemType_t)	15
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:307:9:virtual int16_t SX126x::checkDataRate(DataRate_t, ModemType_t)	15
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:333:9:int16_t SX126x::setRxBandwidth(float)	23
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:396:9:int16_t SX126x::setRxBoostedGainMode(bool, bool)	4
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:412:9:virtual int16_t SX126x::setDataShaping(uint8_t)	8
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:444:9:virtual int16_t SX126x::setSyncWord(uint8_t*, size_t)	12
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:491:9:int16_t SX126x::setCRC(uint8_t, uint16_t, uint16_t, bool)	12
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:550:9:int16_t SX126x::setWhitening(bool, uint16_t)	7
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:587:9:int16_t SX126x::fixedPacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:591:9:int16_t SX126x::variablePacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:594:9:int16_t SX126x::implicitHeader(size_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:598:9:int16_t SX126x::explicitHeader()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:602:9:int16_t SX126x::setRegulatorLDO()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:606:9:int16_t SX126x::setRegulatorDCDC()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:610:9:virtual int16_t SX126x::setEncoding(uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:614:6:void SX126x::setRfSwitchPins(uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:618:6:void SX126x::setRfSwitchTable(const uint32_t (&)[5], const Module::RfSwitchMode_t*)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:622:9:int16_t SX126x::forceLDRO(bool)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:634:9:int16_t SX126x::autoLDRO()	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:643:9:virtual int16_t SX126x::invertIQ(bool)	3
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:657:9:int16_t SX126x::setTCXO(float, uint32_t)	12
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:710:9:int16_t SX126x::setDio2AsRfSwitch(bool)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:715:9:int16_t SX126x::setPaRampTime(uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:719:9:int16_t SX126x::setOutputPower(int8_t, uint8_t, uint8_t, uint8_t)	4
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:737:9:int16_t SX126x::setPacketMode(uint8_t, uint8_t)	3
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:752:9:int16_t SX126x::setHeaderType(uint8_t, size_t)	3
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:769:9:int16_t SX126x::setFrequencyRaw(float)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_config.cpp:776:9:int16_t SX126x::config(uint8_t)	9

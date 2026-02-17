@@ -1,0 +1,8 @@
+../Core/Src/RadioLib/Hal.cpp:5:1:RadioLibHal::RadioLibHal(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t)	2
+../Core/Src/RadioLib/Hal.cpp:17:6:virtual void RadioLibHal::init()	1
+../Core/Src/RadioLib/Hal.cpp:21:6:virtual void RadioLibHal::term()	1
+../Core/Src/RadioLib/Hal.cpp:25:6:virtual void RadioLibHal::tone(uint32_t, unsigned int, RadioLibTime_t)	1
+../Core/Src/RadioLib/Hal.cpp:31:6:virtual void RadioLibHal::noTone(uint32_t)	1
+../Core/Src/RadioLib/Hal.cpp:35:6:virtual void RadioLibHal::yield()	1
+../Core/Src/RadioLib/Hal.cpp:39:10:virtual uint32_t RadioLibHal::pinToInterrupt(uint32_t)	1
+../Core/Src/RadioLib/Hal.cpp:43:16:RadioLibTime_t rlb_time_us()	2

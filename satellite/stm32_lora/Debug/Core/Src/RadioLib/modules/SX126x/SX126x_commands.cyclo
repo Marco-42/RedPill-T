@@ -1,0 +1,31 @@
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:11:9:virtual int16_t SX126x::sleep()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:15:9:int16_t SX126x::sleep(bool)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:31:9:virtual int16_t SX126x::standby()	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:35:9:int16_t SX126x::standby(uint8_t, bool)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:50:9:int16_t SX126x::setFs()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:54:9:int16_t SX126x::setTx(uint32_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:59:9:int16_t SX126x::setRx(uint32_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:64:9:int16_t SX126x::setCad(uint8_t, uint8_t, uint8_t, uint8_t, RadioLibTime_t)	6
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:103:9:int16_t SX126x::setPaConfig(uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:108:9:int16_t SX126x::writeRegister(uint16_t, const uint8_t*, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:113:9:int16_t SX126x::readRegister(uint16_t, uint8_t*, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:122:9:int16_t SX126x::writeBuffer(const uint8_t*, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:127:9:int16_t SX126x::readBuffer(uint8_t*, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:132:9:int16_t SX126x::setDioIrqParams(uint16_t, uint16_t, uint16_t, uint16_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:140:9:virtual int16_t SX126x::clearIrqStatus(uint16_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:145:9:int16_t SX126x::setRfFrequency(uint32_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:150:9:int16_t SX126x::calibrateImage(const uint8_t*)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:165:9:uint8_t SX126x::getPacketType()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:171:9:int16_t SX126x::setTxParams(uint8_t, uint8_t)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:180:9:int16_t SX126x::setModulationParams(uint8_t, uint8_t, uint8_t, uint8_t)	3
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:198:9:int16_t SX126x::setModulationParamsFSK(uint32_t, uint8_t, uint8_t, uint32_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:205:9:int16_t SX126x::setModulationParamsBPSK(uint32_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:210:9:int16_t SX126x::setPacketParams(uint16_t, uint8_t, uint8_t, uint8_t, uint8_t)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:217:9:int16_t SX126x::setPacketParamsFSK(uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:224:9:int16_t SX126x::setPacketParamsBPSK(uint8_t, uint16_t, uint16_t, uint16_t)	2
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:237:9:int16_t SX126x::setBufferBaseAddress(uint8_t, uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:242:9:int16_t SX126x::setRegulatorMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:247:9:uint8_t SX126x::getStatus()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:253:10:uint32_t SX126x::getPacketStatus()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:259:10:uint16_t SX126x::getDeviceErrors()	1
+../Core/Src/RadioLib/modules/SX126x/SX126x_commands.cpp:266:9:int16_t SX126x::clearDeviceErrors()	1
