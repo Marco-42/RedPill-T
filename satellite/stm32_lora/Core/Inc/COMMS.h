@@ -54,7 +54,7 @@ extern "C" {
 }
 
 // =============================================================================
-// SECTION 1: HARDWARE & RADIO CONFIGURATION
+// HARDWARE & RADIO CONFIGURATION
 // =============================================================================
 
 // RadioLib Virtual Pin IDs (Mapped to CubeMX pins in COMMS.cpp)
@@ -75,7 +75,7 @@ extern "C" {
 #define LORA_USE_LDO        false    // Regulator (false = DCDC, true = LDO)
 
 // =============================================================================
-// SECTION 2: SYSTEM STATES & TIMING
+// SYSTEM STATES & TIMING
 // =============================================================================
 
 // State Machine States
@@ -87,10 +87,28 @@ extern "C" {
 #define COMMS_CMD           5   // Executing telecommand
 #define COMMS_ERROR         6   // General error state
 
+// Define the events that can wake up the COMMS task
+typedef enum
+{
+    EVENT_LORA_TX_DONE,  // hardware interrupt: transmission complete
+    EVENT_LORA_RX_DONE,  // hardware interrupt: reception complete
+    EVENT_TX,    // software event: packet needs to be transmitted
+    EVENT_CMD   // software event: command needs to be processed
+} CommsEventType;
+
+// Radio hardware state tracking
+typedef enum {
+    RADIO_MODE_STANDBY,
+    RADIO_MODE_RX,
+    RADIO_MODE_TX
+} HwRadioMode;
+
 // Timing Configuration
-#define IDLE_TIMEOUT        500 // [ms] Time to wait in IDLE before checking queues
-#define TX_QUEUE_SIZE       6   // [Packets] Max TX queue depth
-#define CMD_QUEUE_SIZE      2   // [Packets] Max Command queue depth
+#define IDLE_TIMEOUT        	500 // [ms] Time to wait in IDLE before checking queues
+//#define TX_QUEUE_SIZE       	6   // [Packets] Max TX queue depth
+//#define CMD_QUEUE_SIZE      	2   // [Packets] Max Command queue depth
+#define COMMS_QUEUE_SIZE		8	// [CommsEvent] max events that can be processed
+#define COMMS_QUEUE_RESERVED 	2	// [CommsEvent] reserved for outbound packets
 
 // Subsystem States (TX / Crystal)
 #define TX_OFF              0x00
@@ -102,7 +120,7 @@ extern "C" {
 #define CRY_DARK            0x02
 
 // =============================================================================
-// SECTION 3: PACKET STRUCTURE & ERROR CODES
+// PACKET STRUCTURE & ERROR CODES
 // =============================================================================
 
 // Packet Limits
@@ -116,9 +134,9 @@ extern "C" {
 #define PACKET_ERR_DECODE       -2  // Decoding Failed
 #define PACKET_ERR_LENGTH       -3  // Invalid Length
 #define PACKET_ERR_MAC          -4  // Invalid MAC/Auth
-#define PACKET_ERR_CMD_FULL     -5  // Command Queue Full
+#define PACKET_ERR_QUEUE_FULL   -5  // Command Queue Full
 #define PACKET_ERR_CMD_POINTER  -6  // Null Pointer
-#define PACKET_ERR_CMD_UNKNOWN  -7  // Unknown Command ID
+#define PACKET_ERR_TEC_UNKNOWN  -7  // Unknown Command ID
 #define PACKET_ERR_CMD_PAYLOAD  -8  // Invalid Command Payload
 #define PACKET_ERR_CMD_MEMORY   -9  // Memory Allocation Fail
 
@@ -132,11 +150,13 @@ extern "C" {
 #endif
 #define DATA_BLOCK_SIZE (RS_BLOCK_SIZE - NPAR)
 
-// -----------------------------------------------------------------------------
-// STRUCT: Packet
-// Represents a telecommunication packet in memory (decoded)
-// -----------------------------------------------------------------------------
-struct Packet {
+// =============================================================================
+// STRUCTS
+// =============================================================================
+
+// Telecommunication packet in memory (decoded)
+struct Packet
+{
     bool ecc;           // Reed-Solomon Enabled
     bool mac_valid;     // MAC Verification Status
     int8_t state;       // Internal Packet State/Error Code
@@ -154,14 +174,22 @@ struct Packet {
     int8_t seal(); // Calculate MAC and finalize packet
 };
 
-// Struct for Delayed Command Timer
-struct TimerPayload {
+// Delayed command timer
+struct TimerPayload
+{
     Packet* packet;
     TimerHandle_t* global_handle;
 };
 
+// Unified event item for queue
+struct CommsEvent
+{
+    CommsEventType type;
+    Packet packet;       // payload for TX or CMD (ignored for DIO1_IRQ)
+};
+
 // =============================================================================
-// SECTION 4: COMMAND DEFINITIONS (TEC & TER)
+// COMMAND DEFINITIONS (TEC & TER)
 // =============================================================================
 
 #define MISSION_ID          0x01
@@ -186,7 +214,7 @@ struct TimerPayload {
 #define TER_LORA_PONG       0x33
 
 // =============================================================================
-// SECTION 5: GLOBAL VARIABLES & HANDLES
+// GLOBAL VARIABLES & HANDLES
 // =============================================================================
 
 // Radio Hardware
@@ -194,14 +222,15 @@ extern STM32Hal radioHal;
 extern SX1268 radio;
 
 // RTOS Handles
-extern TaskHandle_t COMMSTaskHandle;
-extern QueueHandle_t RTOS_queue_TX;
-extern QueueHandle_t RTOS_queue_cmd;
+extern TaskHandle_t COMMS_task_handle;
+//extern QueueHandle_t RTOS_queue_TX;
+//extern QueueHandle_t RTOS_queue_cmd;
+extern QueueHandle_t COMMS_queue_events;
 
 // Timers
-extern TimerHandle_t RTOS_timer_lora_state;
-extern TimerHandle_t RTOS_timer_lora_config;
-extern TimerHandle_t RTOS_timer_cry_state;
+extern TimerHandle_t COMMS_timer_lora_state;
+extern TimerHandle_t COMMS_timer_lora_config;
+extern TimerHandle_t COMMS_timer_cry_state;
 
 // System Status
 extern uint8_t tx_state;
@@ -209,8 +238,13 @@ extern bool rs_enabled;
 extern uint8_t cry_state;
 
 // =============================================================================
-// SECTION 6: FUNCTION PROTOTYPES
+// FUNCTION PROTOTYPES
 // =============================================================================
+
+// Print functions
+void printStartupMessage(const char* device);
+void printRadioStatus(int16_t state, bool blocking);
+void printData(const char* prefix, const uint8_t* packet, uint8_t length);
 
 // State Machine
 void COMMS_stateMachine(void *parameter);
@@ -218,15 +252,9 @@ void PowerUp_COMMS(void);
 void PowerDown_COMMS(void);
 
 // Radio Operations
-void Init_Radio_Hardware(void);
+void initRadioHardware(void);
 void startReception(void);
 void startTransmission(uint8_t *tx_packet, uint8_t packet_size);
-void printRadioStatus(int16_t state, bool blocking);
-
-// Utilities
-void printStartupMessage(const char* device);
-void printData(const char* prefix, const uint8_t* packet, uint8_t length);
-void packetEvent(void); // Legacy stub
 
 // Data Conversion & ECC
 bool isDataECCEnabled(const uint8_t* data, uint8_t length);
@@ -234,6 +262,7 @@ void encodeECC(uint8_t* data, uint8_t& data_len);
 int8_t decodeECC(uint8_t* data, uint8_t& data_len);
 void dataToPacket(const uint8_t* data, uint8_t length, Packet* packet);
 uint8_t packetToData(const Packet* packet, uint8_t* data);
+int8_t makeMAC(const Packet* packet, uint32_t* out_mac);
 
 // Command Execution
 int8_t executeTEC(const Packet* cmd);
@@ -242,6 +271,7 @@ bool isACKNeeded(const Packet* packet);
 bool isACKNeededBefore(const Packet* packet);
 void sendACK(bool ecc, uint8_t TEC);
 void sendNACK(bool ecc, uint8_t TEC, int8_t error);
+BaseType_t scheduleAction(CommsEventType action, Packet* payload, bool priority);
 
 // Delayed Commands (Timers)
 void createDelayedCommand(const Packet* cmd, void (*callback)(TimerHandle_t), uint32_t delay_seconds, void (*editDelayedCommand)(Packet*), TimerHandle_t* global_timer_handle, const char* timer_name);
