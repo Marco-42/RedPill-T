@@ -1,0 +1,12 @@
+../Core/Src/RadioLib/modules/Si443x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/Si443x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.h:553:7:Si443x::~Si443x()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.h:553:7:virtual Si443x::~Si443x()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si4432.h:15:7:Si4432::~Si4432()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si4432.h:15:7:virtual Si4432::~Si4432()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si4430.cpp:4:1:Si4430::Si4430(Module*)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si4430.cpp:8:9:virtual int16_t Si4430::begin(float, float, float, float, int8_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si4430.cpp:24:9:virtual int16_t Si4430::setFrequency(float)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si4430.cpp:31:9:virtual int16_t Si4430::setOutputPower(int8_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si4430.h:15:7:Si4430::~Si4430()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si4430.h:15:7:virtual Si4430::~Si4430()	16	static

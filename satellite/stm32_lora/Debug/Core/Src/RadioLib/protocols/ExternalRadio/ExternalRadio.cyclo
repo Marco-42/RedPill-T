@@ -1,0 +1,13 @@
+../Core/Src/RadioLib/protocols/ExternalRadio/../../Module.h:406:14:uint32_t Module::getGpio() const	1
+../Core/Src/RadioLib/protocols/ExternalRadio/../PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/protocols/ExternalRadio/../PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:12:1:ExternalRadio::ExternalRadio(RadioLibHal*, uint32_t)	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:19:1:ExternalRadio::ExternalRadio(const ExternalRadio&)	2
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:27:16:ExternalRadio& ExternalRadio::operator=(const ExternalRadio&)	3
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:37:1:ExternalRadio::~ExternalRadio()	2
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:37:1:virtual ExternalRadio::~ExternalRadio()	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:41:9:virtual Module* ExternalRadio::getMod()	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:45:9:virtual int16_t ExternalRadio::setFrequencyDeviation(float)	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:50:9:virtual int16_t ExternalRadio::setDataShaping(uint8_t)	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:55:9:virtual int16_t ExternalRadio::setEncoding(uint8_t)	1
+../Core/Src/RadioLib/protocols/ExternalRadio/ExternalRadio.cpp:60:9:virtual int16_t ExternalRadio::transmitDirect(uint32_t)	3

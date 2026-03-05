@@ -1,0 +1,10 @@
+../Core/Src/rscode/rs.c:48:1:initialize_ecc	8	static
+../Core/Src/rscode/rs.c:58:1:zero_fill_from	32	static
+../Core/Src/rscode/rs.c:66:1:print_parity	16	static
+../Core/Src/rscode/rs.c:77:1:print_syndrome	16	static
+../Core/Src/rscode/rs.c:88:1:build_codeword	32	static
+../Core/Src/rscode/rs.c:107:1:decode_data	40	static
+../Core/Src/rscode/rs.c:122:1:check_syndrome	16	static
+../Core/Src/rscode/rs.c:136:1:debug_check_syndrome	24	static
+../Core/Src/rscode/rs.c:154:1:compute_genpoly	2072	static
+../Core/Src/rscode/rs.c:182:1:encode_data	56	static

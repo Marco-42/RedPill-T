@@ -1,0 +1,13 @@
+../Core/Src/rscode/berlekamp.c:63:1:Modified_Berlekamp_Massey	8
+../Core/Src/rscode/berlekamp.c:115:1:compute_modified_omega	2
+../Core/Src/rscode/berlekamp.c:128:1:mult_polys	8
+../Core/Src/rscode/berlekamp.c:153:1:init_gamma	2
+../Core/Src/rscode/berlekamp.c:172:1:compute_next_omega	2
+../Core/Src/rscode/berlekamp.c:183:1:compute_discrepancy	2
+../Core/Src/rscode/berlekamp.c:194:6:add_polys	2
+../Core/Src/rscode/berlekamp.c:200:6:copy_poly	2
+../Core/Src/rscode/berlekamp.c:206:6:scale_poly	2
+../Core/Src/rscode/berlekamp.c:213:6:zero_poly	2
+../Core/Src/rscode/berlekamp.c:221:13:mul_z_poly	2
+../Core/Src/rscode/berlekamp.c:237:1:Find_Roots	5
+../Core/Src/rscode/berlekamp.c:270:1:correct_errors_erasures	13

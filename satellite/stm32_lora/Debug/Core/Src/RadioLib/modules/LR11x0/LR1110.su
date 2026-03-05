@@ -1,0 +1,17 @@
+../Core/Src/RadioLib/modules/LR11x0/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/LR11x0/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.h:27:7:LR11x0::~LR11x0()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.h:27:7:virtual LR11x0::~LR11x0()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:6:1:LR1110::LR1110(Module*)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:10:9:int16_t LR1110::begin(float, float, uint8_t, uint8_t, uint8_t, int8_t, uint16_t, float)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:23:9:int16_t LR1110::beginGFSK(float, float, float, float, int8_t, uint16_t, float)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:36:9:int16_t LR1110::beginLRFHSS(float, uint8_t, uint8_t, bool, int8_t, float)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:49:9:virtual int16_t LR1110::setFrequency(float)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:53:9:int16_t LR1110::setFrequency(float, bool, float)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:70:9:virtual int16_t LR1110::setOutputPower(int8_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:74:9:int16_t LR1110::setOutputPower(int8_t, bool, uint32_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:93:9:virtual int16_t LR1110::checkOutputPower(int8_t, int8_t*)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:97:9:int16_t LR1110::checkOutputPower(int8_t, int8_t*, bool)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.cpp:114:9:virtual int16_t LR1110::setModem(ModemType_t)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.h:15:7:LR1110::~LR1110()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR1110.h:15:7:virtual LR1110::~LR1110()	16	static

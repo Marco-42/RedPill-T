@@ -1,0 +1,88 @@
+../Core/Src/RadioLib/modules/RF69/../../Module.h:394:14:uint32_t Module::getIrq() const	1
+../Core/Src/RadioLib/modules/RF69/../../Module.h:400:14:uint32_t Module::getRst() const	1
+../Core/Src/RadioLib/modules/RF69/../../Module.h:406:14:uint32_t Module::getGpio() const	1
+../Core/Src/RadioLib/modules/RF69/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/RF69/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:5:1:RF69::RF69(Module*)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:11:9:int16_t RF69::begin(float, float, float, float, int8_t, uint8_t)	17
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:95:6:void RF69::reset()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:103:9:virtual int16_t RF69::transmit(const uint8_t*, size_t, uint8_t)	4
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:125:9:virtual int16_t RF69::receive(uint8_t*, size_t, RadioLibTime_t)	5
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:151:9:virtual int16_t RF69::sleep()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:159:9:virtual int16_t RF69::standby()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:167:9:virtual int16_t RF69::standby(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:172:9:virtual int16_t RF69::transmitDirect(uint32_t)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:193:9:virtual int16_t RF69::receiveDirect()	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:205:9:int16_t RF69::directMode()	4
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:222:9:int16_t RF69::packetMode()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:226:6:void RF69::setAESKey(const uint8_t*)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:230:9:int16_t RF69::enableAES()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:234:9:int16_t RF69::disableAES()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:238:9:virtual int16_t RF69::startReceive()	4
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:266:9:virtual int16_t RF69::startReceive(uint32_t, uint32_t, uint32_t, size_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:274:6:void RF69::setDio0Action(void (*)())	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:278:6:void RF69::clearDio0Action()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:282:6:void RF69::setDio1Action(void (*)())	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:290:6:void RF69::clearDio1Action()	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:297:6:virtual void RF69::setPacketReceivedAction(void (*)())	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:301:6:virtual void RF69::clearPacketReceivedAction()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:305:6:virtual void RF69::setPacketSentAction(void (*)())	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:309:6:virtual void RF69::clearPacketSentAction()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:313:6:void RF69::setFifoEmptyAction(void (*)())	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:324:6:void RF69::clearFifoEmptyAction()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:328:6:void RF69::setFifoThreshold(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:332:6:void RF69::setFifoFullAction(void (*)())	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:341:6:void RF69::clearFifoFullAction()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:346:6:bool RF69::fifoAdd(uint8_t*, int, int*)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:369:6:bool RF69::fifoGet(volatile uint8_t*, int, volatile int*)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:391:9:virtual int16_t RF69::startTransmit(const uint8_t*, size_t, uint8_t)	10
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:443:9:virtual int16_t RF69::finishTransmit()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:451:9:virtual int16_t RF69::readData(uint8_t*, size_t)	7
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:487:9:virtual int16_t RF69::finishReceive()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:496:9:int16_t RF69::setOOK(bool)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:515:9:int16_t RF69::setOokThresholdType(uint8_t)	4
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:522:9:int16_t RF69::setOokFixedThreshold(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:526:9:int16_t RF69::setOokPeakThresholdDecrement(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:530:9:virtual int16_t RF69::setFrequency(float)	7
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:551:9:int16_t RF69::getFrequency(float*)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:566:9:virtual int16_t RF69::setBitRate(float)	5
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:588:9:int16_t RF69::setRxBandwidth(float)	8
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:616:9:virtual int16_t RF69::setFrequencyDeviation(float)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:639:9:int16_t RF69::getFrequencyDeviation(float*)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:663:9:int16_t RF69::setOutputPower(int8_t, bool)	10
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:701:9:int16_t RF69::setSyncWord(const uint8_t*, size_t, uint8_t)	7
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:726:9:virtual int16_t RF69::setPreambleLength(size_t)	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:738:9:int16_t RF69::setNodeAddress(uint8_t)	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:747:9:int16_t RF69::setBroadcastAddress(uint8_t)	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:756:9:int16_t RF69::disableAddressFiltering()	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:769:6:void RF69::setAmbientTemperature(int16_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:773:9:int16_t RF69::getTemperature()	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:790:8:virtual size_t RF69::getPacketLength(bool)	4
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:803:9:int16_t RF69::fixedPacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:807:9:int16_t RF69::variablePacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:811:9:int16_t RF69::enableSyncWordFiltering(uint8_t)	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:820:9:int16_t RF69::disableSyncWordFiltering()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:825:9:int16_t RF69::enableContinuousModeBitSync()	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:834:9:int16_t RF69::disableContinuousModeBitSync()	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:843:9:int16_t RF69::setCrcFiltering(bool)	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:851:9:int16_t RF69::setPromiscuousMode(bool)	8
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:889:9:virtual int16_t RF69::setDataShaping(uint8_t)	6
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:909:9:virtual int16_t RF69::setEncoding(uint8_t)	6
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:927:9:int16_t RF69::setLnaTestBoost(bool)	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:935:7:virtual float RF69::getRSSI()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:939:9:int16_t RF69::setRSSIThreshold(float)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:945:6:void RF69::setRfSwitchPins(uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:949:6:void RF69::setRfSwitchTable(const uint32_t (&)[5], const Module::RfSwitchMode_t*)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:953:9:virtual uint8_t RF69::randomByte()	2
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:973:6:virtual void RF69::setDirectAction(void (*)())	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:977:6:virtual void RF69::readBit(uint32_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:982:9:virtual int16_t RF69::setDIOMapping(uint32_t, uint32_t)	3
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:994:9:virtual Module* RF69::getMod()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:998:9:int16_t RF69::getChipVersion()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:1002:9:int16_t RF69::config()	11
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:1058:9:int16_t RF69::setPacketMode(uint8_t, uint8_t)	4
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:1077:9:int16_t RF69::setMode(uint8_t)	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:1081:6:void RF69::clearIRQFlags()	1
+../Core/Src/RadioLib/modules/RF69/RF69.cpp:1086:6:void RF69::clearFIFO(size_t)	2
+../Core/Src/RadioLib/modules/RF69/RF69.h:479:7:RF69::~RF69()	1
+../Core/Src/RadioLib/modules/RF69/RF69.h:479:7:virtual RF69::~RF69()	1

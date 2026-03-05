@@ -1,0 +1,12 @@
+C:\ST\STM32CubeIDE_2.0.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.100.202509120712\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/cmath:2482:3:constexpr float std::round(float)	1
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:5:1:FSK4Client::FSK4Client(PhysicalLayer*)	1
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:13:2:FSK4Client::FSK4Client(AFSKClient*)	1
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:19:9:int16_t FSK4Client::begin(float, uint32_t, uint16_t)	2
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:43:6:void FSK4Client::idle()	1
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:48:9:int16_t FSK4Client::setCorrection(int16_t*, float)	2
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:57:8:size_t FSK4Client::write(const uint8_t*, size_t)	2
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:66:8:size_t FSK4Client::write(uint8_t)	2
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:82:6:void FSK4Client::tone(uint8_t)	1
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:89:9:int16_t FSK4Client::transmitDirect(uint32_t, uint32_t)	2
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:98:9:int16_t FSK4Client::standby()	2
+../Core/Src/RadioLib/protocols/FSK4/FSK4.cpp:110:9:int32_t FSK4Client::getRawShift(int32_t)	4

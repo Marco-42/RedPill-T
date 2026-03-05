@@ -1,0 +1,57 @@
+../Core/Src/RadioLib/modules/Si443x/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/Si443x/../../Module.h:400:14:uint32_t Module::getRst() const	16	static
+../Core/Src/RadioLib/modules/Si443x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/Si443x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:5:1:Si443x::Si443x(Module*)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:11:9:int16_t Si443x::begin(float, float, float, uint8_t)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:71:6:void Si443x::reset()	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:79:9:virtual int16_t Si443x::transmit(const uint8_t*, size_t, uint8_t)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:100:9:virtual int16_t Si443x::receive(uint8_t*, size_t, RadioLibTime_t)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:124:9:virtual int16_t Si443x::sleep()	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:140:9:virtual int16_t Si443x::standby()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:144:9:virtual int16_t Si443x::standby(uint8_t)	32	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:150:9:virtual int16_t Si443x::transmitDirect(uint32_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:192:9:virtual int16_t Si443x::receiveDirect()	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:205:9:int16_t Si443x::packetMode()	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:212:6:void Si443x::setIrqAction(void (*)())	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:216:6:void Si443x::clearIrqAction()	32	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:220:6:virtual void Si443x::setPacketReceivedAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:224:6:virtual void Si443x::clearPacketReceivedAction()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:228:6:virtual void Si443x::setPacketSentAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:232:6:virtual void Si443x::clearPacketSentAction()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:236:9:virtual int16_t Si443x::startTransmit(const uint8_t*, size_t, uint8_t)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:277:9:virtual int16_t Si443x::finishTransmit()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:285:9:virtual int16_t Si443x::startReceive()	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:311:9:virtual int16_t Si443x::startReceive(uint32_t, uint32_t, uint32_t, size_t)	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:319:9:virtual int16_t Si443x::readData(uint8_t*, size_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:353:9:virtual int16_t Si443x::finishReceive()	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:362:9:virtual int16_t Si443x::setBitRate(float)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:393:9:virtual int16_t Si443x::setFrequencyDeviation(float)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:416:9:int16_t Si443x::setRxBandwidth(float)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:523:9:virtual int16_t Si443x::setSyncWord(uint8_t*, size_t)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:540:9:virtual int16_t Si443x::setPreambleLength(size_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:556:8:virtual size_t Si443x::getPacketLength(bool)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:569:9:virtual int16_t Si443x::setEncoding(uint8_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:588:9:virtual int16_t Si443x::setDataShaping(uint8_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:604:6:void Si443x::setRfSwitchPins(uint32_t, uint32_t)	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:608:6:void Si443x::setRfSwitchTable(const uint32_t (&)[5], const Module::RfSwitchMode_t*)	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:612:9:virtual uint8_t Si443x::randomByte()	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:631:9:int16_t Si443x::getChipVersion()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:636:6:virtual void Si443x::setDirectAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:640:6:virtual void Si443x::readBit(uint32_t)	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:645:9:int16_t Si443x::fixedPacketLengthMode(uint8_t)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:649:9:int16_t Si443x::variablePacketLengthMode(uint8_t)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:653:10:virtual uint32_t Si443x::getIrqFlags()	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:659:9:virtual int16_t Si443x::clearIrqFlags(uint32_t)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:665:9:int16_t Si443x::setCRC(bool, bool)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:672:9:virtual Module* Si443x::getMod()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:676:9:int16_t Si443x::setFrequencyRaw(float)	48	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:704:9:int16_t Si443x::setPacketMode(uint8_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:723:6:bool Si443x::findChip()	24	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:744:6:void Si443x::clearIrqStatus()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:748:6:void Si443x::clearFIFO(size_t)	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:755:9:int16_t Si443x::config()	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:782:9:int16_t Si443x::updateClockRecovery()	56	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.cpp:830:9:int16_t Si443x::directMode()	40	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.h:553:7:Si443x::~Si443x()	16	static
+../Core/Src/RadioLib/modules/Si443x/Si443x.h:553:7:virtual Si443x::~Si443x()	16	static

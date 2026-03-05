@@ -1,0 +1,51 @@
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/CC1101/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/CC1101/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/LLCC68/../SX126x/SX126x.h:37:7:SX126x::~SX126x()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/LLCC68/../SX126x/SX126x.h:37:7:virtual SX126x::~SX126x()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/SX126x/SX1268.h:21:7:SX1268::~SX1268()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/modules/SX126x/SX1268.h:21:7:virtual SX1268::~SX1268()	16	static
+../Core/Src/COMMS.cpp:54:17:void HAL_GPIO_EXTI_Callback(uint16_t)	144	static,ignoring_inline_asm
+../Core/Src/COMMS.cpp:90:6:void printStartupMessage(const char*)	16	static
+../Core/Src/COMMS.cpp:98:6:void printRadioStatus(int16_t, bool)	16	static
+../Core/Src/COMMS.cpp:120:6:void printData(const char*, const uint8_t*, uint8_t)	32	static
+../Core/Src/COMMS.cpp:140:6:void setUNIX(uint32_t)	16	static
+../Core/Src/COMMS.cpp:151:10:uint32_t getUNIX()	8	static
+../Core/Src/COMMS.cpp:157:6:void writeFloatToBytes(float, uint8_t*)	24	static
+../Core/Src/COMMS.cpp:173:6:void initRadioHardware()	32	static
+../Core/Src/COMMS.cpp:193:6:void startReception()	16	static
+../Core/Src/COMMS.cpp:205:6:void startTransmission(uint8_t*, uint8_t)	24	static
+../Core/Src/COMMS.cpp:222:6:void Packet::init(bool, uint8_t)	16	static
+../Core/Src/COMMS.cpp:241:8:int8_t Packet::setPayload(const uint8_t*, uint8_t)	24	static
+../Core/Src/COMMS.cpp:253:8:int8_t Packet::seal()	24	static
+../Core/Src/COMMS.cpp:266:6:void dataToPacket(const uint8_t*, uint8_t, Packet*)	32	static
+../Core/Src/COMMS.cpp:320:9:uint8_t packetToData(const Packet*, uint8_t*)	16	static
+../Core/Src/COMMS.cpp:343:8:int8_t makeMAC(const Packet*, uint32_t*)	168	static
+../Core/Src/COMMS.cpp:372:6:bool isDataECCEnabled(const uint8_t*, uint8_t)	16	static
+../Core/Src/COMMS.cpp:380:6:void encodeECC(uint8_t*, uint8_t&)	72	dynamic
+../Core/Src/COMMS.cpp:412:8:int8_t decodeECC(uint8_t*, uint8_t&)	56	dynamic
+../Core/Src/COMMS.cpp:456:6:bool isACKNeeded(const Packet*)	16	static
+../Core/Src/COMMS.cpp:468:6:bool isACKNeededBefore(const Packet*)	16	static
+../Core/Src/COMMS.cpp:482:6:void sendACK(bool, uint8_t)	136	static
+../Core/Src/COMMS.cpp:492:6:void sendNACK(bool, uint8_t, int8_t)	136	static
+../Core/Src/COMMS.cpp:507:12:BaseType_t scheduleAction(CommsEventType, Packet*, bool)	136	static
+../Core/Src/COMMS.cpp:533:6:bool isTEC(uint8_t)	16	static
+../Core/Src/COMMS.cpp:555:8:int8_t executeTEC(const Packet*)	208	static
+../Core/Src/COMMS.cpp:720:6:void deleteTimerIfExists(tmrTimerControl**, const char*)	32	static
+../Core/Src/COMMS.cpp:741:6:void queueDelayedPacket(TimerHandle_t)	32	static
+../Core/Src/COMMS.cpp:766:6:void createDelayedCommand(const Packet*, void (*)(TimerHandle_t), uint32_t, void (*)(Packet*), tmrTimerControl**, const char*)	48	static
+../Core/Src/COMMS.cpp:799:6:void editDelayedGeneric4(Packet*)	16	static
+../Core/Src/COMMS.cpp:813:6:void editDelayedGeneric1(Packet*)	16	static
+../Core/Src/COMMS.cpp:827:6:void editDelayedLoraState(Packet*)	16	static
+../Core/Src/COMMS.cpp:840:6:void editDelayedLoraConfig(Packet*)	24	static
+../Core/Src/COMMS.cpp:862:6:void COMMS_stateMachine(void*)	272	static
+../Core/Src/COMMS.cpp:1113:6:void PowerUp_COMMS()	16	static
+../Core/Src/COMMS.cpp:1120:6:void PowerDown_COMMS()	8	static
+../Core/Src/COMMS.cpp:1129:17:void app_OBC_loop(void*)	16	static
+../Core/Src/COMMS.cpp:1139:1:void __static_initialization_and_destruction_0()	24	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/Hal.h:66:13:RadioLibHal::~RadioLibHal()	16	static
+C:/Users/aless/Documents/GitHub/RedPill-T/satellite/stm32_lora/Core/Src/RadioLib/Hal.h:66:13:virtual RadioLibHal::~RadioLibHal()	16	static
+../Core/Inc/STM32Hal.h:13:7:STM32Hal::~STM32Hal()	16	static
+../Core/Inc/STM32Hal.h:13:7:virtual STM32Hal::~STM32Hal()	16	static
+../Core/Src/COMMS.cpp:1139:1:void __static_initialization_and_destruction_1()	8	static
+../Core/Src/COMMS.cpp:1139:1:cpp)	8	static
+../Core/Src/COMMS.cpp:1139:1:cpp)	8	static

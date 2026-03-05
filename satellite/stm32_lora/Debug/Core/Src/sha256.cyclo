@@ -1,0 +1,5 @@
+../Core/Src/sha256.c:32:6:sha256_transform	4
+../Core/Src/sha256.c:49:6:sha256_init	1
+../Core/Src/sha256.c:55:6:sha256_update	4
+../Core/Src/sha256.c:67:6:sha256_final	6
+../Core/Src/sha256.c:100:6:hmac_sha256	3

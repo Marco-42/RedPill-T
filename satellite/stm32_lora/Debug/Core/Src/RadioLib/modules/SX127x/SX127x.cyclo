@@ -1,0 +1,117 @@
+../Core/Src/RadioLib/modules/SX127x/../../Module.h:394:14:uint32_t Module::getIrq() const	1
+../Core/Src/RadioLib/modules/SX127x/../../Module.h:406:14:uint32_t Module::getGpio() const	1
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:5:1:SX127x::SX127x(Module*)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:11:9:int16_t SX127x::begin(const uint8_t*, uint8_t, uint8_t, uint16_t)	10
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:74:9:int16_t SX127x::beginFSK(const uint8_t*, uint8_t, float, float, uint16_t, bool)	18
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:170:9:virtual int16_t SX127x::transmit(const uint8_t*, size_t, uint8_t)	7
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:214:9:virtual int16_t SX127x::receive(uint8_t*, size_t, RadioLibTime_t)	10
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:261:6:virtual void SX127x::reset()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:265:9:virtual int16_t SX127x::scanChannel()	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:281:9:virtual int16_t SX127x::sleep()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:294:9:virtual int16_t SX127x::standby()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:302:9:virtual int16_t SX127x::standby(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:307:9:virtual int16_t SX127x::transmitDirect(uint32_t)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:336:9:virtual int16_t SX127x::receiveDirect()	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:356:9:int16_t SX127x::directMode()	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:373:9:int16_t SX127x::packetMode()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:382:9:virtual int16_t SX127x::startReceive()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:386:6:void SX127x::setDio0Action(void (*)(), uint32_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:390:6:void SX127x::clearDio0Action()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:394:6:void SX127x::setDio1Action(void (*)(), uint32_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:401:6:void SX127x::clearDio1Action()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:408:6:virtual void SX127x::setPacketReceivedAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:412:6:virtual void SX127x::clearPacketReceivedAction()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:416:6:virtual void SX127x::setPacketSentAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:420:6:virtual void SX127x::clearPacketSentAction()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:424:6:virtual void SX127x::setChannelScanAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:428:6:virtual void SX127x::clearChannelScanAction()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:432:6:void SX127x::setFifoEmptyAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:437:6:void SX127x::clearFifoEmptyAction()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:441:6:void SX127x::setFifoThreshold(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:445:6:void SX127x::setFifoFullAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:454:6:void SX127x::clearFifoFullAction()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:459:6:virtual void SX127x::errataFix(bool)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:464:6:bool SX127x::fifoAdd(uint8_t*, int, int*)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:487:6:bool SX127x::fifoGet(volatile uint8_t*, int, volatile int*)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:509:9:virtual int16_t SX127x::finishTransmit()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:522:9:virtual int16_t SX127x::readData(uint8_t*, size_t)	14
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:578:9:virtual int16_t SX127x::finishReceive()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:587:9:virtual int16_t SX127x::startChannelScan()	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:612:9:virtual int16_t SX127x::getChannelScanResult()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:619:9:int16_t SX127x::setSyncWord(uint8_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:632:9:int16_t SX127x::setCurrentLimit(uint8_t)	7
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:656:9:virtual int16_t SX127x::setPreambleLength(size_t)	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:685:9:int16_t SX127x::invertPreamble(bool)	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:704:7:float SX127x::getFrequencyError(bool)	6
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:757:7:float SX127x::getAFCError()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:773:7:virtual float SX127x::getSNR()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:784:7:float SX127x::getDataRate() const	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:788:9:int16_t SX127x::setBitRateCommon(float, uint8_t)	10
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:824:9:virtual int16_t SX127x::setFrequencyDeviation(float)	6
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:855:9:static uint8_t SX127x::calculateBWManExp(float)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:868:9:int16_t SX127x::setRxBandwidth(float)	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:884:9:int16_t SX127x::setAFCBandwidth(float)	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:900:9:int16_t SX127x::setAFC(bool)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:910:9:int16_t SX127x::setAFCAGCTrigger(uint8_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:919:9:virtual int16_t SX127x::setSyncWord(uint8_t*, size_t)	10
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:960:9:int16_t SX127x::setNodeAddress(uint8_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:974:9:int16_t SX127x::setBroadcastAddress(uint8_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:988:9:int16_t SX127x::disableAddressFiltering()	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1006:9:int16_t SX127x::setOokThresholdType(uint8_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1014:9:int16_t SX127x::setOokFixedOrFloorThreshold(uint8_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1022:9:int16_t SX127x::setOokPeakThresholdDecrement(uint8_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1030:9:int16_t SX127x::setOokPeakThresholdStep(uint8_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1038:9:int16_t SX127x::enableBitSync()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1042:9:int16_t SX127x::disableBitSync()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1046:9:int16_t SX127x::setOOK(bool)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1068:9:int16_t SX127x::setFrequencyRaw(float)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1087:8:virtual size_t SX127x::getPacketLength(bool)	7
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1115:9:int16_t SX127x::getLoRaRxHeaderInfo(uint8_t*, bool*)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1129:9:int16_t SX127x::fixedPacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1133:9:int16_t SX127x::variablePacketLengthMode(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1137:7:float SX127x::getNumSymbols(size_t, DataRate_t, PacketConfig_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1157:16:virtual RadioLibTime_t SX127x::calculateTimeOnAir(ModemType_t, DataRate_t, PacketConfig_t, size_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1179:16:virtual RadioLibTime_t SX127x::getTimeOnAir(size_t)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1230:16:virtual RadioLibTime_t SX127x::calculateRxTimeout(RadioLibTime_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1248:10:virtual uint32_t SX127x::getIrqFlags()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1252:9:virtual int16_t SX127x::setIrqFlags(uint32_t)	27
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1354:9:virtual int16_t SX127x::clearIrqFlags(uint32_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1369:9:int16_t SX127x::setCrcFiltering(bool)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1379:9:int16_t SX127x::setRSSIThreshold(float)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1385:9:int16_t SX127x::setRSSIConfig(uint8_t, int8_t)	6
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1414:9:virtual int16_t SX127x::setEncoding(uint8_t)	6
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1433:10:uint16_t SX127x::getIRQFlags()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1448:9:uint8_t SX127x::getModemStatus()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1458:6:void SX127x::setRfSwitchPins(uint32_t, uint32_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1462:6:void SX127x::setRfSwitchTable(const uint32_t (&)[5], const Module::RfSwitchMode_t*)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1466:9:virtual uint8_t SX127x::randomByte()	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1491:9:int16_t SX127x::getChipVersion()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1495:8:int8_t SX127x::getTempRaw()	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1547:9:virtual Module* SX127x::getMod()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1551:9:int16_t SX127x::config()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1557:9:virtual int16_t SX127x::configFSK()	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1587:9:int16_t SX127x::setPacketMode(uint8_t, uint8_t)	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1611:6:bool SX127x::findChip(const uint8_t*, uint8_t)	6
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1638:9:int16_t SX127x::setMode(uint8_t)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1647:9:int16_t SX127x::getActiveModem()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1651:9:int16_t SX127x::setActiveModem(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1665:6:void SX127x::clearFIFO(size_t)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1672:9:virtual int16_t SX127x::invertIQ(bool)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1694:9:virtual int16_t SX127x::getModem(ModemType_t*)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1710:9:virtual int16_t SX127x::stageMode(RadioModeType_t, RadioModeConfig_t*)	27
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1851:9:virtual int16_t SX127x::launchMode()	5
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1875:6:virtual void SX127x::setDirectAction(void (*)())	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1879:6:virtual void SX127x::readBit(uint32_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1884:9:int16_t SX127x::setFHSSHoppingPeriod(uint8_t)	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1888:9:uint8_t SX127x::getFHSSHoppingPeriod()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1892:9:uint8_t SX127x::getFHSSChannel()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1896:6:void SX127x::clearFHSSInt()	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1905:9:virtual int16_t SX127x::setDIOMapping(uint32_t, uint32_t)	3
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1915:9:int16_t SX127x::setDIOPreambleDetect(bool)	2
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1919:7:float SX127x::getRSSI(bool, bool, int16_t)	6
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1960:9:int16_t SX127x::setHeaderType(uint8_t, uint8_t, size_t)	4
+../Core/Src/RadioLib/modules/SX127x/SX127x.cpp:1980:9:int16_t SX127x::setLowBatteryThreshold(int8_t, uint32_t)	7
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:SX127x::~SX127x()	1
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:virtual SX127x::~SX127x()	1

@@ -1,0 +1,51 @@
+../Core/Src/RadioLib/modules/nRF24/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/nRF24/../../Module.h:400:14:uint32_t Module::getRst() const	16	static
+../Core/Src/RadioLib/modules/nRF24/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/nRF24/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:5:1:nRF24::nRF24(Module*)	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:11:9:int16_t nRF24::begin(int16_t, int16_t, int8_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:69:9:virtual int16_t nRF24::sleep()	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:73:9:virtual int16_t nRF24::standby()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:77:9:virtual int16_t nRF24::standby(uint8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:87:9:virtual int16_t nRF24::transmit(const uint8_t*, size_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:113:9:virtual int16_t nRF24::receive(uint8_t*, size_t, RadioLibTime_t)	48	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:140:9:virtual int16_t nRF24::transmitDirect(uint32_t)	48	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:155:9:virtual int16_t nRF24::receiveDirect()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:161:6:void nRF24::setIrqAction(void (*)())	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:165:6:void nRF24::clearIrqAction()	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:169:6:virtual void nRF24::setPacketReceivedAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:173:6:virtual void nRF24::clearPacketReceivedAction()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:177:6:virtual void nRF24::setPacketSentAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:181:6:virtual void nRF24::clearPacketSentAction()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:185:9:virtual int16_t nRF24::startTransmit(const uint8_t*, size_t, uint8_t)	88	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:225:9:virtual int16_t nRF24::finishTransmit()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:233:9:virtual int16_t nRF24::startReceive()	48	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:259:9:virtual int16_t nRF24::startReceive(uint32_t, uint32_t, uint32_t, size_t)	24	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:267:9:virtual int16_t nRF24::readData(uint8_t*, size_t)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:285:9:virtual int16_t nRF24::finishReceive()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:293:9:virtual int16_t nRF24::setFrequency(float)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:307:9:virtual int16_t nRF24::setBitRate(float)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:335:9:virtual int16_t nRF24::setOutputPower(int8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:369:9:int16_t nRF24::setAddressWidth(uint8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:402:9:int16_t nRF24::setTransmitPipe(const uint8_t*)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:417:9:int16_t nRF24::setReceivePipe(uint8_t, const uint8_t*)	48	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:439:9:int16_t nRF24::setReceivePipe(uint8_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:469:9:int16_t nRF24::disablePipe(uint8_t)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:500:9:int16_t nRF24::getStatus(uint8_t)	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:504:6:bool nRF24::isCarrierDetected()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:508:9:virtual int16_t nRF24::setFrequencyDeviation(float)	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:515:8:virtual size_t nRF24::getPacketLength(bool)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:522:9:int16_t nRF24::setCrcFiltering(bool)	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:533:9:int16_t nRF24::setAutoAck(bool)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:537:9:int16_t nRF24::setAutoAck(uint8_t, bool)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:562:9:virtual int16_t nRF24::setDataShaping(uint8_t)	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:569:9:virtual int16_t nRF24::setEncoding(uint8_t)	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:576:9:int16_t nRF24::setLNA(bool)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:580:6:void nRF24::clearIRQ()	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:588:9:int16_t nRF24::config()	40	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:621:9:virtual Module* nRF24::getMod()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:625:6:void nRF24::SPIreadRxPayload(uint8_t*, uint8_t)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:629:6:void nRF24::SPIwriteTxPayload(const uint8_t*, uint8_t)	32	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.cpp:633:6:void nRF24::SPItransfer(uint8_t, bool, const uint8_t*, uint8_t*, uint8_t)	48	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.h:186:7:nRF24::~nRF24()	16	static
+../Core/Src/RadioLib/modules/nRF24/nRF24.h:186:7:virtual nRF24::~nRF24()	16	static

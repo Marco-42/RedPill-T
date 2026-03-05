@@ -2,7 +2,8 @@
 #include "esp32_gs_fun.h"
 
 // Define LoRa module
-SX1278 radio = new Module(CS_PIN, DIO0_PIN, RESET_PIN, DIO1_PIN);
+SX1268 radio = new Module(LORA_CS, LORA_DIO1, LORA_RST, LORA_BUSY);
+// SX1268 radio = new Module(LORA_CS, LORA_DIO1, LORA_RST, RADIOLIB_NC);
 
 // Define the queue handles
 QueueHandle_t RTOS_queue_TX;
@@ -27,8 +28,8 @@ void GS_stateMachine(void *parameter)
 	Serial.println("ok");
 	
 	// Start LoRa module
-	Serial.print("[SX1278] Initializing ... ");
-	int8_t radio_state = radio.begin(F, BW, SF, CR, SYNC_WORD, OUTPUT_POWER, PREAMBLE_LENGTH, GAIN);
+	Serial.print("[SX1268] Initializing ... ");
+	int16_t radio_state = radio.begin(F, BW, SF, CR, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, OUTPUT_POWER, PREAMBLE_LENGTH, TCXO_V, USE_LDO);
 	printRadioStatus(radio_state, true); // block program if LoRa cannot be initialized
 
 	// Set ISR to be called when packets are sent or received

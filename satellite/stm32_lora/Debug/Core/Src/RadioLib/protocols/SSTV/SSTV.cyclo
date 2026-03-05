@@ -1,0 +1,10 @@
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:192:1:SSTVClient::SSTVClient(PhysicalLayer*)	1
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:200:1:SSTVClient::SSTVClient(AFSKClient*)	1
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:207:9:int16_t SSTVClient::begin(const SSTVMode_t&)	2
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:217:9:int16_t SSTVClient::begin(float, const SSTVMode_t&)	1
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:228:9:int16_t SSTVClient::setCorrection(float)	3
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:242:6:void SSTVClient::idle()	1
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:247:6:void SSTVClient::sendHeader()	4
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:284:6:void SSTVClient::sendLine(const uint32_t*)	23
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:357:10:uint16_t SSTVClient::getPictureHeight() const	1
+../Core/Src/RadioLib/protocols/SSTV/SSTV.cpp:361:6:void SSTVClient::tone(float, RadioLibTime_t)	2

@@ -1,0 +1,10 @@
+../Core/Src/RadioLib/modules/Si443x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/Si443x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	1
+../Core/Src/RadioLib/modules/Si443x/Si443x.h:553:7:Si443x::~Si443x()	1
+../Core/Src/RadioLib/modules/Si443x/Si443x.h:553:7:virtual Si443x::~Si443x()	1
+../Core/Src/RadioLib/modules/Si443x/Si4432.cpp:4:1:Si4432::Si4432(Module*)	1
+../Core/Src/RadioLib/modules/Si443x/Si4432.cpp:8:9:virtual int16_t Si4432::begin(float, float, float, float, int8_t, uint8_t)	4
+../Core/Src/RadioLib/modules/Si443x/Si4432.cpp:24:9:virtual int16_t Si4432::setFrequency(float)	3
+../Core/Src/RadioLib/modules/Si443x/Si4432.cpp:31:9:virtual int16_t Si4432::setOutputPower(int8_t)	3
+../Core/Src/RadioLib/modules/Si443x/Si4432.h:15:7:Si4432::~Si4432()	1
+../Core/Src/RadioLib/modules/Si443x/Si4432.h:15:7:virtual Si4432::~Si4432()	1

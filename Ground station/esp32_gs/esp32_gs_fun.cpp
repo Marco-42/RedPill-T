@@ -26,7 +26,7 @@ void printRadioStatus(int8_t state, bool blocking)
 	// No error reported
 	if (state == RADIOLIB_ERR_NONE)
 	{
-		// Serial.println("ok");
+		Serial.println("ok");
 	}
 	else
 	{

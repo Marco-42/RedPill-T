@@ -37,6 +37,15 @@ void setup()
 		
 	Serial.println(" ok");
 
+	Serial.print("MOSI: ");
+	Serial.println(MOSI);
+	Serial.print("MISO: ");
+	Serial.println(MISO);
+	Serial.print("SCK: ");
+	Serial.println(SCK);
+	Serial.print("SS: ");
+	Serial.println(SS);
+
 	// FreeRTOS task creation
 
 	// xTaskCreate(

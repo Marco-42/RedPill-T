@@ -1,0 +1,98 @@
+../Core/Src/RadioLib/modules/LR11x0/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/LR11x0/../../Module.h:400:14:uint32_t Module::getRst() const	16	static
+../Core/Src/RadioLib/modules/LR11x0/../../Module.h:406:14:uint32_t Module::getGpio() const	16	static
+../Core/Src/RadioLib/modules/LR11x0/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/LR11x0/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:8:1:LR11x0::LR11x0(Module*)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:25:9:int16_t LR11x0::begin(float, uint8_t, uint8_t, uint8_t, uint16_t, float, bool)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:59:9:int16_t LR11x0::beginGFSK(float, float, float, uint16_t, float)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:100:9:int16_t LR11x0::beginLRFHSS(uint8_t, uint8_t, bool, float)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:123:9:int16_t LR11x0::beginGNSS(uint8_t, float)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:153:9:int16_t LR11x0::reset()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:176:9:virtual int16_t LR11x0::transmit(const uint8_t*, size_t, uint8_t)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:237:9:virtual int16_t LR11x0::receive(uint8_t*, size_t, RadioLibTime_t)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:301:9:virtual int16_t LR11x0::transmitDirect(uint32_t)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:316:9:virtual int16_t LR11x0::receiveDirect()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:324:9:virtual int16_t LR11x0::scanChannel()	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:339:9:virtual int16_t LR11x0::scanChannel(const ChannelScanConfig_t&)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:353:9:virtual int16_t LR11x0::standby()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:357:9:int16_t LR11x0::standby(uint8_t, bool)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:371:9:virtual int16_t LR11x0::sleep()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:375:9:int16_t LR11x0::sleep(bool, uint32_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:396:6:void LR11x0::setIrqAction(void (*)())	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:400:6:void LR11x0::clearIrqAction()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:404:6:virtual void LR11x0::setPacketReceivedAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:408:6:virtual void LR11x0::clearPacketReceivedAction()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:412:6:virtual void LR11x0::setPacketSentAction(void (*)())	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:416:6:virtual void LR11x0::clearPacketSentAction()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:420:9:virtual int16_t LR11x0::finishTransmit()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:428:9:virtual int16_t LR11x0::startReceive()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:432:10:uint32_t LR11x0::getIrqStatus()	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:442:9:virtual int16_t LR11x0::readData(uint8_t*, size_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:487:9:virtual int16_t LR11x0::finishReceive()	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:496:9:virtual int16_t LR11x0::startChannelScan()	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:511:9:virtual int16_t LR11x0::startChannelScan(const ChannelScanConfig_t&)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:541:9:virtual int16_t LR11x0::getChannelScanResult()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:564:9:int16_t LR11x0::setBandwidth(float, bool)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:614:9:int16_t LR11x0::setSpreadingFactor(uint8_t, bool)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:635:9:int16_t LR11x0::setCodingRate(uint8_t, bool)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:671:9:int16_t LR11x0::setSyncWord(uint8_t)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:683:9:virtual int16_t LR11x0::setBitRate(float)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:704:9:virtual int16_t LR11x0::setFrequencyDeviation(float)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:728:9:int16_t LR11x0::setRxBandwidth(float)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:797:9:virtual int16_t LR11x0::setSyncWord(uint8_t*, size_t)	80	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:838:9:int16_t LR11x0::setNodeAddress(uint8_t)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:857:9:int16_t LR11x0::setBroadcastAddress(uint8_t)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:875:9:int16_t LR11x0::disableAddressFiltering()	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:889:9:virtual int16_t LR11x0::setDataShaping(uint8_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:923:9:virtual int16_t LR11x0::setEncoding(uint8_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:927:9:int16_t LR11x0::fixedPacketLengthMode(uint8_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:931:9:int16_t LR11x0::variablePacketLengthMode(uint8_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:935:9:int16_t LR11x0::setWhitening(bool, uint16_t)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:960:9:virtual int16_t LR11x0::setDataRate(DataRate_t, ModemType_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1012:9:virtual int16_t LR11x0::checkDataRate(DataRate_t, ModemType_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1038:9:virtual int16_t LR11x0::setPreambleLength(size_t)	64	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1059:9:int16_t LR11x0::setTCXO(float, uint32_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1114:9:int16_t LR11x0::setCRC(uint8_t, uint32_t, uint32_t, bool)	72	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1158:9:virtual int16_t LR11x0::invertIQ(bool)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1171:7:virtual float LR11x0::getRSSI()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1188:7:virtual float LR11x0::getSNR()	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1201:7:float LR11x0::getFrequencyError()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1206:8:virtual size_t LR11x0::getPacketLength(bool)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1210:8:size_t LR11x0::getPacketLength(bool, uint8_t*)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1225:16:virtual RadioLibTime_t LR11x0::calculateTimeOnAir(ModemType_t, DataRate_t, PacketConfig_t, size_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1297:16:virtual RadioLibTime_t LR11x0::getTimeOnAir(size_t)	72	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1355:16:virtual RadioLibTime_t LR11x0::calculateRxTimeout(RadioLibTime_t)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1362:10:virtual uint32_t LR11x0::getIrqFlags()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1366:9:virtual int16_t LR11x0::setIrqFlags(uint32_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1370:9:virtual int16_t LR11x0::clearIrqFlags(uint32_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1374:9:virtual uint8_t LR11x0::randomByte()	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1380:9:int16_t LR11x0::implicitHeader(size_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1384:9:int16_t LR11x0::explicitHeader()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1388:7:float LR11x0::getDataRate() const	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1392:9:int16_t LR11x0::setRegulatorLDO()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1396:9:int16_t LR11x0::setRegulatorDCDC()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1400:9:int16_t LR11x0::setRxBoostedGainMode(bool)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1405:6:void LR11x0::setRfSwitchTable(const uint32_t (&)[5], const Module::RfSwitchMode_t*)	88	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1446:9:int16_t LR11x0::forceLDRO(bool)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1461:9:int16_t LR11x0::autoLDRO()	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1473:9:int16_t LR11x0::setLrFhssConfig(uint8_t, uint8_t, uint8_t, uint16_t)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1494:9:int16_t LR11x0::getVersionInfo(LR11x0VersionInfo_t*)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1514:9:int16_t LR11x0::updateFirmware(const uint32_t*, size_t, bool)	80	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1572:9:virtual int16_t LR11x0::getModem(ModemType_t*)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1594:9:virtual int16_t LR11x0::stageMode(RadioModeType_t, RadioModeConfig_t*)	72	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1690:9:virtual int16_t LR11x0::launchMode()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1717:9:uint8_t LR11x0::roundRampTime(uint32_t)	24	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1758:9:int16_t LR11x0::workaroundGFSK()	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1793:9:int16_t LR11x0::modSetup(float, uint8_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1832:9:static int16_t LR11x0::SPIparseStatus(uint8_t)	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1843:9:static int16_t LR11x0::SPIcheckStatus(Module*)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1855:9:int16_t LR11x0::SPIcommand(uint16_t, bool, uint8_t*, size_t, const uint8_t*, size_t)	40	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1877:6:bool LR11x0::findChip(uint8_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1912:9:int16_t LR11x0::config(uint8_t)	32	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1949:9:int16_t LR11x0::setPacketMode(uint8_t, uint8_t)	56	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:1967:9:int16_t LR11x0::startCad(uint8_t, uint8_t, uint8_t, uint8_t, RadioLibTime_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:2010:9:int16_t LR11x0::setHeaderType(uint8_t, size_t)	48	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.cpp:2030:9:virtual Module* LR11x0::getMod()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.h:27:7:LR11x0::~LR11x0()	16	static
+../Core/Src/RadioLib/modules/LR11x0/LR11x0.h:27:7:virtual LR11x0::~LR11x0()	16	static

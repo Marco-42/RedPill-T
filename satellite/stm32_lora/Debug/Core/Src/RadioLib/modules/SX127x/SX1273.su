@@ -1,0 +1,14 @@
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX127x/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:SX127x::~SX127x()	16	static
+../Core/Src/RadioLib/modules/SX127x/SX127x.h:583:7:virtual SX127x::~SX127x()	16	static
+../Core/Src/RadioLib/modules/SX127x/SX1272.h:95:7:SX1272::~SX1272()	16	static
+../Core/Src/RadioLib/modules/SX127x/SX1272.h:95:7:virtual SX1272::~SX1272()	16	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.cpp:4:1:SX1273::SX1273(Module*)	16	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.cpp:8:9:virtual int16_t SX1273::begin(float, float, uint8_t, uint8_t, uint8_t, int8_t, uint16_t, uint8_t)	40	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.cpp:40:9:virtual int16_t SX1273::setSpreadingFactor(uint8_t)	24	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.cpp:70:9:virtual int16_t SX1273::setDataRate(DataRate_t, ModemType_t)	32	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.cpp:109:9:virtual int16_t SX1273::checkDataRate(DataRate_t, ModemType_t)	32	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.cpp:137:9:virtual int16_t SX1273::setModem(ModemType_t)	40	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.h:14:7:SX1273::~SX1273()	16	static
+../Core/Src/RadioLib/modules/SX127x/SX1273.h:14:7:virtual SX1273::~SX1273()	16	static

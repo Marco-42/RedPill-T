@@ -1,0 +1,10 @@
+../Core/Src/RadioLib/modules/SX123x/../../Module.h:394:14:uint32_t Module::getIrq() const	16	static
+../Core/Src/RadioLib/modules/SX123x/../../Module.h:400:14:uint32_t Module::getRst() const	16	static
+../Core/Src/RadioLib/modules/SX123x/../RF69/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX123x/../RF69/../../protocols/PhysicalLayer/PhysicalLayer.h:276:13:virtual PhysicalLayer::~PhysicalLayer()	16	static
+../Core/Src/RadioLib/modules/SX123x/../RF69/RF69.h:479:7:RF69::~RF69()	16	static
+../Core/Src/RadioLib/modules/SX123x/../RF69/RF69.h:479:7:virtual RF69::~RF69()	16	static
+../Core/Src/RadioLib/modules/SX123x/SX1231.cpp:4:1:SX1231::SX1231(Module*)	16	static
+../Core/Src/RadioLib/modules/SX123x/SX1231.cpp:8:9:virtual int16_t SX1231::begin(float, float, float, float, int8_t, uint8_t)	72	static
+../Core/Src/RadioLib/modules/SX123x/SX1231.h:94:7:SX1231::~SX1231()	16	static
+../Core/Src/RadioLib/modules/SX123x/SX1231.h:94:7:virtual SX1231::~SX1231()	16	static
