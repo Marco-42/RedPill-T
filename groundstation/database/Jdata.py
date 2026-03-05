@@ -5,16 +5,27 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt, QDate
 import os
-import struct
+import pandas as pd
 
 # Tasks for packet management
-# Uncomment this line if the database is run from GUI
-from groundstation import GS_task as gt
+try:
+    # Attempting execution as a module
+    from . import GS_task as gt
+except ImportError:
+    try:
+        # Fallback if GroundStation is recognized in the path
+        from GroundStation import GS_task as gt
+    except ImportError:
+        # Fallback for direct execution as a script
+        import GS_task as gt
 
-DB_PATH = "./groundstation/database/SatelliteDB.db"
+# Dynamic path resolution for the database
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "SatelliteDB.db")
+
+# PACKET CONSTANTS
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 BYTE_RS_ON = 0xAA
-import pandas as pd
 BYTE_RS_OFF = 0x55
 
 # TER VALUES
@@ -145,7 +156,7 @@ def show_db_not_found(path = DB_PATH):
 
     # Showing main error message on the window
     layout = QVBoxLayout()
-    label = QLabel("Database not founded")
+    label = QLabel("Database not found")
     label.setAlignment(Qt.AlignCenter)
     layout.addWidget(label)
 

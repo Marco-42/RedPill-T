@@ -22,25 +22,44 @@ import traceback
 DB_ENABLE = True
 
 try:
-	from .database import Jdata as jdb
+    # Attempting execution as a module (launch via launch_gs.cmd)
+    from .database import Jdata as jdb
+except ImportError:
+    # Fallback for direct execution as a script (launch via VSCode)
+    try:
+        from database import Jdata as jdb
+    except Exception as _db_exc:
+        DB_ENABLE = False
+        print(f"[WARN] database import failed: {_db_exc}. Using DB stub.")
+        
+        class _DBStub:
+            @staticmethod
+            def init_db():
+                return \
+                {
+                    "stub": True
+                }
+        
+        jdb = _DBStub
 except Exception as _db_exc:
+    DB_ENABLE = False
+    print(f"[WARN] database import failed: {_db_exc}. Using DB stub.")
+    
+    class _DBStub:
+        @staticmethod
+        def init_db():
+            return \
+            {
+                "stub": True
+            }
+    
+    jdb = _DBStub
 
-	# Setting the database availability flag to False
-	DB_ENABLE = False
-
-	# Printing error message about the database import failure
-	print(f"[WARN] database import failed: {_db_exc}. Using DB stub.")
-
-
-	class _DBStub:
-		@staticmethod
-		def init_db():
-			# Return a non-None object so the application doesn't call sys.exit(1)
-			return {"stub": True}
-
-	jdb = _DBStub
-
-from . import GS_task as gt
+# Fallback for the GS_task module as well
+try:
+    from . import GS_task as gt
+except ImportError:
+    import GS_task as gt
 
 # ========== CONSTANTS AND CONFIGURATION ==========
 
