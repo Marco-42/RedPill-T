@@ -9,8 +9,9 @@ Next:
 - update to new packet structure ✅
 - check packet splitting (split_payload_if_needed) ✅
 - add checking obtions in database initialization ✅
-- check timestamp in data saving(gui) TODO --> maybe is better to save the timestap when the packet is sent
-	(currently the time is saved when the packet is added to the queue)
+- check timestamp in data saving(gui) ✅
+- check the "populate" functions in DB GUI 
+- check if lora ping TEC has to be change to lora pong
 
 Notes: 
 - TX_SOURCES:

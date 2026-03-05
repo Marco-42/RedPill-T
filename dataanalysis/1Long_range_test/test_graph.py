@@ -10,7 +10,7 @@ from scipy.odr import *
 import struct
 import pandas as pd
 
-# settaggio globale grafici
+# Setting plot style
 plt.style.use(hep.style.ROOT)
 params = {'legend.fontsize': '10',
          'legend.loc': 'upper right',

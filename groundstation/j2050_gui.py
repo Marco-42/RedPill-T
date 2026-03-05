@@ -14,7 +14,33 @@ import hmac
 import hashlib
 import traceback
 
-from database import Jdata as jdb
+# DATABASE IMPORT
+# Try to import the database. If it fails, provide a safe
+# fallback stub so the GUI and other features can keep running without DB.
+
+# Defining the flag for database availability
+DB_ENABLE = True
+
+try:
+	from .database import Jdata as jdb
+except Exception as _db_exc:
+
+	# Setting the database availability flag to False
+	DB_ENABLE = False
+
+	# Printing error message about the database import failure
+	print(f"[WARN] database import failed: {_db_exc}. Using DB stub.")
+
+
+	class _DBStub:
+		@staticmethod
+		def init_db():
+			# Return a non-None object so the application doesn't call sys.exit(1)
+			return {"stub": True}
+
+	jdb = _DBStub
+
+from . import GS_task as gt
 
 # ========== CONSTANTS AND CONFIGURATION ==========
 
@@ -24,7 +50,7 @@ RX_TIMEOUT = 5  # seconds to wait for a reply after sending a TEC
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 PACKET_PAYLOAD_MAX = 98  # maximum payload length in bytes
 
-# MAC configuration
+# MAC configuration		
 SECRET_KEY = 0xA1B2C3D4
 
 # Fixed bytes configuration
@@ -222,317 +248,21 @@ def get_task_label(tasks_dict, code):
 
 # ========== PACKET HANDLING FUNCTIONS ==========
 
-# Build the payload based on type index and task name
-def build_payload(tec_code, input_widgets):
-	
-	if tec_code == TEC_OBC_REBOOT:
-		payload = b''
 
-	elif tec_code == TEC_EXIT_STATE:
-		from_state = input_widgets["From state:"].value() & 0x0F
-		to_state = input_widgets["To state:"].value() & 0x0F
-		byte_val = (from_state << 4) | to_state
-		payload = bytes([byte_val])
+# =========== TABLE FUNCTIONS AND DATABASE MANAGEMENT ==========
 
-	elif tec_code == TEC_VAR_CHANGE:
-		address = input_widgets["Address:"].value() & 0xFF
-		value = input_widgets["Value:"].value() & 0xFF
-		payload = bytes([address, value])
-
-	elif tec_code == TEC_SET_TIME:
-		dt_widget = input_widgets["Date and Time:"]
-		qdt = dt_widget.dateTime()  # QDateTime object
-		unix_time = int(qdt.toSecsSinceEpoch())  # convert to UNIX timestamp (int)
-		payload = unix_time.to_bytes(4, byteorder='big')
-	
-	elif tec_code == TEC_EPS_REBOOT:
-		payload = b''
-
-	elif tec_code == TEC_ADCS_REBOOT:
-		payload = b''
-
-	elif tec_code == TEC_ADCS_TLE:
-		tle_data = input_widgets["TLE Data:"].toPlainText().strip()
-		tle_lines = tle_data.splitlines()
-		if len(tle_lines) < 2:
-			raise ValueError("TLE Data must contain two lines")
-
-		tle_line1 = tle_lines[0]
-		tle_line2 = tle_lines[1]
-
-		# Validate TLE lengths
-		if len(tle_line1) != 69 or len(tle_line2) != 69:
-			raise ValueError("TLE lines must be 69 characters long")
-
-		try:
-			epoch_year = int(tle_line1[18:20])
-			epoch_year += 2000 if epoch_year < 57 else 1900
-			epoch_day = float(tle_line1[20:32])
-			mm_dot = float(tle_line1[33:43])
-			mm_ddot = float(f"{tle_line1[44:50].strip()}e{tle_line1[50:52]}")
-			bstar = float(f"{tle_line1[53:59].strip()}e{tle_line1[59:61]}")
-			inclination = float(tle_line2[8:16])
-			raan = float(tle_line2[17:25])
-			eccentricity = float(f"0.{tle_line2[26:33].strip()}")
-			arg_perigee = float(tle_line2[34:42])
-			mean_anomaly = float(tle_line2[43:51])
-			mean_motion = float(tle_line2[52:63])
-			rev_number = int(tle_line2[63:68])
-		except Exception as e:
-			raise ValueError(f"Invalid TLE format: {e}")
-
-		# Pack into 43 bytes, big-endian
-		payload = struct.pack(
-			">HffffffffffI",  # > = big endian
-			epoch_year,
-			epoch_day,
-			mm_dot,
-			mm_ddot,
-			bstar,
-			inclination,
-			raan,
-			eccentricity,
-			arg_perigee,
-			mean_anomaly,
-			mean_motion,
-			rev_number
-		)
-
-	elif tec_code == TEC_LORA_STATE:
-		# TX State (1 byte)
-		tx_state = input_widgets["TX State:"].currentText()
-		if tx_state == "On":
-			tx_state_val = BYTE_TX_ON & 0b1111
-		elif tx_state == "Beacon off":
-			tx_state_val = BYTE_TX_NOBEACON & 0b1111
-		elif tx_state == "Off":
-			tx_state_val = BYTE_TX_OFF & 0b11
-		else:
-			raise ValueError(f"Invalid TX State: {tx_state}")
-		tx_state_byte = (tx_state_val << 4) |  tx_state_val
-
-		# Duration (3 bytes)
-		days = input_widgets["Days:"].value()
-		hours = input_widgets["Hours:"].value()
-		minutes = input_widgets["Minutes:"].value()
-		seconds = input_widgets["Seconds:"].value()
-		duration_total = (days * 86400) + (hours * 3600) + (minutes * 60) + seconds
-		duration_bytes = duration_total.to_bytes(3, 'big')  # 3 bytes
-
-		# Combine all into one payload
-		payload = bytes([tx_state_byte]) + duration_bytes
-
-	elif tec_code == TEC_LORA_CONFIG:
-		frequency_khz = int(input_widgets["Frequency:"].value() * 1000)
-		frequency_bytes = frequency_khz.to_bytes(3, 'big')
-
-		bandwidth = input_widgets["Bandwidth:"].currentText()
-		if bandwidth.endswith(" kHz"):
-			bandwidth = bandwidth[:-4]
-		if bandwidth == "62.5":
-			bandwidth_bits = 0b00
-		elif bandwidth == "125":
-			bandwidth_bits = 0b01
-		elif bandwidth == "250":
-			bandwidth_bits = 0b10
-		elif bandwidth == "500":
-			bandwidth_bits = 0b11
-		else:
-			raise ValueError(f"Invalid bandwidth value: {bandwidth}")
-		
-		sf = input_widgets["SF:"].value()
-		sf_bits = (sf - 6) & 0b111  # SF 6-12 maps to bits 0-6, 3 bits total
-
-		cr = input_widgets["CR:"].value()
-		cr_bits = (cr - 5) & 0b111  # CR 5-8 maps to bits 0-3, 3 bits total
-
-		sf_cr_byte = bytes([(bandwidth_bits << 6) | (sf_bits << 3) | cr_bits])
-
-		power = input_widgets["Power:"].value()
-		power_bits = (power + 9) & 0b11111 # Power -9 to +22 maps to bits 0-31, 5 bits total
-
-		reserved_bits = 0b000
-		power_byte = bytes([(power_bits << 3) | reserved_bits])
-
-		duration = input_widgets["Seconds:"].value()
-		duration_byte = bytes([duration & 0xFF])  # 1 byte for duration
-
-		payload = frequency_bytes + sf_cr_byte + power_byte + duration_byte
-
-	elif tec_code == TEC_LORA_PING:
-		payload = b''
-
-	elif tec_code == TEC_CRY_EXP:
-		# Glass state: Off, Dark, Light (3 bits)
-		glass_state = input_widgets["Glass:"].currentText()
-		if glass_state == "Off":
-			glass_val = 0b000
-		elif glass_state == "Dark":
-			glass_val = 0b001
-		elif glass_state == "Light":
-			glass_val = 0b010
-		else:
-			raise ValueError(f"Invalid Glass state: {glass_state}")
-
-		# Repeat glass_val twice (6 bits total)
-		glass_bits = (glass_val << 3) | glass_val
-
-		activation_time = input_widgets["Activation delay:"].time()
-		activation_secs = (activation_time.hour() * 3600 + activation_time.minute() * 60 + activation_time.second())
-
-		# Combine: 6 bits glass_bits + 18 bits activation_secs
-		glass_and_delay = (glass_bits << 18) | activation_secs
-		glass_and_delay_bytes = glass_and_delay.to_bytes(3, 'big')
-
-		# Photodiode: Yes/No (3 bits for future expansion)
-		photodiode = input_widgets["Photodiode:"].currentText()
-		if photodiode == "No":
-			diode_val = 0b000
-		elif photodiode == "Yes":
-			diode_val = 0b001
-		else:
-			raise ValueError(f"Invalid Photodiode state: {photodiode}")
-
-		# Picture: Yes/No (3 bits for future expansion)
-		picture = input_widgets["Picture:"].currentText()
-		if picture == "No":
-			picture_val = 0b000
-		elif picture == "Yes":
-			picture_val = 0b001
-		else:
-			raise ValueError(f"Invalid Picture state: {picture}")
-
-		# Combine: 3 bits diode + 3 bits picture
-		state_bits = (diode_val << 3) | picture_val
-
-		observation_time = input_widgets["Observation delay:"].time()
-		observation_secs = (observation_time.hour() * 3600 + observation_time.minute() * 60 + observation_time.second())
-
-		# Combine: 6 bits state_bits + 18 bits observation_secs
-		state_and_delay = (state_bits << 18) | observation_secs
-		state_and_delay_bytes = state_and_delay.to_bytes(3, 'big')
-
-		# Final payload: 6 bytes
-		payload = glass_and_delay_bytes + state_and_delay_bytes
-
-	else:
-		payload = b''
-
-	return payload
-
-# Compute HMAC-SHA256 and return first 4 bytes as uint32
-def hmac_mac(key_int, message: bytes) -> int:
-	# Convert 32-bit integer key to bytes
-	key_bytes = key_int.to_bytes(4, byteorder='big')
-
-	# Compute HMAC-SHA256 and return first 4 bytes as uint32
-	mac = hmac.new(key_bytes, message, hashlib.sha256).digest()
-	return int.from_bytes(mac[:4], byteorder='big')
-
-# Build the full packet with header, payload, and ECC(for transmission)
-def build_packet(gs_text, tec_code, payload_bytes, ecc_enabled):
-	# === Byte 0: Station ID ===
-	if gs_text in TX_SOURCES:
-		station = TX_SOURCES[gs_text]
-	else:
-		raise ValueError(f"Invalid Ground Station: {gs_text}")
-
-	# === Byte 1: ECC Flag ===
-	ecc = BYTE_RS_ON if ecc_enabled else BYTE_RS_OFF
-
-	# === Byte 2: TEC
-	tec = tec_code
-
-	# === Byte 3: Payload length ===
-	payload_length = len(payload_bytes)
-	if payload_length > PACKET_PAYLOAD_MAX:
-		raise ValueError(f"Payload too long (max {PACKET_PAYLOAD_MAX} bytes)")
-
-	# === Byte 4-7: UNIX timestamp ===
-	unix_time = int(datetime.now().timestamp())
-	bytes_time = unix_time.to_bytes(4, byteorder='big')
-
-	# === Byte 8-11: MAC ===
-	mac_placeholder = b'\x00\x00\x00\x00'
-	header_partial = bytes([
-		station,
-		ecc,
-		tec,
-		payload_length
-	])
-	packet_placeholder = header_partial + bytes_time + mac_placeholder + payload_bytes
-
-	# Compute MAC over the whole packet
-	mac = hmac_mac(SECRET_KEY, packet_placeholder)
-	bytes_mac = mac.to_bytes(4, byteorder='big')
-
-	# Build final packet
-	return header_partial + bytes_time + bytes_mac + payload_bytes
-
-# Decode a packet from bytes (for reception)
-def decode_packet(packet_bytes):
-	if len(packet_bytes) < PACKET_HEADER_LENGTH:
-		raise ValueError(f"Packet too short to decode: length {len(packet_bytes)} < {PACKET_HEADER_LENGTH}")
-
-	# Byte 0: Station ID (raw int)
-	station_id = packet_bytes[0]
-
-	# Byte 1: ECC Flag (bool)
-	byte_ecc = packet_bytes[1]
-	if byte_ecc == BYTE_RS_ON:
-		ecc_enabled = True
-	elif byte_ecc == BYTE_RS_OFF:
-		ecc_enabled = False
-	else:
-		raise ValueError(f"Invalid ECC flag: 0x{byte_ecc:02X}")
-
-	# Byte 2: TER (raw int)
-	ter = packet_bytes[2]
-
-	# Byte 3: Payload length
-	payload_length = packet_bytes[3]
-
-	# Ensure entire packet is present
-	expected_len = PACKET_HEADER_LENGTH + payload_length
-	if len(packet_bytes) < expected_len:
-		raise ValueError(f"Packet too short for payload: length {len(packet_bytes)} < expected {expected_len}")
-
-	# Bytes 4-7: Timestamp (int)
-	bytes_time = packet_bytes[4:8]
-	timestamp = int.from_bytes(bytes_time, byteorder='big')
-
-	# Bytes 8–11: MAC (int)
-	bytes_mac = packet_bytes[8:12]
-	mac = int.from_bytes(bytes_mac, byteorder='big')
-
-	# Payload: list of ints
-	if payload_length > 0:
-		payload_bytes = list(packet_bytes[12:12 + payload_length])
-	else:
-		payload_bytes = []
-
-	return {
-		"station_id": station_id,
-		"ecc_enabled": ecc_enabled,
-		"ter": ter,
-		"payload_length": payload_length,
-		"mac": mac,
-		"timestamp": timestamp,
-		"payload_bytes": payload_bytes  # always a list of ints
-	}
-
-
-# =========== TABLE FUNCTIONS ==========
-
+# Function to clear the table
 def clear_table(table: QTableWidget):
 	table.setRowCount(0)
 
+# Function to remove a specific row from the table
 def remove_table_row(table: QTableWidget, row_index: int):
 
 	# Remove a specific row of the table if it exists
     if 0 <= row_index < table.rowCount():
         table.removeRow(row_index)
 
+# Function to ask for a comment to insert in the database saved packet
 def ask_for_comment(parent=None, id_in_table = 0):
 
 	# Boolean variable 
@@ -587,6 +317,7 @@ def ask_for_comment(parent=None, id_in_table = 0):
 
 	return comment["text"], white_comment, add_to_all_check
 
+# Function to export the table content to the database
 def export_table_to_db(table: QTableWidget):
 
 	# Checking boolean variable 
@@ -594,8 +325,8 @@ def export_table_to_db(table: QTableWidget):
 	white_comment = False # To check if the comment was insert but it is None
 	add_to_all_check = False # To check if the user wants to add the comment to all the packets
 
-	# TEC table: 2 columns ["TEC", "HEX"]
-	# TER table: 5 columns ["TER", "RSSI", "SNR", "ΔF", "HEX"]
+	# TEC table: 3 columns ["TEC", "TX TIME", "HEX"]
+	# TER table: 6 columns ["TER", "RX TIME", "RSSI", "SNR", "ΔF", "HEX"]
 	# Counting columns number to determine the table type
 	col_count = table.columnCount()
 
@@ -603,40 +334,22 @@ def export_table_to_db(table: QTableWidget):
 	for row in reversed(range(table.rowCount())):
 
 		# TEC table
-		if col_count == 2:
-			tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
-			hex_str = table.item(row, 1).text() if table.item(row, 1) else ""
-			rssi = snr = freq_offset = "0"
-			status = tec_label
+		if col_count == 3:
+			# tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
+			time = table.item(row, 1).text() if table.item(row, 1) else "0"
+			hex_str = table.item(row, 2).text() if table.item(row, 2) else ""
+			rssi = snr = deltaf = None
 
 		# TER table
-		elif col_count == 5:
-			tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
-			rssi = table.item(row, 1).text() if table.item(row, 1) else "0"
-			snr = table.item(row, 2).text() if table.item(row, 2) else "0"
-			freq_offset = table.item(row, 3).text() if table.item(row, 3) else "0"
-			hex_str = table.item(row, 4).text() if table.item(row, 4) else ""
-			status = tec_label
+		elif col_count == 6:
+			# tec_label = table.item(row, 0).text() if table.item(row, 0) else ""
+			time = table.item(row, 1).text() if table.item(row, 1) else "0"
+			rssi = table.item(row, 2).text() if table.item(row, 2) else "0"
+			snr = table.item(row, 3).text() if table.item(row, 3) else "0"
+			deltaf = table.item(row, 4).text() if table.item(row, 4) else "0"
+			hex_str = table.item(row, 5).text() if table.item(row, 5) else ""
 		else:
 			continue  # add here if is made a new table
-
-		# Extract payload bytes from hex string
-		try:
-			packet_bytes = bytes(int(b, 16) for b in hex_str.split())
-		except Exception:
-			packet_bytes = b""
-
-		# Extract the other datas from hex string
-		try:
-			decoded = decode_packet(packet_bytes)
-			ground_station_id = str(decoded.get("station_id", ""))
-			tec = decoded.get("ter", "")
-			mac = str(decoded.get("mac", ""))
-			timestamp = decoded.get("timestamp", "") # To check TODO # Take the timestamp of the packet creation(when it is added to queue)
-		except Exception:
-			ground_station_id = ""
-			tec = ""
-			mac = ""
 		
 		# Asking for comment
 		if add_to_all_check is False:
@@ -662,33 +375,23 @@ def export_table_to_db(table: QTableWidget):
 		# Save the single row in database
 		jdb.save_packet(
 			db_conn,
-			timestamp,
-			ground_station_id,
-			status,
-			mac,
-			packet_bytes,
-			tec,
-			direction="Receiver", # --> TO CHECK(TODO)
-			rssi=rssi,
-			snr=snr,
-			freq_offset=freq_offset,
-			metadata=comment
+			time,
+			hex_str,
+			rssi,
+			snr,
+			deltaf,
+			comment
 		)
 
 	# Clear all the table if the comment insertion wasn't cancelled(to delete all if some rows wasn't delete before)
 	if check_message == False or add_to_all_check == True:
 		clear_table(table)
 
-	# # Database initialization
-	# db_conn = jdb.init_db()
-
-	# # For each row of the table, extract data make a packet and send it to database
-	# for row in range(table.rowCount()):
-	# 	row_data = [table.item(row, col).text() if table.item(row, col) else "" 
-	# 				for col in range(table.columnCount())]
-	# 	print(row_data)  # Replace with actual DB logic later
-
-	# clear_table(table) # clear table after export
+# Function to open the database GUI
+def open_database_GUI():
+	
+	# Open a new window to show the database content
+	jdb.open_database()
 
 # ========== MAIN WINDOW CLASS ==========
 
@@ -728,6 +431,9 @@ class MainWindow(QWidget):
 		self.timeout_timer = QTimer()
 		self.timeout_timer.setInterval(1000)
 		self.timeout_timer.timeout.connect(self.check_tec_timeout)
+
+		# Enable or disable the database buttons if the database class cannot be accessed
+		self.DB_button_enable()
 
 	# Initialize left panel with TEC encoder, configuration, and queue controls
 	def init_left_panel(self):
@@ -780,21 +486,30 @@ class MainWindow(QWidget):
 		self.last_tec_status.setAlignment(Qt.AlignCenter)
 		self.last_tec_status.setStyleSheet("background-color: lightgray; color: black; font-weight: bold; padding: 5px;")
 
+
 		self.last_tec_status_description = QLabel("")
 
 		self.sent_tec_table = QTableWidget()
-		self.sent_tec_table.setColumnCount(2)
-		self.sent_tec_table.setHorizontalHeaderLabels(["TEC", "HEX"])
+		self.sent_tec_table.setColumnCount(3)
+		self.sent_tec_table.setHorizontalHeaderLabels(["TEC", "TX Time", "HEX"])
 		self.sent_tec_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.sent_tec_table.horizontalHeader().setStretchLastSection(True)
-		self.sent_tec_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+		for i in range(2):
+			self.sent_tec_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
+		# Buttons to discard TEC table elements
 		self.clear_sent_button = QPushButton("Discard")
 		self.clear_sent_button.clicked.connect(lambda: clear_table(self.sent_tec_table))
 
+		# Button to export TEC table elements to database
 		self.export_sent_button = QPushButton("Export to DB")
 		self.export_sent_button.clicked.connect(lambda: self.add_to_db("sent"))
 
+		# Set sizes
+		self.clear_sent_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+		self.export_sent_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+		button_height = self.clear_sent_button.sizeHint().height()
 
 		# === Assemble Left Layout ===
 		main_layout = QHBoxLayout()
@@ -860,6 +575,7 @@ class MainWindow(QWidget):
 		self.tabs.addTab(self.create_serial_tab(), "Serial Console")
 		self.tabs.addTab(self.create_received_tab(), "Received Messages")
 		self.tabs.addTab(self.create_settings_tab(), "Settings")
+		self.tabs.addTab(self.create_db_actions_tab(), "DB Actions")
 
 		# Status Messages
 		status_group = QGroupBox("Status Messages")
@@ -947,6 +663,7 @@ class MainWindow(QWidget):
 		ter_content_layout = QVBoxLayout()
 		self.ter_content_display = QTextEdit()
 		self.ter_content_display.setReadOnly(True)
+		self.ter_content_display.setFixedHeight(300)  # imposta altezza fissa solo per la sezione dei dettagli TER
 		ter_content_layout.addWidget(self.ter_content_display)
 		ter_content_group.setLayout(ter_content_layout)
 		received_tab_layout.addWidget(ter_content_group)
@@ -954,11 +671,11 @@ class MainWindow(QWidget):
 		received_ter_group = QGroupBox("Received TERs")
 		received_ter_layout = QVBoxLayout()
 		self.received_ter_table = QTableWidget()
-		self.received_ter_table.setColumnCount(5)
-		self.received_ter_table.setHorizontalHeaderLabels(["TER", "RSSI", "SNR", "ΔF", "HEX"])
+		self.received_ter_table.setColumnCount(6)
+		self.received_ter_table.setHorizontalHeaderLabels(["TER", "RX Time", "RSSI", "SNR", "ΔF", "HEX"])
 		self.received_ter_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
 		self.received_ter_table.horizontalHeader().setStretchLastSection(True)
-		for i in range(4):
+		for i in range(5):
 			self.received_ter_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeToContents)
 		self.received_ter_table.itemSelectionChanged.connect(self.display_selected_ter_content)
 		received_ter_layout.addWidget(self.received_ter_table)
@@ -1033,7 +750,102 @@ class MainWindow(QWidget):
 
 		return settings_tab
 
+	# Create Database Actions tab
+	def create_db_actions_tab(self):
+		db_tab = QWidget()
+		db_tab_layout = QVBoxLayout(db_tab)
+		db_tab_layout.setAlignment(Qt.AlignTop)
 
+		# Tab title
+		db_title_label = QLabel("DATABASE ACTIONS")
+		db_title_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+		db_title_label.setStyleSheet("font-size: 24px; font-weight: bold; margin-top: 10px; margin-bottom: 18px;")
+		db_tab_layout.addWidget(db_title_label)
+
+		# Status row with text and rectangle
+		status_row = QHBoxLayout()
+		status_text = QLabel("Database status")
+		status_text.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+		status_text.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		self.db_status_rect = QLabel()
+		self.db_status_rect.setAlignment(Qt.AlignCenter)
+		self.db_status_rect.setFixedHeight(28)
+		self.db_status_rect.setFixedWidth(90)
+		self.db_status_rect.setStyleSheet("background-color: gray; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+		self.db_error_type = QLabel()
+		self.db_error_type.setAlignment(Qt.AlignVCenter)
+		self.db_error_type.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		status_row.addWidget(status_text)
+		status_row.addWidget(self.db_status_rect)
+		status_row.addWidget(self.db_error_type)
+		status_row.addStretch()
+		db_tab_layout.addLayout(status_row)
+
+		# Database path
+		spacer = QLabel("")
+		spacer.setFixedHeight(15)
+		db_tab_layout.addWidget(spacer)
+		self.db_path_label = QLabel()
+		self.db_path_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+		self.db_path_label.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		db_tab_layout.addWidget(self.db_path_label)
+
+		# Database actions and buttons
+		spacer = QLabel("")
+		spacer.setFixedHeight(15)
+		db_tab_layout.addWidget(spacer)
+		self.action_quote = QLabel("Database actions")
+		self.action_quote.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+		self.action_quote.setStyleSheet("font-size: 14px; font-weight: normal; margin-right: 10px;")
+		db_tab_layout.addWidget(self.action_quote)
+
+		# Open Database button
+		self.open_db_button = QPushButton("Open Database")
+		self.open_db_button.clicked.connect(open_database_GUI)
+		db_tab_layout.addWidget(self.open_db_button)
+
+		# Function to export all tables to an excel file
+		def export_all_tables():
+			try:
+				jdb.export_tables_to_excel(self.db_conn)
+				self.log_status("Database exported successfully")
+			except Exception as e:
+				self.log_status("Export Error", str(e), QMessageBox.Critical)
+
+		# Export Database button
+		self.export_db_button = QPushButton("Export DB to Excel")
+		self.export_db_button.clicked.connect(export_all_tables)
+		db_tab_layout.addWidget(self.export_db_button)
+
+		# Function to set the database status rectangle
+		def set_db_status_rect(available, db_path=None):
+			if available:
+				self.db_status_rect.setText("DB OK")
+				self.db_status_rect.setStyleSheet("background-color: #4caf50; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+				self.db_error_type.setText("DB found and accessible")
+			elif db_conn == "NO_DB":
+				self.db_status_rect.setText("DB ERR")
+				self.db_status_rect.setStyleSheet("background-color: #ffa500; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+				self.db_error_type.setText("No DB detected.")
+			else:
+				self.db_status_rect.setText("DB ERR")
+				self.db_status_rect.setStyleSheet("background-color: #e53935; border-radius: 8px; color: white; font-weight: bold; font-size: 14px;")
+				self.db_error_type.setText("DB module can not be imported.")
+
+			if db_path and DB_ENABLE:
+				self.db_path_label.setText(f"Path: {db_path}")
+			else:
+				self.db_path_label.setText("PATH NOT FOUND")
+
+		# Getting database path and status
+		try:
+			db_path = getattr(jdb, 'DB_PATH', None) if hasattr(jdb, 'DB_PATH') else None
+			set_db_status_rect(DB_ENABLE, db_path)
+		except Exception:
+			set_db_status_rect(DB_ENABLE, None)
+
+		return db_tab
+		
 	# ========== AUTHENTICATION ==========
 
 	# Check the password for the selected ground station
@@ -1139,7 +951,7 @@ class MainWindow(QWidget):
 
 						try:
 							packet_bytes = bytes(int(h, 16) for h in hex_parts)
-							decoded_packet = decode_packet(packet_bytes)
+							decoded_packet = gt.decode_packet(packet_bytes)
 
 							# Show decoded info for debug in status_console
 							self.log_status(f"[INFO] Packet decoded: {decoded_packet}")
@@ -1165,9 +977,9 @@ class MainWindow(QWidget):
 
 							# Update the top row of the received TER table, if it exists
 							if self.received_ter_table.rowCount() > 0:
-								self.received_ter_table.setItem(0, 1, QTableWidgetItem(f"{rssi:.2f}"))
-								self.received_ter_table.setItem(0, 2, QTableWidgetItem(f"{snr:.2f}"))
-								self.received_ter_table.setItem(0, 3, QTableWidgetItem(f"{freq_shift:.2f}"))
+								self.received_ter_table.setItem(0, 2, QTableWidgetItem(f"{rssi:.2f}"))
+								self.received_ter_table.setItem(0, 3, QTableWidgetItem(f"{snr:.2f}"))
+								self.received_ter_table.setItem(0, 4, QTableWidgetItem(f"{freq_shift:.2f}"))
 
 						except (IndexError, ValueError) as e:
 							self.log_status(f"[ERROR] Failed to parse RSSI line: {e}")
@@ -1421,14 +1233,14 @@ class MainWindow(QWidget):
 						break
 
 		try:
-			payload = build_payload(tec_code, input_widgets)
+			payload = gt.build_payload(tec_code, input_widgets)
 		except Exception as e:
 			self.log_status(f"[ERROR] Failed to build payload: {e}")
 			return
 
 		try:
 			ecc_enabled = self.ecc_enable_radio.isChecked()
-			packet_bytes = build_packet(
+			packet_bytes = gt.build_packet(
 			self.gs_selector.currentText(),
 			tec_code,
 			payload,
@@ -1509,10 +1321,14 @@ class MainWindow(QWidget):
 			self.log_status(f"[ERROR] Failed to send TEC {tec_name}: {e}")
 
 		# Log sent TEC to history with "WAITING" status
-		self.sent_tecs.append((tec_name, tec_hex, "WAITING"))
-		self.sent_tec_table.insertRow(0)
-		self.sent_tec_table.setItem(0, 0, QTableWidgetItem(tec_name))
-		self.sent_tec_table.setItem(0, 1, QTableWidgetItem(tec_hex))
+		tx_timestamp = datetime.utcnow()
+		
+		self.sent_tecs.append((tec_name, tx_timestamp, tec_hex, "WAITING"))
+		row = 0
+		self.sent_tec_table.insertRow(row)
+		self.sent_tec_table.setItem(row, 0, QTableWidgetItem(tec_name))
+		self.sent_tec_table.setItem(row, 1, QTableWidgetItem(tx_timestamp.strftime('%Y-%m-%d %H:%M:%S')))
+		self.sent_tec_table.setItem(row, 2, QTableWidgetItem(tec_hex))
 
 		# Remove sent packet from queue
 		self.tec_queue.pop(0)
@@ -1534,6 +1350,7 @@ class MainWindow(QWidget):
 		self.execute_next_tec_button.setEnabled(True)  # re-enable next execution button
 
 		# Extract fields from the decoded packet
+		status = "UNKNOWN"
 		ter = decoded_packet["ter"]
 		payload = decoded_packet["payload_bytes"]
 		
@@ -1593,10 +1410,16 @@ class MainWindow(QWidget):
 		self.set_last_tec_status(status)
 
 		# Add to received TERs table
+		rx_timestamp = datetime.utcnow()
+
 		self.received_ter_table.insertRow(0)
 		self.received_ter_table.setItem(0, 0, QTableWidgetItem(ter_tec_label))
+		self.received_ter_table.setItem(0, 1, QTableWidgetItem(rx_timestamp.strftime('%Y-%m-%d %H:%M:%S')))  # RX Time
+		self.received_ter_table.setItem(0, 2, QTableWidgetItem("N/A"))  # RSSI (to be filled later)
+		self.received_ter_table.setItem(0, 3, QTableWidgetItem("N/A"))  # SNR (to be filled later)
+		self.received_ter_table.setItem(0, 4, QTableWidgetItem("N/A"))  # deltaF (to be filled later)
 		ter_tec_hex = ' '.join(f"{b:02X}" for b in packet_bytes)
-		self.received_ter_table.setItem(0, 4, QTableWidgetItem(ter_tec_hex))
+		self.received_ter_table.setItem(0, 5, QTableWidgetItem(ter_tec_hex))
 
 	# Check if the last TEC sent has timed out
 	def check_tec_timeout(self):
@@ -1613,6 +1436,7 @@ class MainWindow(QWidget):
 
 	# ========== PACKET VISUALIZATION ==========
 
+	# Display the content of the selected TER
 	def display_selected_ter_content(self):
 		self.ter_content_display.clear()
 		selected_items = self.received_ter_table.selectedItems()
@@ -1622,63 +1446,89 @@ class MainWindow(QWidget):
 
 		selected_rows = sorted(set(item.row() for item in selected_items))
 
+		# Selecting html style 
+		html = (
+                "<style>"
+                "table { border-collapse: collapse; width: 100%; }"
+                "td, th { border: 1px solid #bbb; padding: 3px 6px; font-size: 9pt; }"
+                "th { background: #f9f9f9; color: #333; font-weight: bold; }"
+                "tr:nth-child(even) { background: #f5f5f5; }"
+                ".label { width: 100px; text-align: right; color: #555; font-weight: bold; font-size: 9pt; }"
+                ".value { text-align: left; color: #222; font-size: 9pt; }"
+                "</style>"
+                "<table width='100%'>"
+            )
+
 		for row in selected_rows:
 			item_label = self.received_ter_table.item(row, 0)
-			item_hex = self.received_ter_table.item(row, 4)
-
+			item_hex = self.received_ter_table.item(row, 5)
 			ter_hex = item_hex.text() if item_hex else "HEX error"
 			ter_label = item_label.text() if item_label else "TER error"
-			self.ter_content_display.append(f"<b>PACKET > {ter_hex}</b>")
-
-			rssi = self.received_ter_table.item(row, 1)
-			snr = self.received_ter_table.item(row, 2)
-			freq_shift = self.received_ter_table.item(row, 3)
-			if rssi and snr and freq_shift:
-				self.ter_content_display.append(f"RSSI: {rssi.text()} dBm")
-				self.ter_content_display.append(f"SNR: {snr.text()} dB")
-				self.ter_content_display.append(f"Frequency Shift: {freq_shift.text()} Hz")
 
 			try:
 				packet_bytes = [int(byte, 16) for byte in ter_hex.split()]
-				ter_decoded = decode_packet(packet_bytes)
+				ter_decoded = gt.decode_packet(packet_bytes)
+			except Exception as e:
+				self.ter_content_display.append(f"[Error decoding TER: {e}]")
 
-				# Display header information
-				self.ter_content_display.append(f"<b>HEADER > {ter_hex[:PACKET_HEADER_LENGTH * 3]}</b>")
 
-				source_label = next((name for name, code in TX_SOURCES.items() if code == ter_decoded['station_id']), f"Unknown {ter_decoded['station_id']}")
-				self.ter_content_display.append(f"Source: {source_label}")
+			# Adding source and ECC status
+			source_label = next((name for name, code in TX_SOURCES.items() if code == ter_decoded['station_id']), f"Unknown {ter_decoded['station_id']}")
+			ecc_label = "Enabled" if ter_decoded['ecc_enabled'] else "Disabled"
+			html += f'<tr><td class="label" colspan="2">Source</td><td class="value"  colspan="2">{source_label}</td><td class="label" colspan="2">ECC</td><td class="value"  colspan="2">{ecc_label}</td></tr>'
 
-				ecc_label = "Enabled" if ter_decoded['ecc_enabled'] else "Disabled"
-				self.ter_content_display.append(f"ECC: {ecc_label}")
+			# Adding TER and Payload Length
+			html += f'<tr><td class="label" colspan="2">TER</td><td class="value"  colspan="2">{ter_label}</td><td class="label" colspan="2">PL_LEN</td><td class="value"  colspan="2">{ter_decoded["payload_length"]}</td></tr>'
 
-				self.ter_content_display.append(f"TER: {ter_label}")
+			# Adding timestamps
+			rx_timestamp = self.received_ter_table.item(row, 1)
+			tx_timestamp = ter_decoded['timestamp']
 
-				timestamp = ter_decoded['timestamp']
+			if rx_timestamp and rx_timestamp.text():
+				rx_time_label = rx_timestamp.text()
+
 				try:
-					timestamp_label = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+					tx_time_label = datetime.fromtimestamp(tx_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 				except Exception:
-					timestamp_label = str(timestamp)
-				self.ter_content_display.append(f"Timestamp: {timestamp_label}")
+					tx_time_label = str(tx_timestamp)
+			
+				html += f'<tr><td class="label"  colspan="2">GS_time</td><td class="value" colspan="2">{rx_time_label}</td><td class="label"  colspan="2">TX_time</td><td class="value" colspan="2">{tx_time_label}</td></tr>'
 
-				self.ter_content_display.append(f"MAC: {ter_decoded['mac']}")
+			# Adding MAC informations
+			html += f'<tr><td class="label" colspan="2">MAC</td><td class="value" colspan="6">{ter_decoded["mac"]}</td></tr>'
 
-				self.ter_content_display.append(f"Payload Length: {ter_decoded['payload_length']}")
+			# Adding HEX representation
+			html += f'<tr><td class="label" colspan="2">HEX</td><td class="value" colspan="6">{ter_hex}</td></tr>'
+
+			# Adding header informations
+			html += f'<tr><td class="label" colspan="2">HEADER</td><td class="value" colspan="6">{ter_hex[:PACKET_HEADER_LENGTH * 3]}</td></tr>'
+			
+			rssi = self.received_ter_table.item(row, 2)
+			snr = self.received_ter_table.item(row, 3)
+			freq_shift = self.received_ter_table.item(row, 4)
+	
+			if rssi and snr and freq_shift:
+				html += f'<tr><td class="label" colspan="1">RSSI</td><td class="value" colspan="1">{rssi.text()}</td><td class="label" colspan="1">SNR</td><td class="value" colspan="2">{snr.text()}</td><td class="label" colspan="1">DELTAF</td><td class="value" colspan="2">{freq_shift.text()}</td></tr>'
+
+			try:
+				html += f'<tr><td class="label" colspan="8" style="text-align:center;">--- PAYLOAD DECODING ---</td></tr>'
+				packet_bytes = [int(byte, 16) for byte in ter_hex.split()]
+				ter_decoded = gt.decode_packet(packet_bytes)
 
 				# Display payload information
-				self.ter_content_display.append(f"<b>PAYLOAD > {ter_hex[PACKET_HEADER_LENGTH * 3:]}</b>")
+				html += f'<tr><td class="label" colspan="2">PAYLOAD</td><td class="value" colspan="6">{ter_hex[PACKET_HEADER_LENGTH * 3:]}</td></tr>'
 				ter = ter_decoded['ter']
 				payload_bytes = ter_decoded['payload_bytes']
 
+				# Display TER-specific payload decoding
 				if ter == TER_BEACON:
-					self.ter_content_display.append("Type: Beacon")
-					# Optionally decode payload if known
+					html += f'<tr><td class="label" colspan="2">TYPE</td><td class="label" colspan="6">Beacon</td></tr>'
 
 				elif ter == TER_ACK:
 					if payload_bytes:
 						tec_executed = payload_bytes[0]
 						tec_executed_label = get_task_label(TEC_TASKS, tec_executed)
-
-						self.ter_content_display.append(f"TEC executed: {tec_executed_label}")
+						html += f'<tr><td class="label" colspan="2">TEC executed</td><td class="label" colspan="6">{tec_executed_label}</td></tr>'
 
 				elif ter == TER_NACK:
 					if len(payload_bytes) == 2:
@@ -1686,11 +1536,11 @@ class MainWindow(QWidget):
 						error_code = int.from_bytes([payload_bytes[1]], byteorder='big', signed=True)
 						error_msg = PACKET_ERR_DESCRIPTION.get(error_code, f"Unknown error code: {error_code}")
 
-						self.ter_content_display.append(f"TEC not executed: {tec_requested:02X}")
-						self.ter_content_display.append(f"Error: {error_msg}")
+						html += f'<tr><td class="label" colspan="2">TEC not executed</td><td class="label" colspan="6">{tec_requested:02X}</td></tr>'
+						html += f'<tr><td class="label" colspan="2">Error</td><td class="label" colspan="6">{error_msg}</td></tr>'
 
 					else:
-						self.ter_content_display.append("Malformed NACK payload")
+						html += f'<tr><td class="label" colspan="2">Error</td><td class="label" colspan="6">Malformed NACK payload</td></tr>'
 
 				elif ter == TER_LORA_PING:
 					rssi_bytes = bytes(payload_bytes[0:4])
@@ -1700,19 +1550,20 @@ class MainWindow(QWidget):
 					freq_shift_bytes = bytes(payload_bytes[8:12])
 					freq_shift = struct.unpack(">f", freq_shift_bytes)[0]
 
-
-					self.ter_content_display.append(f"RSSI: {rssi:.2f} dBm")
-					self.ter_content_display.append(f"SNR: {snr:.2f} dB")
-					self.ter_content_display.append(f"Frequency Shift: {freq_shift:.2f} Hz")
+					html += f'<tr><td class="label" colspan="1">RSSI</td><td class="value" colspan="1">{rssi:.2f} dBm</td><td class="label" colspan="1">SNR</td><td class="value" colspan="2">{snr:.2f} dB</td><td class="label" colspan="1">DELTAF</td><td class="value" colspan="2">{freq_shift:.2f} Hz</td></tr>'
 
 				else:
-					self.ter_content_display.append("Type: Unknown or not handled")
+					html += f'<tr><td class="label" colspan="2">Type</td><td class="label" colspan="6">Unknown or not handled</td></tr>'
 			except Exception as e:
-				self.ter_content_display.append(f"[Error decoding TER: {e}]")
+				html += f'<tr><td class="label" colspan="2">Error decoding TER</td><td class="label" colspan="6">{e}</td></tr>'
+
+			self.ter_content_display.setHtml(html)
 
 			self.ter_content_display.append("<br>")
 
-	# ============ EXPORT TO DB ============
+	# ============ DB GUI FUNCTION ============
+
+	# Add the current packet to the database
 	def add_to_db(self, type):
 		"""self -  type: type = sent | received"""
 		
@@ -1724,15 +1575,23 @@ class MainWindow(QWidget):
 		elif type == "received":
 			export_table_to_db(self.received_ter_table)
 
+	# Enable or disable the database buttons based on the DB_ENABLE flag
+	def DB_button_enable(self):
+		for btn in [self.export_db_button, self.open_db_button, self.export_sent_button, self.export_received_button]:
+			btn.setEnabled(DB_ENABLE)
+
 if __name__ == "__main__":
 
 	# Database initialization
 	db_conn = jdb.init_db()
 
 	# If the database connection failed, exit the application
+	# If the database connection is valid, but the database is not found, set DB_ENABLE to False
 	if db_conn == None:
 		sys.exit(1)
-	
+	elif db_conn == "NO_DB":
+		DB_ENABLE = False
+
 	app = QApplication(sys.argv)
 	window = MainWindow(db_conn)
 	window.resize(1000, 800)

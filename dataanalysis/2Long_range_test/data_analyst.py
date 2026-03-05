@@ -1,0 +1,560 @@
+# DATA_ANALYST.PY - J2050 TT&C - LONG RANGE TEST DATA ANALYSIS PROGRAM
+# Comment format: LRT_<number>
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from scipy.optimize import curve_fit
+import mplhep as hep
+from cycler import cycler
+import statistics
+from scipy.odr import *
+import struct
+import pandas as pd
+import argparse
+from PIL import Image
+
+from groundstation.database import Jdata as jd
+
+# Setting the plot style
+plt.style.use(hep.style.ROOT)
+params = {'legend.fontsize': '14',
+         'legend.loc': 'upper right',
+          'legend.frameon':       'True',
+          'legend.framealpha':    '0.8',      # legend patch transparency
+          'legend.facecolor':     'w', # inherit from axes.facecolor; or color spec
+          'legend.edgecolor':     'w',      # background patch boundary color
+          'figure.figsize': (6, 4),
+         'axes.labelsize': '24',
+         'figure.titlesize' : '14',
+         'axes.titlesize':'14',
+         'xtick.labelsize':'12',
+         'ytick.labelsize':'12',
+         'lines.linewidth': '1',
+         'text.usetex': False,
+#         'axes.formatter.limits': '-5, -3',
+         'axes.formatter.min_exponent': '2',
+#         'axes.prop_cycle': cycler('color', 'bgrcmyk')
+         'figure.subplot.left':'0.125',
+         'figure.subplot.bottom':'0.125',
+         'figure.subplot.right':'0.925',
+         'figure.subplot.top':'0.925',
+         'figure.subplot.wspace':'0.1',
+         'figure.subplot.hspace':'0.1',
+#         'figure.constrained_layout.use' : True
+          }
+plt.rcParams.update(params)
+plt.rcParams['axes.prop_cycle'] = cycler(color=['b','g','r','c','m','y','k'])
+
+# Angle uncertainty
+Sangle = 10/np.sqrt(24)
+
+# We want to extract all packets related to LRT tests. The comment field contains
+# values come "LRT_<numero>". Escludi "LRTdata".
+pattern = 'LRT_%'
+#pattern = 'LRTel_%' # Use only for elevation tests
+
+#============= FUNCTIONS =============#
+
+# Function to extract data from database
+def extract_from_db():
+    """Function to extract data from database.
+    Extract ID, RSSI, SNR, DELTAF, COMMENT and ANGLE from database."""
+
+    # Database initialization
+    db = jd.init_db()
+
+    # Searching for data inside database
+    cursor = db.cursor()
+
+    # Filter comments starting with LRTsetting
+    # Extract from packets
+    try:
+        cursor.execute("SELECT id, rssi, snr, HEX, deltaf, comment FROM packets WHERE comment LIKE ? ORDER BY GS_time", (pattern,))
+    except Exception as e:
+        print(f"Error occurred while fetching data: {e}")
+        return [], [], [], [], [], []
+
+    rows = cursor.fetchall()
+
+    # Data vectors definition (initialize lists used later in the script)
+    ID = []
+    RSSI = []
+    SNR = []
+    COMMENT = []
+    ANGLE = []
+    DELTAF = []
+
+    # Fill vectors with data
+    for pkt_id, rssi, snr, payload, deltaf, comment in rows:
+        if comment.startswith('LRT_'):
+        #if comment.startswith('LRTel_'): # Use only for elevation tests
+            ID.append(pkt_id)
+            RSSI.append(rssi)
+            SNR.append(snr)
+            COMMENT.append(comment)
+            DELTAF.append(deltaf)
+
+    # Extracting angle from comment
+    for com in COMMENT:
+        # Comment format: LRT_<number>
+        if(com.split('_')[0] == 'LRT'):
+        #if(com.split('_')[0] == 'LRTel'):  # Use only for elevation tests
+            angle_str = com.split('_')[1]  # Get the part after the underscore
+            angle_value = float(angle_str)  # Convert to float
+            ANGLE.append(angle_value)
+
+    # Extract from lora pong
+    # Extract only packets from ID list
+    #try:
+    #     if ID:
+    #         id_tuple = tuple(ID)
+    #         query = f"SELECT id, rssi, snr, deltaf FROM LORA_PONG WHERE id IN {id_tuple} ORDER BY GS_time"
+    #         cursor.execute(query)
+    #     else:
+    #         cursor.execute("SELECT id, rssi, snr, deltaf FROM LORA_PONG WHERE comment LIKE ? ORDER BY GS_time", (pattern,))
+    # except Exception as e:
+    #     print(f"Error occurred while fetching data: {e}")
+    #     return [], [], [], []
+    
+    return ID, RSSI, SNR, DELTAF, COMMENT, ANGLE
+
+def extract_from_db_lora_pong(ids_to_extract):
+    """Function to extract data from LORA_PONG database.
+    Extract ID, RSSI, SNR, DELTAF from LORA_PONG database."""
+
+    # Database initialization
+    db = jd.init_db()
+
+    # Searching for data inside database
+    cursor = db.cursor()
+
+
+    # extract only data with specific ids
+    if not ids_to_extract:
+        return [], [], [], []
+    
+    # Build the query with placeholders
+    placeholders = ','.join(['?'] * len(ids_to_extract))
+    query = f"SELECT id, rssi, snr, deltaf FROM LORA_PONG WHERE id IN ({placeholders}) ORDER BY id"
+    try:
+        cursor.execute(query, ids_to_extract)
+    except Exception as e:
+        print(f"Error occurred while fetching data: {e}")
+        return [], [], [], []
+
+    rows = cursor.fetchall()
+
+    # Data vectors definition (initialize lists used later in the script)
+    ID_out = []
+    RSSI = []
+    SNR = []
+    DELTAF = []
+
+    # Fill vectors with data
+    for pkt_id, rssi, snr, deltaf in rows:
+        ID_out.append(pkt_id)
+        RSSI.append(rssi)
+        SNR.append(snr)
+        DELTAF.append(deltaf)
+
+    return ID_out, RSSI, SNR, DELTAF
+
+# Function to compute the mean RSSI for each unique angle
+def get_RSSI_mean(unique_angles, RSSI, ANGLE):
+    """Function to compute the mean RSSI for each unique angle.
+    input: unique_angles - RSSI - ANGLE
+    output: unique_angles_sorted - RSSI_mean_sorted - RSSI_std_sorted
+    """
+
+    RSSI_mean = []
+    RSSI_std = []
+
+    # Computing the mean of RSSI for each unique angle
+    for ang in unique_angles:
+        # Getting RSSI value corresponding to the specific angle
+        rssi_values = [rssi for rssi, a in zip(RSSI, ANGLE) if a == ang]
+        # Saving the mean RSSI value for the specific angle
+        RSSI_mean.append(np.mean(rssi_values))
+        RSSI_std.append(statistics.stdev(rssi_values))
+
+    # Sorting the RSSI means and angles based on increasing angle
+    sorted_pairs = sorted(zip(unique_angles, RSSI_mean, RSSI_std))
+    if not sorted_pairs:
+        return np.array([]), np.array([]), np.array([])
+    unique_angles_sorted, RSSI_mean_sorted, RSSI_std_sorted = zip(*sorted_pairs)
+    unique_angles_sorted_list = list(unique_angles_sorted)
+    RSSI_mean_sorted_list = list(RSSI_mean_sorted)
+    RSSI_std_sorted_list = list(RSSI_std_sorted)
+
+    return np.array(unique_angles_sorted_list), np.array(RSSI_mean_sorted_list), np.array(RSSI_std_sorted_list)
+
+# Function to compute the mean SNR for each unique angle
+def get_SNR_mean(unique_angles, SNR, ANGLE):
+    """Function to compute the mean SNR for each unique angle.
+    input: unique_angles - SNR - ANGLE
+    output: unique_angles_sorted - SNR_mean_sorted - SNR_std_sorted
+    """
+
+    SNR_mean = []
+    SNR_std = []
+    
+    # Computing the mean of SNR for each unique angle
+    for ang in unique_angles:
+        # Getting SNR value corresponding to the specific angle
+        snr_values = [snr for snr, a in zip(SNR, ANGLE) if a == ang]
+        # Saving the mean SNR value for the specific angle
+        SNR_mean.append(np.mean(snr_values))
+        SNR_std.append(statistics.stdev(snr_values))
+
+        if SNR_std[-1] > 3:
+            print(ang)
+            print(snr_values)
+            print(" ------ ")
+
+    # Sorting the SNR means and angles based on increasing angle
+    sorted_pairs = sorted(zip(unique_angles, SNR_mean, SNR_std))
+    if not sorted_pairs:
+        return np.array([]), np.array([]), np.array([])
+    unique_angles_sorted, SNR_mean_sorted, SNR_std_sorted = zip(*sorted_pairs)
+    unique_angles_sorted_list = list(unique_angles_sorted)
+    SNR_mean_sorted_list = list(SNR_mean_sorted)
+    SNR_std_sorted_list = list(SNR_std_sorted)
+    return np.array(unique_angles_sorted_list), np.array(SNR_mean_sorted_list), np.array(SNR_std_sorted_list)
+
+# Function to compute the mean DELTAF for each unique angle
+def get_DELTAF_mean(unique_angles, DELTAF, ANGLE):
+    """Function to compute the mean DELTAF for each unique angle.
+    input: unique_angles - DELTAF - ANGLE
+    output: unique_angles_sorted - DELTAF_mean_sorted - DELTAF_std_sorted
+    """
+
+    DELTAF_mean = []
+    DELTAF_std = []
+
+    # Computing the mean of DELTAF for each unique angle
+    for ang in unique_angles:
+        # Getting DELTAF value corresponding to the specific angle
+        deltaf_values = [deltaf for deltaf, a in zip(DELTAF, ANGLE) if a == ang]
+        # Saving the mean DELTAF value for the specific angle
+        DELTAF_mean.append(np.mean(deltaf_values))
+        DELTAF_std.append(statistics.stdev(deltaf_values))
+
+    # Sorting the DELTAF means and angles based on increasing angle
+    sorted_pairs = sorted(zip(unique_angles, DELTAF_mean, DELTAF_std))
+    if not sorted_pairs:
+        return np.array([]), np.array([]), np.array([])
+    unique_angles_sorted, DELTAF_mean_sorted, DELTAF_std_sorted = zip(*sorted_pairs)
+    unique_angles_sorted_list = list(unique_angles_sorted)
+    DELTAF_mean_sorted_list = list(DELTAF_mean_sorted)
+    DELTAF_std_sorted_list = list(DELTAF_std_sorted)
+    return np.array(unique_angles_sorted_list), np.array(DELTAF_mean_sorted_list), np.array(DELTAF_std_sorted_list)
+
+# Function definition - Parabolic function
+def fitf(par, x):
+    """par[0]*x^2 + par[1]*x + par[2]"""
+    return par[0]*x**2 + par[1]*x + par[2]
+
+# ============= MAIN CODE ===========================
+
+# ============= DATA EXTRACTION SECTION =============
+
+# Extracting data from database
+ID, RSSI, SNR, DELTAF, COMMENT, ANGLE = extract_from_db()
+
+# Extracting data from lora pong
+ID_lora, RSSI_lora, SNR_lora, DELTAF_lora = extract_from_db_lora_pong(ID)
+
+# Not extract data with specific IDs
+ids_to_remove = {193, 194, 203, 115, 309, 287, 174, 187, 268, 242, 345, 340, 335, 327, 330, 322}
+#ids_to_remove = {193, 194, 203, 115}
+filtered = [(i, r, s, d, c, a) for i, r, s, d, c, a in zip(ID, RSSI, SNR, DELTAF, COMMENT, ANGLE) if i not in ids_to_remove]
+filtered_lora = [(i, r, s, d) for i, r, s, d in zip(ID_lora, RSSI_lora, SNR_lora, DELTAF_lora) if i not in ids_to_remove]
+if filtered and filtered_lora:
+    ID, RSSI, SNR, DELTAF, COMMENT, ANGLE = map(list, zip(*filtered))
+    ID_lora, RSSI_lora, SNR_lora, DELTAF_lora = map(list, zip(*filtered_lora))
+else:
+    ID, RSSI, SNR, DELTAF, COMMENT, ANGLE = [], [], [], [], [], []
+    ID_lora, RSSI_lora, SNR_lora, DELTAF_lora = [], [], [], []
+
+# Printing data
+# print("DATA EXTRACTED FROM DB:")
+# print("ID \t ANGLE \t RSSI \t SNR")
+# for i in range (len(ID)):
+#     print(ID[i], ANGLE[i], RSSI[i], SNR[i])
+
+# Computing the values mean and std for each unique angle from GS
+angle, rssi_mean, rssi_std = get_RSSI_mean(set(ANGLE), RSSI, ANGLE)
+angle, snr_mean, snr_std = get_SNR_mean(set(ANGLE), SNR, ANGLE)
+angle, deltaf_mean, deltaf_std = get_DELTAF_mean(set(ANGLE), DELTAF, ANGLE)
+
+# Computing the values mean and std for each unique angle from LORA PONG
+angle_lora, rssi_lora_mean, rssi_lora_std = get_RSSI_mean(set(ANGLE), RSSI_lora, ANGLE)
+angle_lora, snr_lora_mean, snr_lora_std = get_SNR_mean(set(ANGLE), SNR_lora, ANGLE)
+angle_lora, deltaf_lora_mean, deltaf_lora_std = get_DELTAF_mean(set(ANGLE), DELTAF_lora, ANGLE)
+
+# Computing differences
+RSSI_diff = rssi_mean - rssi_lora_mean
+RSSI_diff_std = np.sqrt(rssi_std**2 + rssi_lora_std**2)
+SNR_diff = snr_mean - snr_lora_mean
+SNR_diff_std = np.sqrt(snr_std**2 + snr_lora_std**2)
+DELTAF_sum = deltaf_mean + deltaf_lora_mean
+DELTAF_sum_std = np.sqrt(deltaf_std**2 + deltaf_lora_std**2)
+
+# Computing weighted mean DELTAF sum
+weights = 1 / (DELTAF_sum_std ** 2)
+DELTAF_sum_weighted_mean = np.sum(DELTAF_sum * weights) / np.sum(weights)
+DELTAF_sum_weighted_std = np.sqrt(1 / np.sum(weights))
+
+print(" ")
+print("Weighted Mean DELTAF Sum: ", DELTAF_sum_weighted_mean, " +- ", DELTAF_sum_weighted_std)
+
+# Printing max RSSI ans SNR values
+print(" ")
+print("MAX RSSI GS: ", max(rssi_mean), " at angle ", angle[np.argmax(rssi_mean)])
+print("MAX RSSI PICO: ", max(rssi_lora_mean), " at angle ", angle_lora[np.argmax(rssi_lora_mean)])
+print("MAX SNR GS: ", max(snr_mean), " at angle ", angle[np.argmax(snr_mean)])
+print("MAX SNR PICO: ", max(snr_lora_mean), " at angle ", angle_lora[np.argmax(snr_lora_mean)])
+
+# Computing RSSI LOSS
+# find max RSSI value and its std for GS
+if len(rssi_mean) > 0:
+    idx_max = int(np.argmax(rssi_mean))
+    max_rssi = rssi_mean[idx_max]
+    max_rssi_std = rssi_std[idx_max]
+else:
+    max_rssi = 0
+    max_rssi_std = 0
+
+# find max RSSI value and its std for PICO (LORA)
+if len(rssi_lora_mean) > 0:
+    idx_max_lora = int(np.argmax(rssi_lora_mean))
+    max_rssi_lora = rssi_lora_mean[idx_max_lora]
+    max_rssi_lora_std = rssi_lora_std[idx_max_lora]
+else:
+    max_rssi_lora = 0
+    max_rssi_lora_std = 0
+
+# Uncomment to use RSSI at 0 degrees as reference
+# for i in range(len(angle)):
+#     if angle[i] == 0:
+#         max_rssi = rssi_mean[i]
+#         max_rssi_std = rssi_std[i]
+#         max_rssi_lora = rssi_lora_mean[i]
+#         max_rssi_lora_std = rssi_lora_std[i]
+#         print(f"RSSI GS 0: {rssi_mean[i]:.1f} +- {rssi_std[i]:.1f}")
+#         print(f"RSSI PICO 0: {rssi_lora_mean[i]:.1f} +- {rssi_lora_std[i]:.1f}")
+#         print(f"SNR GS 0: {snr_mean[i]:.1f} +- {snr_std[i]:.1f}")
+#         print(f"SNR PICO 0: {snr_lora_mean[i]:.1f} +- {snr_lora_std[i]:.1f}")
+        
+# compute losses and propagate uncertainties
+RSSI_loss = rssi_mean - max_rssi
+RSSI_loss_std = np.sqrt(rssi_std**2 + max_rssi_std**2)
+RSSI_lora_loss = rssi_lora_mean - max_rssi_lora
+RSSI_lora_loss_std = np.sqrt(rssi_lora_std**2 + max_rssi_lora_std**2)
+RSSI_loss_diff = RSSI_loss - RSSI_lora_loss
+RSSI_loss_diff_std = np.sqrt(RSSI_loss_std**2 + RSSI_lora_loss_std**2)
+
+# ============= RSSI FITTING AND ZERO ANGLE CALCULATION =============
+
+# Filter angles for fitting: only -10, 0, -20, -30
+fit_angles = [0, -10, -20, -30, 10]
+fit_mask = [a in fit_angles for a in angle]
+angle_fit = angle[fit_mask]
+rssi_mean_fit = rssi_mean[fit_mask]
+rssi_std_fit = rssi_std[fit_mask]
+
+# Fitting RSSI means with a parabolic function (filtered)
+function_model = Model(fitf)
+graph_data = RealData(angle_fit, rssi_mean_fit, sx=Sangle, sy=rssi_std_fit)
+odr = ODR(graph_data, function_model, beta0=[-1, 0, max(rssi_mean_fit)])
+out = odr.run()
+params = out.beta
+params_err = out.sd_beta
+chi = out.sum_square
+zero_angle = [-params[1]/(2*params[0]), np.sqrt(pow(params_err[1]/(2*params[0]), 2) + pow(params[1]*params_err[0]/(2*params[0]**2), 2))]
+print("Parabolic fitting (filtered angles): ")
+print("Max value: ", params[2], " +- ", params_err[2])
+print("Zero angle founded: ", zero_angle[0], "+-", zero_angle[1])
+
+# ============= PLOTTING SECTION =============
+
+# Plotting RSSI mean points
+fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+fig.suptitle("RSSI DATA", fontsize=14, fontweight = 2)
+ax.errorbar(angle,rssi_mean,xerr = Sangle, yerr = rssi_std, fmt='o', label=r'RSSI data [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax.errorbar(angle, rssi_lora_mean, xerr = Sangle, yerr = rssi_lora_std, fmt='o', label=r'RSSI data [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+#ax.errorbar(np.linspace(min(angle_fit), max(angle_fit), 100), fitf(params, np.linspace(min(angle_fit), max(angle_fit), 100)), yerr=None, fmt='-', label='Parabolic Fit [GS]', color='darkred', zorder=3, lw=1.5)
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.set_ylabel(r'$RSSI \, [dbm]$', size = 13)
+ax.set_xlabel(r'Angle', size = 13)
+ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].errorbar(angle, RSSI_diff, yerr=RSSI_diff_std, fmt='o', ms=3, color='darkorange', zorder=3, lw=1.5)
+# ax[1].legend([r'RSSI Difference [GS - PICO]'], prop={'size': 11}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].set_ylabel(r'$RSSI \, [dbm]$', size = 11)
+# ax[1].set_xlabel(r'Inclination', size = 11)
+# ax[1].axvline(x=-15, color='gray', linestyle='--', linewidth=1.5)
+# ax[1].set_ylim([-5, 10])
+ax.set_ylim([-122, -93])
+plt.savefig('./dataanalysis/2Long_range_test/RSSI_mean'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+# Plotting SNR mean points
+fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+fig.suptitle("SNR DATA", fontsize=14, fontweight = 2)
+ax.errorbar(angle,snr_mean,xerr = Sangle, yerr = snr_std, fmt='o', label=r'SNR data [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax.errorbar(angle_lora, snr_lora_mean, xerr = Sangle, yerr = snr_lora_std, fmt='o', label=r'SNR data [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.set_ylabel(r'$SNR \, [db]$', size = 13)
+ax.set_xlabel(r'Angle', size = 13)
+ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].errorbar(angle, SNR_diff, yerr=SNR_diff_std, fmt='o', ms=3, color='darkorange', zorder=3, lw=1.5)
+# ax[1].legend([r'SNR Difference [GS - PICO]'], prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].set_ylabel(r'$SNR \, (db)$', size = 13)
+# ax[1].set_xlabel(r'Inclination', size = 13)
+# ax[1].axvline(x=-15, color='gray', linestyle='--', linewidth=1.5)
+ax.set_ylim([-8, 26])
+#ax[1].set_ylim([-15, 13])
+plt.savefig('./dataanalysis/2Long_range_test/SNR_mean'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+# Plotting DELTAF mean points
+fig, ax = plt.subplots(1, 1 , figsize=(6, 6),sharex=True)
+fig.suptitle("DELTAF DATA", fontsize=14, fontweight = 2)
+ax.errorbar(angle,deltaf_mean,xerr = Sangle, yerr = deltaf_std, fmt='o', label=r'ΔF data [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax.errorbar(angle_lora, deltaf_lora_mean, xerr = Sangle, yerr = deltaf_lora_std, fmt='o', label=r'ΔF data [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.errorbar(angle, DELTAF_sum, xerr = Sangle, yerr = DELTAF_sum_std, fmt='o', label=r'ΔF Sum',ms=3,color='darkorange', zorder = 3, lw = 1.5)
+#ax.text(-85, 500, rf'$\bar{{\Delta F}}$: {DELTAF_sum_weighted_mean:.0f} ± {DELTAF_sum_weighted_std:.0f} Hz', fontsize=13)
+ax.set_ylabel(r'$\Delta F \, [Hz]$', size = 13)
+ax.set_xlabel(r'Angle', size = 13)
+ax.legend(prop={'size': 13}, loc='upper left', frameon=False).set_zorder(2)
+ax.set_ylim([-2000, 2500])
+
+plt.savefig('./dataanalysis/2Long_range_test/DELTAF_mean'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+# Plotting RSSI LOSS without horizon profile
+# Plotting RSSI LOSS
+fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+fig.suptitle("RSSI LOSS DATA", fontsize=14, fontweight = 2)
+ax.errorbar(angle,RSSI_loss,xerr = Sangle, yerr = RSSI_loss_std, fmt='o', label=r'RSSI loss [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax.errorbar(angle, RSSI_lora_loss, xerr = Sangle, yerr = RSSI_lora_loss_std, fmt='o', label=r'RSSI loss [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax.axhline(y = 0, color = 'darkorange', linestyle = '--', linewidth=1.5, label = 'No Loss Reference')
+ax.set_ylabel(r'$\Delta \, RSSI \, [dbm]$', size = 13)
+ax.set_xlabel(r'Angle', size = 13)
+ax.legend(prop={'size': 13}, loc='lower left', frameon=False).set_zorder(2)
+# ax[1].errorbar(angle, RSSI_loss_diff, yerr=RSSI_loss_diff_std, fmt='o', ms=3, color='darkorange', zorder=3, lw=1.5)
+# ax[1].legend([r'RSSI loss Difference [GS - PICO]'], prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].set_ylabel(r'$RSSI \, [dbm]$', size = 13)
+# ax[1].set_xlabel(r'Inclination', size = 13)
+# ax[1].axvline(x=-15, color='gray', linestyle='--', linewidth=1.5)
+# ax[1].set_ylim([-6, 9.2])
+ax.set_ylim([-24, 8])
+
+plt.savefig('./dataanalysis/2Long_range_test/RSSI_loss'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+# Plotting RSSI LOSS with horizon profile
+fig, ax = plt.subplots(2, 1, figsize=(6, 6),sharex=True, height_ratios=[2, 1])
+fig.suptitle("RSSI LOSS DATA", fontsize=14, fontweight = 2)
+ax[0].errorbar(angle,RSSI_loss,xerr = Sangle, yerr = RSSI_loss_std, fmt='o', label=r'RSSI loss [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax[0].errorbar(angle, RSSI_lora_loss, xerr = Sangle, yerr = RSSI_lora_loss_std, fmt='o', label=r'RSSI loss [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+ax[0].axvline(x=0, color='gray', linestyle='--', linewidth=1.5, label = 'Reference Angle')
+ax[0].set_ylabel(r'$\Delta \, RSSI \, [dbm]$', size = 13)
+ax[1].set_xlabel(r'Angle', size = 13)
+ax[0].legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].errorbar(angle, RSSI_loss_diff, yerr=RSSI_loss_diff_std, fmt='o', ms=3, color='darkorange', zorder=3, lw=1.5)
+# ax[1].legend([r'RSSI loss Difference [GS - PICO]'], prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+# ax[1].set_ylabel(r'$RSSI \, [dbm]$', size = 13)
+# ax[1].set_xlabel(r'Inclination', size = 13)
+# ax[1].axvline(x=-15, color='gray', linestyle='--', linewidth=1.5)
+# ax[1].set_ylim([-6, 9.2])
+ax[0].set_ylim([-24, 8])
+img = Image.open("./dataanalysis/2Long_range_test/background.PNG")
+ax[1].imshow(img, extent=[-90, 90, RSSI_loss[0], RSSI_loss[-1]], aspect='auto')
+ax[1].set_yticks([])
+ax[1].set_ylabel('Horizon Profile', size=13)
+ax[1].set_xlim([-100, 100])
+plt.savefig('./dataanalysis/2Long_range_test/RSSI_loss_HP'+'.png',
+            pad_inches = 1,
+            transparent = True,
+            facecolor ="w",
+            edgecolor ='w',
+            orientation ='Portrait',
+            dpi = 100)
+
+# Plotting std of RSSI
+fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+fig.suptitle("RSSI STD DATA", fontsize=14, fontweight = 2)
+ax.errorbar(angle,rssi_std,xerr = Sangle, fmt='o', label=r'RSSI std [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax.errorbar(angle_lora, rssi_lora_std, xerr = Sangle, fmt='o', label=r'RSSI std [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.set_ylabel(r'$RSSI \, std \, [dbm]$', size = 13)
+ax.set_xlabel(r'Angle', size = 13)
+ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+
+# Plotting std of SNR
+fig, ax = plt.subplots(1, 1, figsize=(6, 6),sharex=True)
+fig.suptitle("SNR STD DATA", fontsize=14, fontweight = 2)
+ax.errorbar(angle,snr_std,xerr = Sangle, fmt='o', label=r'SNR std [GS]',ms=3,color='firebrick', zorder = 2, lw = 1.5)
+ax.errorbar(angle_lora, snr_lora_std, xerr = Sangle, fmt='o', label=r'SNR std [PICO]',ms=3,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.set_ylabel(r'$SNR \, std \, [db]$', size = 13)
+ax.set_xlabel(r'Angle', size = 13)  
+ax.legend(prop={'size': 13}, loc='upper right', frameon=False).set_zorder(2)
+ax.set_ylim([0, 11])
+ax.axhline(y=5.5, color='dimgray', linestyle='--', linewidth=1.5)
+ax.text(40, 6, 'Outliers', fontsize=13, color='black')
+
+
+# ============= POLAR PLOTTING =============
+fig, ax = plt.subplots(1, 1, figsize=(6, 6), subplot_kw={'projection': 'polar'}, layout='constrained')
+
+fig.suptitle("RSSI LOSS POLAR PLOT", fontsize=14, fontweight=2, y=0.92)
+# ax.errorbar(np.radians(angle), RSSI_loss, xerr = np.radians(Sangle), yerr = rssi_std, fmt='o', label=r'RSSI data [GS]',ms=5,color='firebrick', zorder = 2, lw = 1.5)
+# ax.errorbar(np.radians(angle), RSSI_lora_loss, xerr = np.radians(Sangle), yerr = rssi_lora_std, fmt='o', label=r'RSSI data [PICO]',ms=5,color='dodgerblue', zorder = 1, lw = 1.5)
+ax.plot(np.radians(angle), RSSI_loss, 'o', label=r'RSSI loss [GS]', lw = 2,  ms=5, color='firebrick', zorder=2)
+ax.plot(np.radians(angle), RSSI_lora_loss, 'o', label=r'RSSI loss [PICO]', lw = 2,  ms=5, color='dodgerblue', zorder=1)
+from scipy.interpolate import interp1d
+
+# RSSI loss curbic interpolation for smoother lines
+angles_dense = np.linspace(min(angle), max(angle), 300)
+f_rssi = interp1d(angle, RSSI_loss, kind='cubic')
+RSSI_loss_smooth = f_rssi(angles_dense)
+f_rssi_lora = interp1d(angle, RSSI_lora_loss, kind='cubic')
+RSSI_lora_loss_smooth = f_rssi_lora(angles_dense)
+
+# Plotting smooth lines
+ax.plot(np.radians(angles_dense), RSSI_loss_smooth, '-', lw=1.5, alpha = 0.3, color='firebrick', zorder=2)
+ax.plot(np.radians(angles_dense), RSSI_lora_loss_smooth, '-', lw=1.5,  alpha = 0.3, color='dodgerblue', zorder=1)
+
+ax.set_theta_zero_location('N') # 0 degrees at the top
+ax.set_thetalim(-np.radians(-110),np.radians(-110)) # limit angle from -110 to 100
+
+# Setting tics position in the graph
+ax.tick_params(axis='y', pad=5, labelsize=10)  # pad in punti
+
+label_position = ax.get_rlabel_position()
+ax.text(np.radians(120), ax.get_rmax()/3., r'$\Delta \, RSSI \, [dbm]$', rotation=label_position, ha='center', va='center', fontsize=12)
+ax.legend(prop={'size': 13}, loc='lower right', frameon=False).set_zorder(2)
+plt.show()
