@@ -6,5 +6,6 @@
     },
     "python.analysis.extraPaths": [
         "./Ground station/database"
-    ]
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

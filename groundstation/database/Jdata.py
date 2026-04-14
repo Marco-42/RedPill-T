@@ -5,16 +5,15 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt, QDate
 import os
-import pandas as pd
+import struct
 
-# Tasks for packet management
 try:
     # Attempting execution as a module
-    from . import GS_task as gt
+    from .. import GS_task as gt
 except ImportError:
     try:
         # Fallback if GroundStation is recognized in the path
-        from GroundStation import GS_task as gt
+        from groundstation import GS_task as gt
     except ImportError:
         # Fallback for direct execution as a script
         import GS_task as gt
@@ -26,13 +25,11 @@ DB_PATH = os.path.join(BASE_DIR, "SatelliteDB.db")
 # PACKET CONSTANTS
 PACKET_HEADER_LENGTH = 12 # 4 bytes for header + 4 bytes for MAC + 4 bytes for timestamp
 BYTE_RS_ON = 0xAA
+import pandas as pd
 BYTE_RS_OFF = 0x55
 
-# TER VALUES
-TER_BEACON = 0x30 # telemetry beacon reply
-TER_ACK = 0x31 # ACK reply
-TER_NACK = 0x32 # NACK reply
-TER_LORA_PONG = 0x33 # LoRa pong state reply
+# Connection flag
+connection = None
 
 # ============ DATABASE INITIALIZATION ============
 
@@ -65,6 +62,7 @@ def database_initialization(path=DB_PATH):
         )
     ''')
     
+    # TER TABLE DEFINITION
     # LORA_PONG table definition
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS LORA_PONG (
@@ -266,84 +264,65 @@ def try_again_function(parent, path=DB_PATH):
 def manual_access_function(parent):
     """Function to manually access the database by insering the path"""
 
-    # Open a dialog to input the database path
-    dialog = QDialog(parent)
-    dialog.setWindowTitle("Manual Access")
+    # When the button is clicked, open file dialog
+    def open_file_dialog():
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        file_path, _ = QFileDialog.getOpenFileName(parent, "Select Database File", "", "Database Files (*.db);;All Files (*)", options=options)
+        return file_path
 
-    dialog.setStyleSheet("""
-        QDialog {
-            background-color: #f5f5f5;
-        }
-        QLabel {
-            color: #d35400;
-            font-size: 13pt;
-            font-weight: bold;
-            padding: 10px;
-        }
-        QLineEdit {
-            background-color: #fff;
-            color: #333;
-            border: 1px solid #bbb;
-            padding: 6px;
-            font-size: 11pt;
-        }
-        QPushButton {
-            background-color: #f39c12;
-            color: #333;
-            border: none;
-            padding: 8px 24px;
-            font-size: 11pt;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 0 10px;
-        }
-        QPushButton:hover {
-            background-color: #e67e22;
-        }
-    """)
-
-    # Asking to insert the database path
-    layout = QVBoxLayout()
-    label = QLabel("Insert the database path:")
-    layout.addWidget(label)
-
-    text_input = QLineEdit()
-    layout.addWidget(text_input)
-
-    # Two buttons to confirm or exit
-    button_layout = QHBoxLayout()
-    btn_cancel = QPushButton("EXIT")
-    btn_ok = QPushButton("OK")
-
-    # Setting the button as default
-    btn_ok.setDefault(True) 
-
-    button_layout.addWidget(btn_cancel)
-    button_layout.addWidget(btn_ok)
-    layout.addLayout(button_layout)
-
-    dialog.setLayout(layout)
-
-    # If the text is inserted
+    # If the path is selected try to connect verifying the compatibility of the database, 
+    # otherwise show an error message
     def on_ok():
-
-        # Global variable
         global connection
-        global DB_PATH 
+        global DB_PATH
+        
+        # Search for the database compatibility, checking if the required table are present
+        def is_db_compatible(db_path):
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
 
-        user_text = text_input.text()
+                # Check if the "packets" table requests exists
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='packets'")
+                if not cursor.fetchone():
+                    conn.close()
+                    return False
+                
+                # Check if the "packets" table has the required columns
+                cursor.execute("PRAGMA table_info(packets)")
+                columns = [row[1] for row in cursor.fetchall()]
+                required_cols = ["id", "GS_time", "HEX", "source", "ecc", "tec_ter", "pl_length", "TX_time", "mac", "rssi", "snr", "deltaf", "comment"]
+                if not all(col in columns for col in required_cols):
+                    conn.close()
+                    return False
+                
+                conn.close()
+                return True
+            except Exception:
+                return False
+
+        # Return an error message if the compatibility fail or the DB does not exist
+        # Open a dialog to show the error message
+        dialog = QDialog(parent)
+        
+        
+        if not file_path or not os.path.exists(file_path):
+            QMessageBox.critical(dialog, "Error", "File not found.")
+            return
+        if not is_db_compatible(file_path):
+            QMessageBox.critical(dialog, "Error", "Database not compatible with the required packet structure.")
+            return
         if connection == None:
-            connection = init_db(user_text)
-            DB_PATH = user_text  # Update the global DB_PATH variable
+            connection = init_db(file_path)
+            DB_PATH = file_path  # Update the global DB_PATH variable
             parent.close()
         else:
-            connection == None
+            connection = None
         dialog.accept()
 
-    btn_ok.clicked.connect(on_ok)
-    btn_cancel.clicked.connect(dialog.reject)
-
-    dialog.exec_()
+    file_path = open_file_dialog()
+    on_ok()
 
 def run_anyway_function(parent):
     """Function to run the application anyway without a database connection."""
@@ -396,8 +375,9 @@ def save_packet(conn, GS_time, HEX_str, rssi_str, snr_str, deltaf_str, comment =
     packet_id = cursor.lastrowid
 
     # Saving the specific packet data
+    # SAVING TER DATA 
     # Saving data from TER LORA PONG
-    if ter_tec == TER_LORA_PONG:
+    if ter_tec == gt.TER_LORA_PONG:
         data = gt.extract_lora_pong(payload_bytes)
 
         # Insert data in the LORA_PONG table
@@ -407,7 +387,7 @@ def save_packet(conn, GS_time, HEX_str, rssi_str, snr_str, deltaf_str, comment =
         ''', (packet_id, data['rssi'], data['snr'], data['deltaf']))
 
     # Saving data from NACK
-    elif ter_tec == TER_NACK:
+    elif ter_tec == gt.TER_NACK:
         data = gt.extract_nack(payload_bytes)
 
         # Insert data in the ACK table
@@ -417,7 +397,7 @@ def save_packet(conn, GS_time, HEX_str, rssi_str, snr_str, deltaf_str, comment =
         ''', (packet_id, data['task_ID'], data['error_code']))
     
     # Saving data from ACK
-    elif ter_tec == TER_ACK:
+    elif ter_tec == gt.TER_ACK:
         data = gt.extract_ack(payload_bytes)
 
         # Insert data in the ACK table
@@ -884,6 +864,8 @@ def open_database():
 
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
+
+            # CHECK TER
 
             # Check LORA_PONG
             cursor.execute("SELECT rssi, snr, deltaf FROM LORA_PONG WHERE id = ?", (pkt_id,))
